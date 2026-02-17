@@ -1,8 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import LogoutButton from "./components/LogoutButton"
-import RevenueChart from "./components/charts/RevenueChart"
+import LogoutButton from "../login/LogoutButton"
 
 export default async function DashboardLayout({
   children,
@@ -16,14 +15,13 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="relative h-screen bg-gray-100 overflow-hidden">
+    <div className="relative h-screen overflow-hidden bg-linear-to-br from-slate-50 via-indigo-50 to-purple-50">
       {/* Blue background full width at the top */}
-      <div className="absolute top-0 left-0 w-full h-72 bg-linear-to-r from-[#5e72e4] via-[#6f7fe8] to-[#825ee4] z-0" />
-
+      <div className="absolute top-0 left-0 w-full h-72 bg-linear-to-r from-indigo-600 via-violet-600 to-purple-600 z-0 blur-[0.5px]" />
       <div className="flex h-full relative z-10">
         {/* Sidebar */}
         <aside
-          className="w-72 bg-white flex flex-col justify-between py-8 px-7 shadow-2xl rounded-3xl border border-gray-200 transition-all duration-500 ease-in-out lg:w-64 md:w-60 sm:w-full sm:mx-0 sm:mt-4 sm:mb-4 sm:rounded-2xl overflow-y-auto"
+          className="w-72 bg-white flex flex-col justify-between py-8 px-7 shadow-2xl rounded-3xl border border-gray-200 transition-all duration-500 ease-in-out lg:w-64 md:w-60 sm:w-full sm:mx-0 sm:mt-4 sm:mb-4 sm:rounded-2xl overflow-y-auto custom-scroll"
           style={{
             height: '92vh',
             animation: 'sidebarFadeIn 0.7s',
@@ -100,80 +98,7 @@ export default async function DashboardLayout({
           </div>
         </aside>
 
-        <main className="flex-1 transition-all duration-500 ease-in-out px-2 md:px-6 lg:px-8 overflow-y-auto">
-          
-          {/* Blue header section */}
-          <div className="w-full px-6 pt-8 pb-14 flex flex-col gap-6 relative overflow-visible">
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-white text-base font-semibold mb-1">/ Pages / Default</div>
-                <div className="text-2xl font-bold text-white drop-shadow">Default</div>
-              </div>
-              <div className="flex items-center gap-4">
-                <input
-                  type="text"
-                  placeholder="Type here..."
-                  className="px-4 py-2 rounded-lg border-none outline-none bg-white text-gray-700 shadow"
-                />
-                <span className="text-white font-medium">Sign In</span>
-              </div>
-            </div>
-
-            {/* Cards row */}
-            <div className="grid grid-cols-4 gap-4 mt-2">
-              <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="bg-indigo-100 p-2 rounded-full text-indigo-600 text-xl">💰</span>
-                  <span className="text-xs font-semibold text-gray-500">TODAY'S MONEY</span>
-                </div>
-                <div className="text-xl font-bold text-gray-800">Rp 12.500.000</div>
-                <div className="text-green-500 font-semibold text-sm mt-1">
-                  +55% <span className="text-gray-500 font-normal">since yesterday</span>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="bg-indigo-100 p-2 rounded-full text-indigo-600 text-xl">👤</span>
-                  <span className="text-xs font-semibold text-gray-500">TODAY'S USERS</span>
-                </div>
-                <div className="text-xl font-bold text-gray-800">2,300</div>
-                <div className="text-green-500 font-semibold text-sm mt-1">
-                  +3% <span className="text-gray-500 font-normal">since last week</span>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="bg-red-100 p-2 rounded-full text-red-600 text-xl">🆕</span>
-                  <span className="text-xs font-semibold text-gray-500">NEW CLIENTS</span>
-                </div>
-                <div className="text-xl font-bold text-gray-800">+3,462</div>
-                <div className="text-red-500 font-semibold text-sm mt-1">
-                  -2% <span className="text-gray-500 font-normal">since last quarter</span>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="bg-orange-100 p-2 rounded-full text-orange-600 text-xl">🛒</span>
-                  <span className="text-xs font-semibold text-gray-500">SALES</span>
-                </div>
-                <div className="text-xl font-bold text-gray-800">Rp 103.430</div>
-                <div className="text-green-500 font-semibold text-sm mt-1">
-                  +5% <span className="text-gray-500 font-normal">than last month</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Revenue Chart */}
-          <div className="px-6 mb-6">
-            <RevenueChart />
-          </div>
-
-          {/* Main content */}
+        <main className="flex-1 transition-all duration-500 ease-in-out px-2 md:px-6 lg:px-8 overflow-y-auto custom-scroll">
           <div className="max-w-6xl mx-auto p-6">
             {children}
           </div>

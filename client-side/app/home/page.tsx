@@ -13,9 +13,9 @@ import {
   Sparkles
 } from "lucide-react";
 import { motion } from "framer-motion";
-import StatCard from "../(dashboard)/components/StatCard"
+import StatCard from "../(dashboard)/components/StatCard";
 import { HeartPulse, ShoppingCart, ListOrdered, AlertCircle } from "lucide-react";
-import RevenueChart from "../(dashboard)/components/charts/RevenueChart"
+import RevenueChart from "../(dashboard)/components/charts/RevenueChart";
 
 function HomePage() {
   const router = useRouter();

@@ -35,9 +35,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-yellow-100 via-orange-100 to-pink-100 px-4 py-8">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-yellow-100 via-orange-100 to-pink-100 px-4 py-8">
       <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center">
-        <span className="bg-gradient-to-br from-yellow-200 to-orange-200 p-3 rounded-full mb-2 shadow">
+        <span className="bg-linear-to-br from-yellow-200 to-orange-200 p-3 rounded-full mb-2 shadow">
           <UserPlus size={32} className="text-orange-600" />
         </span>
         <h1 className="text-3xl font-extrabold text-center mb-2 text-orange-600 tracking-tight">Buat Akun Baru</h1>
@@ -105,7 +105,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 mt-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-lg shadow hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full py-2 mt-2 rounded-lg bg-linear-to-r from-blue-500 to-indigo-500 text-white font-bold text-lg shadow hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             {loading ? "Mendaftar..." : "Daftar"}
           </button>

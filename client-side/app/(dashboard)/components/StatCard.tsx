@@ -1,3 +1,4 @@
+"use client";
 import { ReactNode } from "react";
 import { Tooltip } from "react-tooltip";
 import AnimatedNumber from "./AnimatedNumber";
