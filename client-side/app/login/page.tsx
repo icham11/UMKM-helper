@@ -20,9 +20,10 @@ export default function LoginPage() {
           Platform cerdas untuk membantu UMKM berkembang lebih mudah dan efisien.
         </p>
 
+
         <button
           onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
-          className="flex items-center justify-center gap-3 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg shadow hover:bg-gray-50 transition mb-4"
+          className="flex items-center justify-center gap-3 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg shadow hover:bg-gray-50 transition mb-2"
         >
           {/* Google Icon */}
           <svg
@@ -43,8 +44,15 @@ export default function LoginPage() {
               </clipPath>
             </defs>
           </svg>
-
           <span>Masuk dengan Google</span>
+        </button>
+
+        {/* Tombol ke halaman register */}
+        <button
+          onClick={() => window.location.href = "/register"}
+          className="w-full py-2 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 text-white font-bold text-base shadow hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
+        >
+          Belum punya akun? Daftar di sini
         </button>
 
         <div className="text-xs text-gray-400 mt-2 text-center">
