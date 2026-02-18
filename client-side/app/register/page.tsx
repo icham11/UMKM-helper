@@ -27,11 +27,28 @@ export default function RegisterPage() {
       return;
     }
     setLoading(true);
-    // TODO: Ganti dengan logic register API
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text);
+      }
       router.push("/login");
-    }, 1200);
+    } catch (err: any) {
+      setError(err.message || "Registrasi gagal");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
