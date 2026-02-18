@@ -1,19 +1,27 @@
-type Props = {
-  label: string
-  active?: boolean
+"use client";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ReactNode } from "react";
+
+interface SidebarItemProps {
+  href: string;
+  icon: ReactNode;
+  label: string;
 }
 
-export default function SidebarItem({ label, active }: Props) {
+export default function SidebarItem({ href, icon, label }: SidebarItemProps) {
+  const pathname = usePathname();
+  const isActive = pathname === href;
   return (
-    <div
-      className={`flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition ${
-        active
-          ? "bg-indigo-100 text-indigo-600 font-semibold"
-          : "hover:bg-gray-100 text-gray-600"
-      }`}
-    >
-      <div className="w-4 h-4 bg-gray-400 rounded-sm"></div>
-      <span>{label}</span>
-    </div>
-  )
+    <Link href={href} legacyBehavior>
+      <a
+        className={`flex items-center gap-3 px-4 py-2 rounded-lg font-medium transition-colors duration-200 hover:bg-blue-100/60 hover:text-blue-700 ${
+          isActive ? "bg-blue-200/80 text-blue-800" : "text-gray-600"
+        }`}
+      >
+        <span className="text-xl">{icon}</span>
+        <span>{label}</span>
+      </a>
+    </Link>
+  );
 }

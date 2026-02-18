@@ -1,0 +1,102 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { imagekit } from '@/lib/imagekit';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/**
+ * Cleanup expired images from ImageKit
+ * This endpoint can be called by a cron job
+ */
+export async function POST(request: NextRequest) {
+  try {
+    // Verify cron secret for security
+    const authHeader = request.headers.get('authorization');
+    const cronSecret = process.env.CRON_SECRET || 'development-secret';
+
+    if (authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const now = Date.now();
+    const deletedFiles: string[] = [];
+    const errors: string[] = [];
+
+    // List all files with 'temp' tag
+    const files = await imagekit.listFiles({
+      tags: 'temp',
+      limit: 1000,
+    });
+
+    console.log(`Found ${files.length} temporary files to check`);
+
+    // Check each file for expiry
+    for (const item of files) {
+      try {
+        // Skip folders, only process files
+        if (!('fileId' in item)) continue;
+
+        const file = item as any;
+
+        // Check if file has expiry tag
+        const expiryTag = file.tags?.find((tag: string) => tag.startsWith('expire:'));
+
+        if (expiryTag) {
+          const expiryTime = parseInt(expiryTag.split(':')[1]);
+
+          // If expired, delete it
+          if (now > expiryTime) {
+            await imagekit.deleteFile(file.fileId);
+            deletedFiles.push(file.fileId);
+            console.log(`Deleted expired file: ${file.fileId} (${file.name})`);
+          }
+        }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const fileId = 'fileId' in item ? (item as any).fileId : 'unknown';
+        errors.push(`Failed to process ${fileId}: ${errorMessage}`);
+        console.error(`Error processing file ${fileId}:`, error);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: 'Cleanup completed',
+      deleted: deletedFiles.length,
+      errors: errors.length,
+      deletedFiles,
+      errorDetails: errors,
+    });
+  } catch (error) {
+    console.error('Cleanup error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return NextResponse.json(
+      {
+        error: 'Failed to cleanup images',
+        details: errorMessage,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+// GET endpoint for manual trigger (development only)
+export async function GET(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  const cronSecret = process.env.CRON_SECRET || 'development-secret';
+
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Use POST with Bearer token' },
+      { status: 401 }
+    );
+  }
+
+  // Call POST internally
+  return POST(request);
+}
+
+
