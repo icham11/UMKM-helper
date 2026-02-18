@@ -2,6 +2,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import LogoutButton from "../login/LogoutButton"
+import { BusinessProvider } from "@/context/BusinessContext"
 
 export default async function DashboardLayout({
   children,
@@ -100,7 +101,9 @@ export default async function DashboardLayout({
 
         <main className="flex-1 transition-all duration-500 ease-in-out px-2 md:px-6 lg:px-8 overflow-y-auto custom-scroll">
           <div className="max-w-6xl mx-auto p-6">
-            {children}
+            <BusinessProvider>
+              {children}
+            </BusinessProvider>
           </div>
         </main>
       </div>
