@@ -10,6 +10,9 @@ export const authOptions: AuthOptions = {
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
+  pages: {
+    signIn: "/login",
+  },
   callbacks: {
     async signIn({ user }) {
       // Find or create user in Prisma DB on every sign-in
@@ -38,6 +41,12 @@ export const authOptions: AuthOptions = {
         }
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      // After sign in, redirect to dashboard
+      if (url.startsWith(baseUrl)) return url;
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      return `${baseUrl}/dashboard`;
     },
   },
 };

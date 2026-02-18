@@ -1,4 +1,6 @@
-
+import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 // Supabase uses self-signed certs; allow them in development
 if (process.env.NODE_ENV === "development") {

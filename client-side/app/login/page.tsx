@@ -1,16 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { signIn, useSession } from "next-auth/react"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { data: session, status } = useSession()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+
+  // Redirect to dashboard if already authenticated
+  useEffect(() => {
+    if (status === "authenticated") {
+      router.push("/dashboard")
+    }
+  }, [status, router])
 
   const handleEmailLogin = async () => {
     setError("")
@@ -103,7 +111,7 @@ export default function LoginPage() {
 
         {/* Google Login */}
         <button
-          onClick={() => signIn("google")}
+          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
           className="flex items-center justify-center gap-3 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg shadow hover:bg-gray-50 transition mb-4"
         >
           <svg
