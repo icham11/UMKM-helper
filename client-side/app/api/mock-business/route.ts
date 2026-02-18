@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server"
+import { cookies } from "next/headers"
 
 export async function GET() {
-  // ubah ini untuk testing
-  const hasBusiness = true
+  const cookieStore = cookies()
+  const business = (await cookieStore).get("mock_business")
 
-  if (!hasBusiness) {
+  if (!business) {
     return new NextResponse("No business", { status: 404 })
   }
 
-  return NextResponse.json({
-    id: "biz_123",
-    name: "Warung Halim",
-  })
+  return NextResponse.json(JSON.parse(business.value))
 }

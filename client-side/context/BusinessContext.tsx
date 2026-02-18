@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { getCurrentBusiness } from "@/lib/api/business"
 
 type Business = {
   id: string
@@ -22,24 +23,22 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
 
   const fetchBusiness = async () => {
-    try {
-      // nanti ganti ke real API
-      const res = await fetch("/api/mock-business")
+  try {
+    const data = await getCurrentBusiness()
 
-      if (res.status === 404) {
-        setBusiness(null)
-        router.push("/onboarding")
-        return
-      }
-
-      const data = await res.json()
-      setBusiness(data)
-    } catch (error) {
-      console.error("Failed to fetch business:", error)
-    } finally {
-      setLoading(false)
+    if (!data) {
+      setBusiness(null)
+      router.push("/onboarding")
+      return
     }
+
+    setBusiness(data)
+  } catch (error) {
+    console.error("Failed to fetch business:", error)
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => {
     fetchBusiness()
