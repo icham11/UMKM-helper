@@ -1,5 +1,6 @@
 "use client"
 
+import { SessionProvider } from "next-auth/react"
 import { BusinessProvider } from "./BusinessContext"
 
 export default function AppProviders({
@@ -8,8 +9,10 @@ export default function AppProviders({
   children: React.ReactNode
 }) {
   return (
-    <BusinessProvider>
-      {children}
-    </BusinessProvider>
+    <SessionProvider>
+      <BusinessProvider>
+        {children}
+      </BusinessProvider>
+    </SessionProvider>
   )
 }
