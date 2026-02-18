@@ -2,6 +2,7 @@ import { cookies } from "next/headers"
 import { verifyToken } from "@/lib/auth/jwt"
 import { redirect } from "next/navigation"
 import { BusinessProvider } from "@/context/BusinessContext"
+import LogoutButton from "@/components/LogoutButton"
 
 export default async function DashboardLayout({
   children,
@@ -88,15 +89,7 @@ export default async function DashboardLayout({
             <p className="text-xs text-gray-500 font-semibold mb-1">
               Logged In
             </p>
-            <button
-              onClick={() => {
-                document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
-                window.location.href = "/login"
-              }}
-              className="mt-2 text-red-500 text-sm font-semibold"
-            >
-              Logout
-            </button>
+            <LogoutButton />
           </div>
         </aside>
 

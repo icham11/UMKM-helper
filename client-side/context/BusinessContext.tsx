@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState } from "react"
+import { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { getCurrentBusiness } from "@/lib/api/business"
 
@@ -22,27 +22,27 @@ export function BusinessProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  const fetchBusiness = async () => {
-  try {
-    const data = await getCurrentBusiness()
+  const fetchBusiness = useCallback(async () => {
+    try {
+      const data = await getCurrentBusiness()
 
-    if (!data) {
-      setBusiness(null)
-      router.push("/onboarding")
-      return
+      if (!data) {
+        setBusiness(null)
+        router.push("/onboarding")
+        return
+      }
+
+      setBusiness(data)
+    } catch (error) {
+      console.error("Failed to fetch business:", error)
+    } finally {
+      setLoading(false)
     }
-
-    setBusiness(data)
-  } catch (error) {
-    console.error("Failed to fetch business:", error)
-  } finally {
-    setLoading(false)
-  }
-}
+  }, [router])
 
   useEffect(() => {
     fetchBusiness()
-  }, [])
+  }, [fetchBusiness])
 
   return (
     <BusinessContext.Provider
