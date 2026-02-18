@@ -6,7 +6,9 @@ export default function LogoutButton() {
   const router = useRouter()
 
   const handleLogout = () => {
-    document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
+    // Delete cookie with all security flags to ensure proper cleanup
+    const secureFlag = window.location.protocol === "https:" ? " secure;" : ""
+    document.cookie = `token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC; sameSite=lax;${secureFlag}`
     router.push("/login")
   }
 
