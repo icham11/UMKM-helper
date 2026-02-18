@@ -1,46 +1,31 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { Plus } from "lucide-react";
-
-type Ingredient = {
-  id: number;
-  name: string;
-  unit: string;
-  stock: number;
-  minStock: number;
-  costPerUnit: number;
-};
-
-const dummyIngredients: Ingredient[] = [
-  {
-    id: 1,
-    name: "Tepung Terigu",
-    unit: "kg",
-    stock: 10,
-    minStock: 5,
-    costPerUnit: 12000,
-  },
-  {
-    id: 2,
-    name: "Gula Pasir",
-    unit: "kg",
-    stock: 3,
-    minStock: 5,
-    costPerUnit: 14000,
-  },
-  {
-    id: 3,
-    name: "Mentega",
-    unit: "kg",
-    stock: 8,
-    minStock: 4,
-    costPerUnit: 28000,
-  },
-];
+import { useEffect, useState } from "react"
+import { Plus } from "lucide-react"
+import { getIngredients, type Ingredient } from "../../../lib/api/ingredients"
 
 export default function IngredientsPage() {
-  const [ingredients] = useState(dummyIngredients);
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const data = await getIngredients()
+        setIngredients(data)
+      } catch (error) {
+        console.error("Failed to fetch ingredients:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="p-6">Loading ingredients...</div>
+  }
 
   return (
     <div className="min-h-screen bg-linear-to-br py-8 px-2 md:px-4">

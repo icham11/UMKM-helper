@@ -2,19 +2,39 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { createBusiness } from "@/lib/api/business"
+import { useBusiness } from "@/context/BusinessContext"
 
 export default function OnboardingPage() {
   const router = useRouter()
   const [businessName, setBusinessName] = useState("")
   const [location, setLocation] = useState("")
+  const { refreshBusiness } = useBusiness()
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!businessName || !location) {
       alert("Please fill all fields")
       return
     }
 
-    router.push("/dashboard")
+    try {
+      setLoading(true)
+
+      await createBusiness({
+        name: businessName,
+        location,
+      })
+
+      await refreshBusiness()
+
+      router.push("/dashboard")
+    } catch (error) {
+      console.error(error)
+      alert("Failed to create business")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
