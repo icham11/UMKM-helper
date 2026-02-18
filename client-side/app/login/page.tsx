@@ -1,13 +1,53 @@
 "use client"
 
-
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
-import LogoutButton from "./LogoutButton"
 
 export default function LoginPage() {
+  const router = useRouter()
+
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+
+  const handleEmailLogin = async () => {
+    setError("")
+
+    if (!email || !password) {
+      setError("Email dan password wajib diisi")
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text)
+      }
+
+      router.push("/dashboard")
+    } catch (err: any) {
+      setError(err.message || "Login gagal")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-yellow-100 via-orange-100 to-pink-100">
       <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center">
+
         <img
           src="/globe.svg"
           alt="UMKM Helper Logo"
@@ -18,16 +58,54 @@ export default function LoginPage() {
           Selamat Datang di UMKM Helper
         </h1>
 
-        <p className="text-center text-gray-500 mb-8 text-sm">
+        <p className="text-center text-gray-500 mb-6 text-sm">
           Platform cerdas untuk membantu UMKM berkembang lebih mudah dan efisien.
         </p>
 
+        {/* Error message */}
+        {error && (
+          <div className="w-full mb-4 text-sm text-red-600 bg-red-100 p-2 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Email Login Form */}
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="w-full border border-gray-300 p-3 rounded-lg mb-3 focus:outline-none focus:ring-2 focus:ring-orange-200 transition"
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="w-full border border-gray-300 p-3 rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-orange-200 transition"
+        />
 
         <button
-          onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
-          className="flex items-center justify-center gap-3 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg shadow hover:bg-gray-50 transition mb-2"
+          onClick={handleEmailLogin}
+          disabled={loading}
+          className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 rounded-lg transition mb-4"
         >
-          {/* Google Icon */}
+          {loading ? "Logging in..." : "Login dengan Email"}
+        </button>
+
+        {/* Divider */}
+        <div className="w-full flex items-center gap-3 mb-4">
+          <div className="flex-1 h-px bg-gray-300" />
+          <span className="text-xs text-gray-400">atau</span>
+          <div className="flex-1 h-px bg-gray-300" />
+        </div>
+
+        {/* Google Login */}
+        <button
+          onClick={() => signIn("google")}
+          className="flex items-center justify-center gap-3 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg shadow hover:bg-gray-50 transition mb-4"
+        >
           <svg
             className="w-6 h-6"
             viewBox="0 0 48 48"
@@ -49,15 +127,14 @@ export default function LoginPage() {
           <span>Masuk dengan Google</span>
         </button>
 
-        {/* Tombol ke halaman register */}
+        {/* Register Link */}
         <button
-          onClick={() => window.location.href = "/register"}
+          onClick={() => router.push("/register")}
           className="w-full py-2 rounded-lg bg-linear-to-r from-blue-500 to-indigo-500 text-white font-bold text-base shadow hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-4"
         >
           Belum punya akun? Daftar di sini
         </button>
 
-        <LogoutButton />
         <div className="text-xs text-gray-400 mt-2 text-center">
           &copy; {new Date().getFullYear()} UMKM Helper. All rights reserved.
         </div>
