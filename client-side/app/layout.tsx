@@ -2,6 +2,11 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
+// Initialize auto-cleanup scheduler for ImageKit
+if (typeof window === 'undefined') {
+  import('@/lib/cleanup-scheduler');
+}
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
