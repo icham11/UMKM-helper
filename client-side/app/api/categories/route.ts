@@ -5,7 +5,21 @@ import { createCategorySchema } from "@/lib/validations/product";
 
 export const runtime = "nodejs";
 
-// GET /api/categories — list all categories for the business
+/**
+ * GET /api/categories
+ *
+ * Success (200):
+ *   {
+ *     "success": true,
+ *     "data": [
+ *       { "id": 1, "name": "Minuman", "businessId": 1, "_count": { "products": 4 } }
+ *     ]
+ *   }
+ *
+ * Errors:
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to fetch categories" }
+ */
 export async function GET() {
   try {
     const { businessId } = await requireAuth();
@@ -31,7 +45,23 @@ export async function GET() {
   }
 }
 
-// POST /api/categories — create a new category (or return existing)
+/**
+ * POST /api/categories
+ *
+ * Input (JSON):
+ *   { "name": "Makanan" }
+ *
+ * Success (201 if created, 200 if existing):
+ *   {
+ *     "success": true,
+ *     "data": { "id": 2, "name": "Makanan", "businessId": 1 }
+ *   }
+ *
+ * Errors:
+ *   400 — { "error": "Validation failed", "details": { "name": ["..."] } }
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to create category" }
+ */
 export async function POST(request: NextRequest) {
   try {
     const { businessId } = await requireAuth();

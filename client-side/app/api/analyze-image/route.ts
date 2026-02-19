@@ -5,6 +5,29 @@ import { analyzeBusinessData } from "@/lib/groq";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/analyze-image
+ *
+ * Input: FormData with:
+ *   - file (required): image file
+ *   - prompt (optional): custom analysis prompt
+ *   - analysisType (optional): "invoice" | "receipt" | "stock" | "product" | general
+ *
+ * Success (200):
+ *   {
+ *     "success": true,
+ *     "imageUrl": "https://ik.imagekit.io/...",
+ *     "thumbnailUrl": "https://ik.imagekit.io/.../tr:w-200",
+ *     "fileId": "abc123",
+ *     "analysis": "This invoice shows a total of Rp 500,000...",
+ *     "analysisType": "invoice",
+ *     "expiryInfo": { "expiresIn": "1 minute", "message": "..." }
+ *   }
+ *
+ * Errors:
+ *   400 — { "error": "No file provided" }
+ *   500 — { "error": "...", "details": "..." }
+ */
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -95,7 +118,12 @@ ${prompt || ""}`;
   }
 }
 
-// GET endpoint to check API status
+/**
+ * GET /api/analyze-image
+ *
+ * Success (200):
+ *   { "status": "ok", "message": "Image analysis API is ready", "supportedTypes": [...] }
+ */
 export async function GET() {
   return NextResponse.json({
     status: "ok",
