@@ -1,55 +1,40 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { cookies } from "next/headers"
+import { verifyToken } from "@/lib/auth/jwt"
 
-export interface AuthenticatedContext {
-  userId: number;
-  businessId: number;
-}
+export class AuthError extends Error {}
 
-/** Custom error thrown by requireAuth when user is not authenticated. */
-export class AuthError extends Error {
-  readonly status = 401;
-  constructor(message = "Unauthorized") {
-    super(message);
-    this.name = "AuthError";
-  }
-}
-
-/** Type guard to check if an error is an AuthError. */
 export function isAuthError(error: unknown): error is AuthError {
-  return error instanceof AuthError;
+  return error instanceof AuthError
 }
 
-/**
- * Get the authenticated user's ID and their (first) business ID.
- * Returns null if not authenticated or no business exists.
- */
-export async function getAuthContext(): Promise<AuthenticatedContext | null> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export async function requireAuth() {
+  // 1️⃣ Try NextAuth session
+  const session = await getServerSession(authOptions)
+  let userId = session?.user?.id
 
-  const userId = session.user.id;
+  // 2️⃣ If no session → check JWT cookie
+  if (!userId) {
+    const cookieStore = await cookies()   // ✅ WAJIB await
+    const token = cookieStore.get("token")?.value
 
-  const business = await prisma.business.findFirst({
-    where: { userId },
-    select: { id: true },
-    orderBy: { createdAt: "asc" },
-  });
+    if (token) {
+      const decoded = verifyToken(token)
 
-  if (!business) return null;
-
-  return { userId, businessId: business.id };
-}
-
-/**
- * Require auth context or throw a structured error object
- * that route handlers can use directly.
- */
-export async function requireAuth(): Promise<AuthenticatedContext> {
-  const ctx = await getAuthContext();
-  if (!ctx) {
-    throw new AuthError();
+      if (
+        decoded &&
+        typeof decoded === "object" &&
+        "userId" in decoded
+      ) {
+        userId = (decoded as { userId: string | number }).userId
+      }
+    }
   }
-  return ctx;
+
+  if (!userId) {
+    throw new AuthError("Unauthorized")
+  }
+
+  return { userId }
 }
