@@ -13,29 +13,30 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async () => {
-    if (!businessName || !location) {
-      alert("Please fill all fields")
-      return
-    }
-
-    try {
-      setLoading(true)
-
-      await createBusiness({
-        name: businessName,
-        location,
-      })
-
-      await refreshBusiness()
-
-      router.push("/dashboard")
-    } catch (error) {
-      console.error(error)
-      alert("Failed to create business")
-    } finally {
-      setLoading(false)
-    }
+  if (!businessName || !location) {
+    alert("Please fill all fields")
+    return
   }
+
+  try {
+    setLoading(true)
+
+    await createBusiness({
+      name: businessName,
+      location,
+    })
+
+    await refreshBusiness()
+
+    router.push("/home")
+
+  } catch (error) {
+    console.error(error)
+    alert("Failed to create business")
+  } finally {
+    setLoading(false)
+  }
+}
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-yellow-100 via-orange-100 to-pink-100">

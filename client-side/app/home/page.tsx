@@ -12,13 +12,16 @@ import {
   TrendingDown,
   Sparkles
 } from "lucide-react";
+
 import { motion } from "framer-motion";
 import StatCard from "../(dashboard)/components/StatCard";
 import { HeartPulse, ShoppingCart, ListOrdered, AlertCircle } from "lucide-react";
 import RevenueChart from "../(dashboard)/components/charts/RevenueChart";
+import { useBusiness } from "@/context/BusinessContext";
 
 function HomePage() {
   const router = useRouter();
+  const { business, loading } = useBusiness();
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-100 via-indigo-100 to-blue-200 px-2 py-6 md:px-8 md:py-10 space-y-10 relative overflow-x-hidden">
       {/* Background Pattern */}
@@ -36,7 +39,7 @@ function HomePage() {
       <motion.section initial={{opacity:0, y:-30}} animate={{opacity:1, y:0}} transition={{duration:0.7}} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
         <div className="mb-4 md:mb-0">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-2 drop-shadow-lg tracking-tight bg-linear-to-r from-blue-600 via-indigo-500 to-blue-400 bg-clip-text text-transparent">
-            Toko Roti Halim
+            {loading ? "Memuat..." : business?.name || "UMKM Helper"}
           </h1>
           <p className="text-blue-500 text-base sm:text-lg max-w-md font-medium">Selamat datang di pusat kontrol bisnis UMKM Anda!</p>
         </div>

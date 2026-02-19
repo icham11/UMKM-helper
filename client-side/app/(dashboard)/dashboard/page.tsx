@@ -27,7 +27,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
             <div className="flex items-center gap-3 mb-2">
               <span className="bg-indigo-100 p-2 rounded-full text-indigo-600 text-xl">💰</span>
-              <span className="text-xs font-semibold text-gray-500">TODAY'S MONEY</span>
+              <span className="text-xs font-semibold text-gray-500">TODAY&apos;S MONEY</span>
             </div>
             <div className="text-xl font-bold text-gray-800">Rp 12.500.000</div>
             <div className="text-green-500 font-semibold text-sm mt-1">
@@ -37,7 +37,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
             <div className="flex items-center gap-3 mb-2">
               <span className="bg-indigo-100 p-2 rounded-full text-indigo-600 text-xl">👤</span>
-              <span className="text-xs font-semibold text-gray-500">TODAY'S USERS</span>
+              <span className="text-xs font-semibold text-gray-500">TODAY&apos;S USERS</span>
             </div>
             <div className="text-xl font-bold text-gray-800">2,300</div>
             <div className="text-green-500 font-semibold text-sm mt-1">

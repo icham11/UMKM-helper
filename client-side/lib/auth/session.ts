@@ -1,55 +1,63 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import { cookies, headers } from "next/headers"
+import { verifyToken } from "@/lib/auth/jwt"
+import prisma from "@/lib/prisma"
 
-export interface AuthenticatedContext {
-  userId: number;
-  businessId: number;
-}
+export class AuthError extends Error {}
 
-/** Custom error thrown by requireAuth when user is not authenticated. */
-export class AuthError extends Error {
-  readonly status = 401;
-  constructor(message = "Unauthorized") {
-    super(message);
-    this.name = "AuthError";
-  }
-}
-
-/** Type guard to check if an error is an AuthError. */
 export function isAuthError(error: unknown): error is AuthError {
-  return error instanceof AuthError;
+  return error instanceof AuthError
 }
 
-/**
- * Get the authenticated user's ID and their (first) business ID.
- * Returns null if not authenticated or no business exists.
- */
-export async function getAuthContext(): Promise<AuthenticatedContext | null> {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) return null;
+export async function requireAuth() {
+  // 1️⃣ Try NextAuth session
+  const session = await getServerSession(authOptions)
+  let userId = session?.user?.id
 
-  const userId = session.user.id;
+  // 2️⃣ Try JWT from cookie
+  if (!userId) {
+    const cookieStore = await cookies()
+    const token = cookieStore.get("token")?.value
+
+    if (token) {
+      const decoded = verifyToken(token)
+      if (decoded && typeof decoded === "object" && "userId" in decoded) {
+        userId = (decoded as { userId: string | number }).userId
+      }
+    }
+  }
+
+  // 3️⃣ Try Bearer token from header (POSTMAN SUPPORT)
+  if (!userId) {
+    const headerList = await headers()
+    const authHeader = headerList.get("authorization")
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.replace("Bearer ", "")
+      const decoded = verifyToken(token)
+
+      if (decoded && typeof decoded === "object" && "userId" in decoded) {
+        userId = (decoded as { userId: string | number }).userId
+      }
+    }
+  }
+
+  if (!userId) {
+    throw new AuthError("Unauthorized")
+  }
 
   const business = await prisma.business.findFirst({
-    where: { userId },
-    select: { id: true },
+    where: { userId: Number(userId) },
     orderBy: { createdAt: "asc" },
-  });
+  })
 
-  if (!business) return null;
-
-  return { userId, businessId: business.id };
-}
-
-/**
- * Require auth context or throw a structured error object
- * that route handlers can use directly.
- */
-export async function requireAuth(): Promise<AuthenticatedContext> {
-  const ctx = await getAuthContext();
-  if (!ctx) {
-    throw new AuthError();
+  if (!business) {
+    throw new AuthError("Business not found for this user")
   }
-  return ctx;
+
+  return {
+    userId: Number(userId),
+    businessId: business.id,
+  }
 }
