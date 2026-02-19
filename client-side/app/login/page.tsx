@@ -1,24 +1,34 @@
 "use client"
 
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { signIn, useSession } from "next-auth/react"
+import { signIn } from "next-auth/react"
+
+// Helper to read cookie value
+function getCookie(name: string): string | undefined {
+  if (typeof document === "undefined") return undefined;
+  const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+  return match ? decodeURIComponent(match[2]) : undefined;
+}
 
 export default function LoginPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  // Redirect to dashboard if already authenticated
+  // Redirect to dashboard if already authenticated (JWT only)
   useEffect(() => {
-    if (status === "authenticated") {
-      router.push("/dashboard")
+    if (typeof window !== "undefined") {
+      const token = getCookie("token");
+      if (token) {
+        router.push("/dashboard");
+      }
     }
-  }, [status, router])
+  }, [router]);
 
   const handleEmailLogin = async () => {
     setError("")
@@ -44,7 +54,24 @@ export default function LoginPage() {
         throw new Error(text)
       }
 
-      router.push("/dashboard")
+      // Setelah login, cek apakah user sudah punya business
+      // Tunggu cookie token terset
+      await new Promise((r) => setTimeout(r, 300));
+      const resBusiness = await fetch("/api/businesses", { credentials: "include" });
+      if (resBusiness.ok) {
+        const data = await resBusiness.json();
+        if (Array.isArray(data.data) && data.data.length === 0) {
+          window.location.href = "/onboarding";
+        } else {
+          window.location.href = "/home";
+        }
+      } else if (resBusiness.status === 401) {
+        // Token invalid, hapus cookie token
+        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        window.location.href = "/login";
+      } else {
+        window.location.href = "/dashboard";
+      }
     } catch (err: any) {
       setError(err.message || "Login gagal")
     } finally {

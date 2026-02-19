@@ -1,81 +1,79 @@
-import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
+import prisma from "@/lib/prisma"
+import { verifyToken } from "@/lib/auth/jwt"
 
-// GET /api/businesses - Get businesses for the logged-in user
-export async function GET() {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// 🔹 GET: Ambil semua business milik user
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  let userId = session?.user?.id
+
+  // Fallback ke JWT (login email/password)
+  if (!userId) {
+    const token = req.cookies.get("token")?.value
+    if (token) {
+      const decoded = verifyToken(token)
+      if (
+        decoded &&
+        typeof decoded === "object" &&
+        "userId" in decoded
+      ) {
+        userId = (decoded as { userId: number }).userId
+      }
     }
-
-    const userId = session.user.id;
-
-    const businesses = await prisma.business.findMany({
-      where: { userId },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-        _count: {
-          select: {
-            products: true,
-            ingredients: true,
-            sales: true,
-            categories: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({ success: true, data: businesses });
-  } catch (error: unknown) {
-    console.error("GET /api/businesses error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to fetch businesses" },
-      { status: 500 },
-    );
   }
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const businesses = await prisma.business.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  })
+
+  return NextResponse.json({ success: true, data: businesses })
 }
 
-// POST /api/businesses - Create a new business for the logged-in user
-export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// 🔹 POST: Buat business baru
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  let userId = session?.user?.id
+
+  // Fallback ke JWT
+  if (!userId) {
+    const token = req.cookies.get("token")?.value
+    if (token) {
+      const decoded = verifyToken(token)
+      if (
+        decoded &&
+        typeof decoded === "object" &&
+        "userId" in decoded
+      ) {
+        userId = (decoded as { userId: number }).userId
+      }
     }
-
-    const userId = session.user.id;
-    const body = await request.json();
-    const { name, location } = body;
-
-    if (!name) {
-      return NextResponse.json({ error: "name is required" }, { status: 400 });
-    }
-
-    const business = await prisma.business.create({
-      data: {
-        name,
-        userId,
-        location: location || null,
-      },
-      include: {
-        user: {
-          select: { id: true, name: true, email: true },
-        },
-      },
-    });
-
-    return NextResponse.json({ success: true, data: business }, { status: 201 });
-  } catch (error: unknown) {
-    console.error("POST /api/businesses error:", error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to create business" },
-      { status: 500 },
-    );
   }
+
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
+  const body = await req.json()
+  const { name, location } = body
+
+  if (!name) {
+    return NextResponse.json({ error: "Name required" }, { status: 400 })
+  }
+
+  const business = await prisma.business.create({
+    data: {
+      name,
+      location: location || null,
+      userId,
+    },
+  })
+
+  return NextResponse.json({ success: true, data: business })
 }
