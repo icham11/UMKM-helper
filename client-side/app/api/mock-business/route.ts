@@ -1,13 +1,24 @@
-import { NextResponse } from "next/server"
-import { cookies } from "next/headers"
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
+/**
+ * GET /api/mock-business
+ *
+ * Reads the mock_business cookie.
+ *
+ * Success (200):
+ *   { "id": "biz_123", "name": "Toko Sari", "location": "Bandung" }
+ *
+ * Errors:
+ *   404 — "No business" (plain text)
+ */
 export async function GET() {
-  const cookieStore = cookies()
-  const business = (await cookieStore).get("mock_business")
+  const cookieStore = cookies();
+  const business = (await cookieStore).get("mock_business");
 
   if (!business) {
-    return new NextResponse("No business", { status: 404 })
+    return new NextResponse("No business", { status: 404 });
   }
 
-  return NextResponse.json(JSON.parse(business.value))
+  return NextResponse.json(JSON.parse(business.value));
 }

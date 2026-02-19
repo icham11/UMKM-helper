@@ -9,11 +9,28 @@ export const runtime = "nodejs";
  * POST /api/products/generate/recommend-price
  *
  * Generate a recommended selling price based on recipe cost.
- * The wireframe shows a "Generate" button next to the sell price field
- * that suggests a price based on the accumulated ingredient costs.
  *
- * Body: { recipeCost: number, categoryName?: string, productName?: string }
- * Returns: { recommendedPrice, margin, reasoning }
+ * Input (JSON):
+ *   { "recipeCost": 12000, "categoryName": "Minuman", "productName": "Es Kopi" }
+ *   categoryName and productName are optional.
+ *
+ * Success (200):
+ *   {
+ *     "success": true,
+ *     "data": {
+ *       "recommendedPrice": 25000, "margin": 52,
+ *       "reasoning": "Standard UMKM beverage markup...",
+ *       "recipeCost": 12000
+ *     }
+ *   }
+ *
+ * When recipeCost is 0:
+ *   { "success": true, "data": { "recommendedPrice": 0, "margin": 0, "reasoning": "Recipe cost is zero..." } }
+ *
+ * Errors:
+ *   400 — { "error": "Validation failed", "details": { ... } }
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to generate price recommendation" }
  */
 export async function POST(request: NextRequest) {
   try {
