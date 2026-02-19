@@ -5,7 +5,25 @@ import { createIngredientSchema, bulkCreateIngredientsSchema } from "@/lib/valid
 
 export const runtime = "nodejs";
 
-// GET /api/ingredients — list all ingredients for the business
+/**
+ * GET /api/ingredients
+ *
+ * Query params: ?search=tepung&withBatches=true
+ *
+ * Success (200):
+ *   {
+ *     "success": true,
+ *     "data": [{
+ *       "id": 1, "name": "Tepung Terigu", "unit": "kg", "minStock": 5,
+ *       "currentStock": 10, "costPerUnit": 12000,
+ *       "inventoryBatches": [...]  // only when withBatches=true
+ *     }]
+ *   }
+ *
+ * Errors:
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to fetch ingredients" }
+ */
 export async function GET(request: NextRequest) {
   try {
     const { businessId } = await requireAuth();
@@ -67,9 +85,30 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/ingredients — create ingredient(s)
-// Supports single `{ name, unit, minStock, initialBatch? }`
-// or bulk   `{ ingredients: [...] }`
+/**
+ * POST /api/ingredients
+ *
+ * Single mode input (JSON):
+ *   {
+ *     "name": "Tepung Terigu", "unit": "kg", "minStock": 5,
+ *     "initialBatch": { "quantity": 10, "costPerUnit": 12000, "expirationDate": "2026-06-01" }
+ *   }
+ *   initialBatch is optional.
+ *
+ * Bulk mode input (JSON):
+ *   { "ingredients": [{ "name": "Gula", "unit": "kg", "initialBatch": { "quantity": 5, "costPerUnit": 14000 } }] }
+ *
+ * Success — Single (201 if new, 200 if existing):
+ *   { "success": true, "data": { "id": 1, "name": "Tepung Terigu", "unit": "kg", "minStock": 5 } }
+ *
+ * Success — Bulk (201):
+ *   { "success": true, "data": [{ "id": 2, "name": "Gula", "unit": "kg" }, ...] }
+ *
+ * Errors:
+ *   400 — { "error": "Validation failed", "details": { ... } }
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to create ingredient(s)" }
+ */
 export async function POST(request: NextRequest) {
   try {
     const { businessId } = await requireAuth();

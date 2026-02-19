@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { uploadProductImage } from "@/lib/imagekit";
 import { generateProductsByImage } from "@/lib/ai/product-generation";
+import { resolveIngredients } from "@/lib/helpers/resolve-ingredients";
 
 export const runtime = "nodejs";
 
@@ -10,12 +11,41 @@ export const runtime = "nodejs";
  * POST /api/products/generate/image
  *
  * Generate multiple products from an image (menu, price list, product display).
- * Two-step validation:
- *   1. AI checks if the image is a valid product list
- *   2. If valid, AI extracts products with recipes
+ * Auto-resolves ingredients (find existing or create new).
  *
- * Body: FormData with `file` (image)
- * Returns: { isValid, products: AIGeneratedProduct[], error? }
+ * Input: FormData with `file` (image, max 10MB, JPEG/PNG/WebP)
+ *
+ * Success (200):
+ *   {
+ *     "success": true, "isValid": true,
+ *     "data": [{
+ *       "name": "Nasi Goreng", "categoryName": "Makanan", "sellingPrice": 20000,
+ *       "recipe": [{
+ *         "ingredientId": 1, "ingredientName": "Nasi", "unit": "gram",
+ *         "quantity": 200, "costPerUnit": 50, "isNew": false
+ *       }]
+ *     }],
+ *     "readyToCreate": {
+ *       "products": [{
+ *         "name": "Nasi Goreng", "categoryName": "Makanan", "sellingPrice": 20000,
+ *         "recipe": [{ "ingredientId": 1, "quantity": 200 }]
+ *       }]
+ *     },
+ *     "meta": {
+ *       "productsFound": 1, "newIngredientsCreated": ["Sambal"],
+ *       "imageUrl": "https://...", "expiresIn": "2 minutes"
+ *     }
+ *   }
+ *
+ * Invalid image (422):
+ *   { "success": false, "isValid": false, "error": "...", "products": [] }
+ *
+ * Errors:
+ *   400 — { "error": "No image file provided" }
+ *   400 — { "error": "File must be an image (JPEG, PNG, WebP)" }
+ *   400 — { "error": "Image must be smaller than 10MB" }
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to process image" }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -93,15 +123,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-resolve ingredients: find existing or create new ones
+    const { resolved, newIngredientsCreated } = await resolveIngredients(businessId, result.products);
+
+    // Transform to POST /api/products ready format
+    const readyProducts = resolved.map((p) => ({
+      name: p.name,
+      categoryName: p.categoryName,
+      sellingPrice: p.sellingPrice,
+      recipe: p.recipe.map((r) => ({
+        ingredientId: r.ingredientId,
+        quantity: r.quantity,
+      })),
+    }));
+
     return NextResponse.json({
       success: true,
       isValid: true,
-      data: result.products,
+      data: resolved,
+      readyToCreate: { products: readyProducts },
       meta: {
-        productsFound: result.products.length,
+        productsFound: resolved.length,
+        newIngredientsCreated,
         imageUrl: uploadResult.url,
         expiresIn: "2 minutes",
-        note: "Review the generated products. To create them, POST to /api/products with { products: [...] } after resolving any new ingredients.",
+        note: "Ingredients have been auto-resolved. Use readyToCreate payload to POST /api/products directly.",
       },
     });
   } catch (error: unknown) {

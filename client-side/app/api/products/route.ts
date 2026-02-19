@@ -68,7 +68,33 @@ async function checkDuplicateProducts(
 
 // ---------- GET ----------
 
-// GET /api/products — list products for the business
+/**
+ * GET /api/products
+ *
+ * Query params: ?search=kopi&categoryId=1&withRecipe=true (default withRecipe=true)
+ *
+ * Success (200):
+ *   {
+ *     "success": true,
+ *     "data": [{
+ *       "id": 1, "name": "Kopi Susu", "sellingPrice": 25000,
+ *       "businessId": 1, "categoryId": 1,
+ *       "category": { "id": 1, "name": "Minuman" },
+ *       "recipes": [{
+ *         "id": 1, "quantity": 0.02,
+ *         "ingredient": {
+ *           "id": 1, "name": "Kopi Bubuk", "unit": "kg",
+ *           "costPerUnit": 120000, "currentStock": 5
+ *         }
+ *       }],
+ *       "recipeCost": 2400
+ *     }]
+ *   }
+ *
+ * Errors:
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to fetch products" }
+ */
 export async function GET(request: NextRequest) {
   try {
     const { businessId } = await requireAuth();
@@ -161,9 +187,39 @@ export async function GET(request: NextRequest) {
 
 // ---------- POST ----------
 
-// POST /api/products — create product(s) with recipes
-// Single: { name, categoryName, sellingPrice, recipe: [{ ingredientId, quantity }] }
-// Bulk:   { products: [ ...singleShape ] }
+/**
+ * POST /api/products
+ *
+ * Single input (JSON):
+ *   {
+ *     "name": "Kopi Susu", "categoryName": "Minuman", "sellingPrice": 25000,
+ *     "recipe": [{ "ingredientId": 1, "quantity": 0.02 }]
+ *   }
+ *
+ * Bulk input (JSON):
+ *   { "products": [ ...single shape... ] }
+ *
+ * Success (201):
+ *   {
+ *     "success": true,
+ *     "data": {
+ *       "id": 1, "name": "Kopi Susu", "sellingPrice": 25000,
+ *       "categoryId": 1,
+ *       "category": { "id": 1, "name": "Minuman" },
+ *       "recipes": [{
+ *         "id": 1, "quantity": 0.02,
+ *         "ingredient": { "id": 1, "name": "Kopi Bubuk", "unit": "kg" }
+ *       }]
+ *     }
+ *   }
+ *
+ * Errors:
+ *   400 — { "error": "Validation failed", "details": { ... } }
+ *   400 — { "error": "Ingredient IDs not found in this business: 99" }
+ *   401 — { "error": "Unauthorized" }
+ *   409 — { "error": "Product \"Kopi Susu\" already exists." }
+ *   500 — { "error": "Failed to create product(s)" }
+ */
 export async function POST(request: NextRequest) {
   try {
     const { businessId } = await requireAuth();

@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { generateProductByName } from "@/lib/ai/product-generation";
 import { generateProductByNameSchema } from "@/lib/validations/product";
+import { resolveIngredients } from "@/lib/helpers/resolve-ingredients";
 
 export const runtime = "nodejs";
 
@@ -10,10 +11,35 @@ export const runtime = "nodejs";
  * POST /api/products/generate/name
  *
  * Generate a single product (with recipe) from just a product name using AI.
- * The AI will use existing ingredients/categories from the business.
+ * Auto-resolves ingredients (find existing or create new).
  *
- * Body: { productName: string }
- * Returns: AIGeneratedProduct (for user review before confirming creation)
+ * Input (JSON):
+ *   { "productName": "Nasi Goreng Spesial" }
+ *
+ * Success (200):
+ *   {
+ *     "success": true,
+ *     "data": {
+ *       "name": "Nasi Goreng Spesial", "categoryName": "Makanan", "sellingPrice": 25000,
+ *       "recipe": [{
+ *         "ingredientId": 1, "ingredientName": "Nasi", "unit": "gram",
+ *         "quantity": 250, "costPerUnit": 50, "isNew": false
+ *       }]
+ *     },
+ *     "readyToCreate": {
+ *       "name": "Nasi Goreng Spesial", "categoryName": "Makanan", "sellingPrice": 25000,
+ *       "recipe": [{ "ingredientId": 1, "quantity": 250 }]
+ *     },
+ *     "context": {
+ *       "existingIngredientCount": 12, "existingCategoryCount": 3,
+ *       "newIngredientsCreated": ["Kecap Manis"]
+ *     }
+ *   }
+ *
+ * Errors:
+ *   400 — { "error": "Validation failed", "details": { "productName": ["..."] } }
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to generate product" }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -66,13 +92,30 @@ export async function POST(request: NextRequest) {
       existingCategories: categories,
     });
 
+    // Auto-resolve ingredients: find existing or create new ones
+    const { resolved, newIngredientsCreated } = await resolveIngredients(businessId, [generated]);
+    const resolvedProduct = resolved[0];
+
+    // Transform to POST /api/products ready format
+    const readyProduct = {
+      name: resolvedProduct.name,
+      categoryName: resolvedProduct.categoryName,
+      sellingPrice: resolvedProduct.sellingPrice,
+      recipe: resolvedProduct.recipe.map((r) => ({
+        ingredientId: r.ingredientId,
+        quantity: r.quantity,
+      })),
+    };
+
     return NextResponse.json({
       success: true,
-      data: generated,
+      data: resolvedProduct,
+      readyToCreate: readyProduct,
       context: {
         existingIngredientCount: ingredients.length,
         existingCategoryCount: categories.length,
-        note: "Review the generated product and confirm to create it via POST /api/products",
+        newIngredientsCreated,
+        note: "Ingredients have been auto-resolved. Use readyToCreate payload to POST /api/products directly.",
       },
     });
   } catch (error: unknown) {

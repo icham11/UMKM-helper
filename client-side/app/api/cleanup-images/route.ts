@@ -11,8 +11,22 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Cleanup expired images from ImageKit
- * This endpoint can be called by a cron job
+ * POST /api/cleanup-images
+ *
+ * Cleanup expired temporary images from ImageKit.
+ * Auth: Authorization header with Bearer <CRON_SECRET>
+ *
+ * Success (200):
+ *   {
+ *     "success": true, "message": "Cleanup completed",
+ *     "deleted": 5, "errors": 0,
+ *     "deletedFiles": ["fileId1", "fileId2"],
+ *     "errorDetails": []
+ *   }
+ *
+ * Errors:
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to cleanup images", "details": "..." }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -86,6 +100,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * GET /api/cleanup-images
+ * Manual trigger (calls POST internally). Same auth required.
+ *
+ * Errors:
+ *   401 — { "error": "Unauthorized - Use POST with Bearer token" }
+ */
 // GET endpoint for manual trigger (development only)
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

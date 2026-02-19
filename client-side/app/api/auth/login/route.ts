@@ -1,39 +1,52 @@
-import { NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
-import prisma from "@/lib/prisma"
-import { signToken } from "@/lib/auth/jwt"
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import prisma from "@/lib/prisma";
+import { signToken } from "@/lib/auth/jwt";
 
-
+/**
+ * POST /api/auth/login
+ *
+ * Input (JSON):
+ *   { "email": "user@example.com", "password": "secret123" }
+ *
+ * Success (200):
+ *   { "success": true }
+ *   + Sets httpOnly cookie: token=<JWT>
+ *
+ * Errors:
+ *   400 — "Missing credentials" (plain text)
+ *   401 — "Invalid credentials" (plain text)
+ */
 export async function POST(req: Request) {
-  const body = await req.json()
-  const { email, password } = body
+  const body = await req.json();
+  const { email, password } = body;
 
   if (!email || !password) {
-    return new NextResponse("Missing credentials", { status: 400 })
+    return new NextResponse("Missing credentials", { status: 400 });
   }
 
   const user = await prisma.user.findUnique({
     where: { email },
-  })
+  });
 
   if (!user) {
-    return new NextResponse("Invalid credentials", { status: 401 })
+    return new NextResponse("Invalid credentials", { status: 401 });
   }
 
-  const isValid = await bcrypt.compare(password, user.password)
+  const isValid = await bcrypt.compare(password, user.password);
 
   if (!isValid) {
-    return new NextResponse("Invalid credentials", { status: 401 })
+    return new NextResponse("Invalid credentials", { status: 401 });
   }
 
-  const token = signToken({ userId: user.id })
+  const token = signToken({ userId: user.id });
 
-  const response = NextResponse.json({ success: true })
+  const response = NextResponse.json({ success: true });
 
   response.cookies.set("token", token, {
     httpOnly: true,
     path: "/",
-  })
+  });
 
-  return response
+  return response;
 }
