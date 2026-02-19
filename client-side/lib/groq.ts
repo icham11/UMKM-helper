@@ -1,7 +1,8 @@
-import Groq from 'groq-sdk';
+import Groq from "groq-sdk";
+import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 
 if (!process.env.GROQ_API_KEY) {
-  throw new Error('Missing GROQ_API_KEY environment variable');
+  throw new Error("Missing GROQ_API_KEY environment variable");
 }
 
 export const groq = new Groq({
@@ -12,13 +13,13 @@ export const groq = new Groq({
 export const GROQ_MODELS = {
   // Vision-capable models (support image input)
   vision: {
-    primary: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    fallback: 'meta-llama/llama-4-maverick-17b-128e-instruct',
+    primary: "meta-llama/llama-4-scout-17b-16e-instruct",
+    fallback: "meta-llama/llama-4-maverick-17b-128e-instruct",
   },
   // Text-only models (better for text analysis)
   text: {
-    primary: 'openai/gpt-oss-120b',
-    fallback: 'openai/gpt-oss-safeguard-20b',
+    primary: "openai/gpt-oss-120b",
+    fallback: "openai/gpt-oss-safeguard-20b",
   },
 };
 
@@ -36,48 +37,40 @@ export interface AnalyzeBusinessDataOptions {
  * @param options - Configuration options for the analysis
  * @returns The AI-generated analysis text
  */
-export async function analyzeBusinessData(
-  options: AnalyzeBusinessDataOptions
-): Promise<string> {
-  const {
-    prompt,
-    imageUrl,
-    temperature = 0.7,
-    maxTokens = 1024,
-    useFallback = false,
-  } = options;
+export async function analyzeBusinessData(options: AnalyzeBusinessDataOptions): Promise<string> {
+  const { prompt, imageUrl, temperature = 0.7, maxTokens = 1024, useFallback = false } = options;
 
   // Select appropriate model based on whether image is provided
   const modelConfig = imageUrl ? GROQ_MODELS.vision : GROQ_MODELS.text;
   const selectedModel = useFallback ? modelConfig.fallback : modelConfig.primary;
 
-  const messages: any[] = [
+  const messages: ChatCompletionMessageParam[] = [
     {
-      role: 'system',
+      role: "system",
       content:
-        'You are a business analyst assistant for UMKM (Usaha Mikro Kecil Menengah). Analyze business data and provide insights on sales, inventory, products, and financial metrics. Provide actionable recommendations based on the data.',
+        "You are a business analyst assistant for UMKM (Usaha Mikro Kecil Menengah). Analyze business data and provide insights on sales, inventory, products, and financial metrics. Provide actionable recommendations based on the data.",
     },
   ];
 
   if (imageUrl) {
     // Vision model format - supports image_url
     messages.push({
-      role: 'user',
+      role: "user",
       content: [
-        { type: 'text', text: prompt },
-        { type: 'image_url', image_url: { url: imageUrl } },
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: imageUrl } },
       ],
     });
   } else {
     // Text-only format
     messages.push({
-      role: 'user',
+      role: "user",
       content: prompt,
     });
   }
 
   try {
-    console.log(`🤖 Using GROQ model: ${selectedModel} ${imageUrl ? '(vision)' : '(text)'}`);
+    console.log(`🤖 Using GROQ model: ${selectedModel} ${imageUrl ? "(vision)" : "(text)"}`);
 
     const completion = await groq.chat.completions.create({
       messages,
@@ -86,8 +79,8 @@ export async function analyzeBusinessData(
       max_tokens: maxTokens,
     });
 
-    return completion.choices[0]?.message?.content || '';
-  } catch (error: any) {
+    return completion.choices[0]?.message?.content || "";
+  } catch (error: unknown) {
     // If primary model fails, try fallback within the same category
     if (!useFallback) {
       console.warn(`⚠️ Primary model failed, trying fallback: ${modelConfig.fallback}`);
@@ -97,18 +90,16 @@ export async function analyzeBusinessData(
       });
     }
 
-    console.error('❌ GROQ API Error:', error.message);
-    throw new Error(`Failed to analyze with GROQ: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("❌ GROQ API Error:", errorMessage);
+    throw new Error(`Failed to analyze with GROQ: ${errorMessage}`);
   }
 }
 
 /**
  * Analyze sales data from the ERD
  */
-export async function analyzeSalesData(
-  salesData: any,
-  imageUrl?: string
-): Promise<string> {
+export async function analyzeSalesData(salesData: unknown, imageUrl?: string): Promise<string> {
   const prompt = `Analyze the following sales data from a UMKM business:
 ${JSON.stringify(salesData, null, 2)}
 
@@ -124,10 +115,7 @@ Please provide:
 /**
  * Analyze inventory data from the ERD
  */
-export async function analyzeInventoryData(
-  inventoryData: any,
-  imageUrl?: string
-): Promise<string> {
+export async function analyzeInventoryData(inventoryData: unknown, imageUrl?: string): Promise<string> {
   const prompt = `Analyze the following inventory data from a UMKM business:
 ${JSON.stringify(inventoryData, null, 2)}
 
@@ -144,9 +132,9 @@ Please provide:
  * Analyze product performance from the ERD
  */
 export async function analyzeProductPerformance(
-  productData: any,
-  salesData: any,
-  imageUrl?: string
+  productData: unknown,
+  salesData: unknown,
+  imageUrl?: string,
 ): Promise<string> {
   const prompt = `Analyze the following product and sales data from a UMKM business:
 
@@ -168,10 +156,7 @@ Please provide:
 /**
  * Get business health score and recommendations
  */
-export async function getBusinessHealthScore(
-  businessMetrics: any,
-  imageUrl?: string
-): Promise<string> {
+export async function getBusinessHealthScore(businessMetrics: unknown, imageUrl?: string): Promise<string> {
   const prompt = `Based on the following business metrics from a UMKM business:
 ${JSON.stringify(businessMetrics, null, 2)}
 
@@ -190,9 +175,9 @@ Please provide:
  * Analyze recipe and ingredient costs
  */
 export async function analyzeRecipeCosts(
-  recipeData: any,
-  ingredientData: any,
-  imageUrl?: string
+  recipeData: unknown,
+  ingredientData: unknown,
+  imageUrl?: string,
 ): Promise<string> {
   const prompt = `Analyze the following recipe and ingredient cost data from a UMKM business:
 
@@ -210,4 +195,3 @@ Please provide:
 
   return analyzeBusinessData({ prompt, imageUrl });
 }
-
