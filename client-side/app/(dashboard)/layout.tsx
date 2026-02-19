@@ -1,7 +1,10 @@
+
+
 import { cookies } from "next/headers"
 import { verifyToken } from "@/lib/auth/jwt"
 import { redirect } from "next/navigation"
 import { BusinessProvider } from "@/context/BusinessContext"
+import UserInfoFooter from "./components/UserInfoFooter";
 
 export default async function DashboardLayout({
   children,
@@ -83,21 +86,8 @@ export default async function DashboardLayout({
             </div>
           </div>
 
-          {/* Footer user info placeholder */}
-          <div className="mt-8 text-sm bg-white/90 rounded-2xl p-5 border border-gray-200 flex flex-col items-center shadow-md">
-            <p className="text-xs text-gray-500 font-semibold mb-1">
-              Logged In
-            </p>
-            <button
-              onClick={() => {
-                document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;"
-                window.location.href = "/login"
-              }}
-              className="mt-2 text-red-500 text-sm font-semibold"
-            >
-              Logout
-            </button>
-          </div>
+          {/* Footer user info: Client Component boundary handled by Next.js */}
+          <UserInfoFooter />
         </aside>
 
         {/* Main */}

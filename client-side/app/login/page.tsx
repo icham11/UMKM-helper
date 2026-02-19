@@ -36,7 +36,7 @@ export default function LoginPage() {
         throw new Error(text)
       }
 
-      router.push("/dashboard")
+      router.push("/home")
     } catch (err: any) {
       setError(err.message || "Login gagal")
     } finally {

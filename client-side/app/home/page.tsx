@@ -144,8 +144,11 @@ function HomePage() {
 
 export default HomePage;
 
-// ActionCard dengan icon lucide-react dan animasi hover
-function ActionCard({
+
+// ActionCard dipisah ke komponen client agar event handler bisa diterima
+import { memo } from "react";
+
+const ActionCard = memo(function ActionCard({
   title,
   icon,
   onClick,
@@ -156,6 +159,7 @@ function ActionCard({
   onClick: () => void
   color?: string
 }) {
+  'use client';
   return (
     <motion.button
       whileHover={{ scale: 1.08, boxShadow: "0 8px 32px 0 rgba(59,130,246,0.15)" }}
@@ -168,7 +172,7 @@ function ActionCard({
       <span className="font-semibold text-blue-700 text-sm sm:text-base group-hover:text-indigo-700">{title}</span>
     </motion.button>
   )
-}
+});
 
 function SummaryCard({
   title,

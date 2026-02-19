@@ -9,4 +9,10 @@ export const authOptions: AuthOptions = {
     }),
   ],
   secret: process.env.NEXTAUTH_SECRET,
+  callbacks: {
+    async redirect({ url, baseUrl }) {
+      // Always redirect to /home after login
+      return "/home";
+    },
+  },
 }
