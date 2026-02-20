@@ -12,7 +12,7 @@ export default function AIAnalysisPage() {
   const [activeTab, setActiveTab] = useState<AITab>("chat");
 
   const tabs: { id: AITab; label: string; icon: string; description: string }[] = [
-    { id: "chat", label: "AI Assistant", icon: "🤖", description: "Chat interaktif dengan AI" },
+    { id: "chat", label: "AI Assistant", icon: "🤖", description: "Chat RAG-powered dengan AI" },
     { id: "insights", label: "Smart Insights", icon: "🧠", description: "Analisis & prediksi otomatis" },
     { id: "image", label: "Image Analysis", icon: "📸", description: "Analisis gambar invoice/stok" },
   ];
