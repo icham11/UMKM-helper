@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { uploadRecipeImage } from "@/lib/imagekit";
 import { generateRecipeByImage } from "@/lib/ai/product-generation";
+import { resolveIngredients } from "@/lib/helpers/resolve-ingredients";
 
 export const runtime = "nodejs";
 
@@ -10,11 +11,36 @@ export const runtime = "nodejs";
  * POST /api/products/generate/recipe-image
  *
  * Generate a recipe from an image (recipe card, ingredient photo, finished dish).
- * Used in the manual product creation flow when a user wants to generate
- * ingredients from a photo instead of entering them manually.
+ * Auto-resolves ingredients (find existing or create new).
  *
- * Body: FormData with `file` (image) and optional `productName` (string)
- * Returns: { isValid, recipe: RecipeItem[], error? }
+ * Input: FormData with `file` (image, max 10MB) + optional `productName` (string)
+ *
+ * Success (200):
+ *   {
+ *     "success": true, "isValid": true,
+ *     "data": {
+ *       "recipe": [{
+ *         "ingredientId": 1, "ingredientName": "Tepung", "unit": "kg",
+ *         "quantity": 0.5, "costPerUnit": 12000, "isNew": false
+ *       }],
+ *       "readyRecipe": [{ "ingredientId": 1, "quantity": 0.5 }],
+ *       "summary": {
+ *         "total": 2, "existingIngredients": 1, "newIngredients": 1,
+ *         "newIngredientsCreated": ["Vanili"]
+ *       }
+ *     },
+ *     "meta": { "imageUrl": "https://...", "expiresIn": "2 minutes" }
+ *   }
+ *
+ * Invalid image (422):
+ *   { "success": false, "isValid": false, "error": "...", "recipe": [] }
+ *
+ * Errors:
+ *   400 — { "error": "No image file provided" }
+ *   400 — { "error": "File must be an image (JPEG, PNG, WebP)" }
+ *   400 — { "error": "Image must be smaller than 10MB" }
+ *   401 — { "error": "Unauthorized" }
+ *   500 — { "error": "Failed to process recipe image" }
  */
 export async function POST(request: NextRequest) {
   try {
@@ -84,29 +110,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Separate existing vs new ingredients for the frontend
-    const existingRecipeItems = result.recipe.filter((r) => r.ingredientId);
-    const newRecipeItems = result.recipe.filter((r) => !r.ingredientId);
+    // Build a temporary AIGeneratedProduct shape to reuse resolveIngredients
+    const tempProduct = {
+      name: productName || "temp",
+      categoryName: "temp",
+      sellingPrice: 0,
+      recipe: result.recipe,
+    };
+
+    const { resolved, newIngredientsCreated } = await resolveIngredients(businessId, [tempProduct]);
+    const resolvedRecipe = resolved[0].recipe;
+
+    // Ready-to-use recipe for POST /api/products
+    const readyRecipe = resolvedRecipe.map((r) => ({
+      ingredientId: r.ingredientId,
+      quantity: r.quantity,
+    }));
 
     return NextResponse.json({
       success: true,
       isValid: true,
       data: {
-        recipe: result.recipe,
+        recipe: resolvedRecipe,
+        readyRecipe,
         summary: {
-          total: result.recipe.length,
-          existingIngredients: existingRecipeItems.length,
-          newIngredients: newRecipeItems.length,
+          total: resolvedRecipe.length,
+          existingIngredients: resolvedRecipe.filter((r) => !r.isNew).length,
+          newIngredients: resolvedRecipe.filter((r) => r.isNew).length,
+          newIngredientsCreated,
         },
-        newIngredientsToCreate: newRecipeItems.map((r) => ({
-          name: r.ingredientName,
-          unit: r.unit,
-        })),
       },
       meta: {
         imageUrl: uploadResult.url,
         expiresIn: "2 minutes",
-        note: "New ingredients must be created (POST /api/ingredients) before creating the product.",
+        note: "Ingredients have been auto-resolved. Use readyRecipe in your POST /api/products payload.",
       },
     });
   } catch (error: unknown) {

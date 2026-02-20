@@ -10,6 +10,33 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+/**
+ * POST /api/business-analytics
+ *
+ * Input (JSON):
+ *   {
+ *     "type": "sales" | "inventory" | "product-performance" | "business-health" | "recipe-costs",
+ *     "data": { ... },
+ *     "imageUrl": "https://..."  // optional
+ *   }
+ *
+ *   For "product-performance": data must include { products, sales }
+ *   For "recipe-costs": data must include { recipes, ingredients }
+ *
+ * Success (200):
+ *   {
+ *     "success": true, "type": "sales",
+ *     "analysis": "Your sales show a 15% upward trend...",
+ *     "timestamp": "2026-02-19T10:30:00.000Z"
+ *   }
+ *
+ * Errors:
+ *   400 — { "error": "Missing type or data in request body" }
+ *   400 — { "error": "Product performance analysis requires both products and sales data" }
+ *   400 — { "error": "Recipe cost analysis requires both recipes and ingredients data" }
+ *   400 — { "error": "Unknown analysis type: xyz" }
+ *   500 — { "error": "...", "details": "..." }
+ */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -77,6 +104,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * GET /api/business-analytics
+ *
+ * Success (200):
+ *   {
+ *     "status": "ok",
+ *     "message": "Business analytics API is ready",
+ *     "supportedTypes": ["sales", "inventory", "product-performance", "business-health", "recipe-costs"],
+ *     "description": { "sales": "...", "inventory": "...", ... }
+ *   }
+ */
 // GET endpoint to check API status
 export async function GET() {
   return NextResponse.json({

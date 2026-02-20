@@ -1,8 +1,103 @@
+"use client";
 
+import { useEffect, useState } from "react";
 import StatCard from "../components/StatCard";
 import RevenueChart from "../components/charts/RevenueChart";
 
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(value);
+
 export default function DashboardPage() {
+  const [todayRevenue, setTodayRevenue] = useState<number | null>(null);
+  const [todayTransactions, setTodayTransactions] = useState<number | null>(null);
+  const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
+  const [monthProfit, setMonthProfit] = useState<number | null>(null);
+  const [aiInsight, setAiInsight] = useState<string>("Memuat insight...");
+
+  useEffect(() => {
+    const loadDashboardData = async () => {
+      try {
+        const now = new Date();
+        const startToday = new Date(now);
+        startToday.setHours(0, 0, 0, 0);
+        const endToday = new Date(now);
+        endToday.setHours(23, 59, 59, 999);
+
+        const startMonth = new Date(now);
+        startMonth.setDate(now.getDate() - 29);
+        startMonth.setHours(0, 0, 0, 0);
+
+        const fetchSales = async (startDate: Date, endDate: Date) => {
+          const url = new URL("/api/sales", window.location.origin);
+          url.searchParams.set("startDate", startDate.toISOString());
+          url.searchParams.set("endDate", endDate.toISOString());
+
+          const response = await fetch(url.toString());
+          const data = await response.json();
+          if (!response.ok || !data?.success) {
+            throw new Error(data?.error || "Failed to fetch sales");
+          }
+          return data.data as {
+            sales: unknown[];
+            analytics: { transactionCount: number; totalProfit: number };
+            totalRevenue: number;
+          };
+        };
+
+        const [todayData, monthData] = await Promise.all([
+          fetchSales(startToday, endToday),
+          fetchSales(startMonth, endToday),
+        ]);
+
+        setTodayRevenue(todayData.totalRevenue);
+        setTodayTransactions(todayData.analytics.transactionCount);
+        setMonthRevenue(monthData.totalRevenue);
+        setMonthProfit(monthData.analytics.totalProfit);
+
+        const analyticsResponse = await fetch("/api/business-analytics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "sales",
+            data: {
+              range: {
+                start: startMonth.toISOString(),
+                end: endToday.toISOString(),
+              },
+              sales: monthData.sales,
+              analytics: monthData.analytics,
+            },
+          }),
+        });
+
+        const analyticsData = await analyticsResponse.json();
+        if (analyticsResponse.ok && analyticsData?.success) {
+          setAiInsight(analyticsData.analysis || "Insight tidak tersedia.");
+        } else {
+          setAiInsight("Insight tidak tersedia.");
+        }
+      } catch (error) {
+        console.error("Failed to load dashboard data:", error);
+        setAiInsight("Insight tidak tersedia.");
+      }
+    };
+
+    loadDashboardData();
+  }, []);
+
+  const todayRevenueLabel =
+    todayRevenue === null ? "—" : formatCurrency(todayRevenue);
+  const todayTransactionsLabel =
+    todayTransactions === null ? "—" : todayTransactions.toLocaleString("id-ID");
+  const monthRevenueLabel =
+    monthRevenue === null ? "—" : formatCurrency(monthRevenue);
+  const monthProfitLabel =
+    monthProfit === null ? "—" : formatCurrency(monthProfit);
+
   return (
     <div className="space-y-8">
       {/* Blue header section */}
@@ -24,46 +119,30 @@ export default function DashboardPage() {
 
         {/* Stat Cards */}
         <div className="grid grid-cols-4 gap-4 mt-2">
-          <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="bg-indigo-100 p-2 rounded-full text-indigo-600 text-xl">💰</span>
-              <span className="text-xs font-semibold text-gray-500">TODAY&apos;S MONEY</span>
-            </div>
-            <div className="text-xl font-bold text-gray-800">Rp 12.500.000</div>
-            <div className="text-green-500 font-semibold text-sm mt-1">
-              +55% <span className="text-gray-500 font-normal">since yesterday</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="bg-indigo-100 p-2 rounded-full text-indigo-600 text-xl">👤</span>
-              <span className="text-xs font-semibold text-gray-500">TODAY&apos;S USERS</span>
-            </div>
-            <div className="text-xl font-bold text-gray-800">2,300</div>
-            <div className="text-green-500 font-semibold text-sm mt-1">
-              +3% <span className="text-gray-500 font-normal">since last week</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="bg-red-100 p-2 rounded-full text-red-600 text-xl">🆕</span>
-              <span className="text-xs font-semibold text-gray-500">NEW CLIENTS</span>
-            </div>
-            <div className="text-xl font-bold text-gray-800">+3,462</div>
-            <div className="text-red-500 font-semibold text-sm mt-1">
-              -2% <span className="text-gray-500 font-normal">since last quarter</span>
-            </div>
-          </div>
-          <div className="bg-white rounded-xl p-5 shadow flex flex-col justify-between">
-            <div className="flex items-center gap-3 mb-2">
-              <span className="bg-orange-100 p-2 rounded-full text-orange-600 text-xl">🛒</span>
-              <span className="text-xs font-semibold text-gray-500">SALES</span>
-            </div>
-            <div className="text-xl font-bold text-gray-800">Rp 103.430</div>
-            <div className="text-green-500 font-semibold text-sm mt-1">
-              +5% <span className="text-gray-500 font-normal">than last month</span>
-            </div>
-          </div>
+          <StatCard
+            title="REVENUE HARI INI"
+            value={todayRevenueLabel}
+            icon={<span className="text-indigo-600 text-xl">💰</span>}
+            tooltip="Total pendapatan hari ini dari /api/sales"
+          />
+          <StatCard
+            title="TRANSAKSI HARI INI"
+            value={todayTransactionsLabel}
+            icon={<span className="text-indigo-600 text-xl">🧾</span>}
+            tooltip="Jumlah transaksi hari ini"
+          />
+          <StatCard
+            title="REVENUE 30 HARI"
+            value={monthRevenueLabel}
+            icon={<span className="text-red-600 text-xl">📈</span>}
+            tooltip="Total pendapatan 30 hari terakhir"
+          />
+          <StatCard
+            title="PROFIT 30 HARI"
+            value={monthProfitLabel}
+            icon={<span className="text-orange-600 text-xl">💹</span>}
+            tooltip="Total profit 30 hari terakhir"
+          />
         </div>
       </div>
 
@@ -83,12 +162,9 @@ export default function DashboardPage() {
 
         <div className="bg-white p-6 rounded-xl shadow">
           <h2 className="font-semibold mb-4">AI Insight</h2>
-          <p className="text-sm text-gray-600">
-            Revenue increased 12% this week. Consider promoting Ayam Geprek to maximize margin.
-          </p>
+          <p className="text-sm text-gray-600">{aiInsight}</p>
         </div>
-
       </div>
     </div>
-  )
+  );
 }

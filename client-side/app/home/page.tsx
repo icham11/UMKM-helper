@@ -90,7 +90,7 @@ function HomePage() {
       <section className="relative z-10">
         <h2 className="text-lg sm:text-xl font-bold text-blue-700 mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
-          <ActionCard title="Masuk Kasir" icon={<ReceiptText size={32} />} onClick={() => router.push("/cashier")} color="from-blue-50 to-blue-200" />
+          <ActionCard title="Masuk Kasir" icon={<ReceiptText size={32} />} onClick={() => router.push("/pos")} color="from-blue-50 to-blue-200" />
           <ActionCard title="Kelola Produk" icon={<Box size={32} />} onClick={() => router.push("/dashboard/products")} color="from-blue-50 to-indigo-100" />
           <ActionCard title="Ingredients" icon={<Leaf size={32} />} onClick={() => router.push("/dashboard/ingredients")} color="from-blue-50 to-blue-100" />
           <ActionCard title="Recipe" icon={<BookOpen size={32} />} onClick={() => router.push("/dashboard/recipes")} color="from-blue-50 to-blue-200" />
