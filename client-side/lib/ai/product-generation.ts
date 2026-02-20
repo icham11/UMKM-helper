@@ -49,7 +49,8 @@ Respond with a SINGLE JSON object (NOT an array) in this exact format:
       "ingredientName": "New Ingredient Not In DB",
       "unit": "ml",
       "quantity": 50,
-      "costPerUnit": 50
+      "costPerUnit": 50,
+      "estimatedStockQty": 500
     }
   ]
 }
@@ -57,6 +58,7 @@ Respond with a SINGLE JSON object (NOT an array) in this exact format:
 Rules:
 - If an ingredient exists in the database, include its "ingredientId" and use its costPerUnit from the data above. If it does NOT exist, omit "ingredientId" and estimate a realistic costPerUnit in IDR.
 - "costPerUnit" is the cost per 1 unit (per gram, per ml, per butir, etc.) in IDR.
+- For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
 - "sellingPrice" should be a realistic retail price in IDR, typically 2-3x the total recipe cost.
 - "quantity" is how much of the ingredient is needed to make ONE unit of the product.
 - Use the most appropriate unit for each ingredient.
@@ -125,7 +127,8 @@ If the image IS a product list, respond with this exact JSON format:
           "ingredientName": "New Ingredient",
           "unit": "ml",
           "quantity": 50,
-          "costPerUnit": 50
+          "costPerUnit": 50,
+          "estimatedStockQty": 500
         }
       ]
     }
@@ -137,6 +140,7 @@ Rules:
 - If prices are visible, use them. Otherwise estimate realistic IDR prices.
 - For recipes: generate a realistic recipe for each product. Use existing ingredients when possible (include ingredientId and their costPerUnit from the data). For new ingredients, omit ingredientId and estimate costPerUnit.
 - "costPerUnit" is the cost per 1 unit (per gram, per ml, etc.) in IDR.
+- For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
 - Use the same ingredient across products when it makes sense (e.g., "Susu Fresh Milk" for all milk-based drinks).`;
 
   const completion = await groq.chat.completions.create({
@@ -227,7 +231,8 @@ If valid, respond with this exact JSON format:
       "ingredientName": "New Ingredient Not In DB",
       "unit": "ml",
       "quantity": 50,
-      "costPerUnit": 50
+      "costPerUnit": 50,
+      "estimatedStockQty": 500
     }
   ]
 }
@@ -236,6 +241,7 @@ Rules:
 - Match existing ingredients by name (case-insensitive). If matched, include "ingredientId" and use their costPerUnit from the data.
 - For new ingredients, omit "ingredientId" and estimate a realistic costPerUnit in IDR.
 - "costPerUnit" is the cost per 1 unit (per gram, per ml, per butir, etc.) in IDR.
+- For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
 - Quantities should be for ONE serving/unit of the product.
 - Use standard units: gram, kg, ml, liter, butir, lembar, sendok makan (sdm), sendok teh (sdt), etc.`;
 
@@ -291,6 +297,7 @@ interface RawAIRecipeItem {
   unit?: string;
   quantity?: number;
   costPerUnit?: number;
+  estimatedStockQty?: number;
 }
 
 interface RawAIProductResponse {
@@ -320,6 +327,7 @@ function parseAIProductResponse(raw: string): AIGeneratedProduct {
             unit: String(r.unit || "gram"),
             quantity: Number(r.quantity || 0),
             costPerUnit: r.costPerUnit ? Number(r.costPerUnit) : undefined,
+            estimatedStockQty: r.estimatedStockQty ? Number(r.estimatedStockQty) : undefined,
           }))
         : [],
     };

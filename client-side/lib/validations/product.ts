@@ -29,6 +29,21 @@ export const bulkCreateIngredientsSchema = z.object({
 
 export type CreateIngredientInput = z.infer<typeof createIngredientSchema>;
 
+export const updateIngredientSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  unit: z.string().min(1).max(50).optional(),
+  minStock: z.number().int().min(0).optional(),
+  batch: z
+    .object({
+      remainingQty: z.number().min(0, "Stock must be non-negative").optional(),
+      costPerUnit: z.number().min(0, "Cost must be non-negative").optional(),
+      expirationDate: z.string().datetime().nullable().optional(),
+    })
+    .optional(),
+});
+
+export type UpdateIngredientInput = z.infer<typeof updateIngredientSchema>;
+
 // ===================== RECIPE ITEM =====================
 
 export const recipeItemSchema = z.object({
@@ -118,6 +133,7 @@ export interface AIGeneratedProduct {
     unit: string;
     quantity: number;
     costPerUnit?: number; // from latest batch or AI estimate
+    estimatedStockQty?: number; // AI-estimated initial stock for new ingredients
   }[];
 }
 

@@ -113,7 +113,7 @@ export async function resolveIngredients(
           businessId,
           name,
           unit: item.unit,
-          minStock: 0,
+          minStock: -1, // -1 = no alert (AI-generated, user should configure manually)
           inventoryBatches: {
             create: {
               remainingQty: 0,
