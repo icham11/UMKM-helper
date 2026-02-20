@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import RevenueChart from "../components/charts/RevenueChart";
+import { TrendingUp, ShoppingCart, Wallet, AlertTriangle, Zap, Smile } from "lucide-react";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("id-ID", {
@@ -18,81 +19,174 @@ function getGreeting() {
   return "Evening";
 }
 
-interface LowStockItem {
-  id: number;
+interface AlertItem {
   name: string;
-  currentStock: number;
-  minStock: number;
+  expirationDate?: string;
+  currentStock?: number;
+  minStock?: number;
 }
 
 export default function DashboardPage() {
   const router = useRouter();
 
   const [todayRevenue, setTodayRevenue] = useState<number | null>(null);
-  const [todayTransactions, setTodayTransactions] = useState<number | null>(null);
+  const [todayTransactions, setTodayTransactions] = useState<number | null>(
+    null
+  );
   const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
   const [monthProfit, setMonthProfit] = useState<number | null>(null);
-  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+
+  const [alerts, setAlerts] = useState({
+    expired: [] as AlertItem[],
+    expiring3: [] as AlertItem[],
+    expiring7: [] as AlertItem[],
+    lowStock: [] as AlertItem[],
+  });
+
   const [loading, setLoading] = useState(true);
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [range, setRange] = useState<"today" | "7d" | "30d" | "all">("today");
+
+  function getDateRange(range: "today" | "7d" | "30d" | "all") {
+    const now = new Date();
+    const end = new Date(now);
+
+    if (range === "all") {
+      return { start: undefined, end };
+    }
+
+    const start = new Date(now);
+
+    if (range === "today") {
+      start.setHours(0, 0, 0, 0);
+    }
+
+    if (range === "7d") {
+      start.setDate(now.getDate() - 6);
+      start.setHours(0, 0, 0, 0);
+    }
+
+    if (range === "30d") {
+      start.setDate(now.getDate() - 29);
+      start.setHours(0, 0, 0, 0);
+    }
+
+    return { start, end };
+  }
 
   useEffect(() => {
-    const loadDashboardData = async () => {
-      try {
-        const now = new Date();
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
 
-        const startToday = new Date(now);
-        startToday.setHours(0, 0, 0, 0);
+      // 🔥 Ambil date range dari state
+      const { start, end } = getDateRange(range);
 
-        const endToday = new Date(now);
-        endToday.setHours(23, 59, 59, 999);
+      // 🔥 Fetch sales sesuai range
+      const salesUrl = new URL("/api/sales", window.location.origin);
 
-        const startMonth = new Date(now);
-        startMonth.setDate(now.getDate() - 29);
-        startMonth.setHours(0, 0, 0, 0);
+      if (start) {
+        salesUrl.searchParams.set("startDate", start.toISOString());
+      }
 
-        const fetchSales = async (startDate: Date, endDate: Date) => {
-          const url = new URL("/api/sales", window.location.origin);
-          url.searchParams.set("startDate", startDate.toISOString());
-          url.searchParams.set("endDate", endDate.toISOString());
+      if (end) {
+        salesUrl.searchParams.set("endDate", end.toISOString());
+      }
 
-          const res = await fetch(url.toString());
-          const data = await res.json();
+      const [salesRes, ingredientRes] = await Promise.all([
+        fetch(salesUrl.toString()),
+        fetch("/api/ingredients?withBatches=true"),
+      ]);
 
-          if (!res.ok || !data.success) {
-            throw new Error("Failed to fetch sales");
-          }
+      const salesData = await salesRes.json();
+      const ingredientData = await ingredientRes.json();
 
-          return data.data;
+      if (!salesRes.ok || !salesData.success) {
+        throw new Error("Failed to fetch sales");
+      }
+
+      // 🔥 Semua KPI sekarang ikut range
+      setTodayRevenue(salesData.data.totalRevenue);
+      setTodayTransactions(salesData.data.analytics.transactionCount);
+      setMonthRevenue(salesData.data.totalRevenue);
+      setMonthProfit(salesData.data.analytics.totalProfit);
+
+      // ===============================
+      // ALERT LOGIC (tidak diubah)
+      // ===============================
+
+      if (ingredientRes.ok && ingredientData.success) {
+        const today = new Date();
+
+        const expired: AlertItem[] = [];
+        const expiring3: AlertItem[] = [];
+        const expiring7: AlertItem[] = [];
+        const lowStock: AlertItem[] = [];
+
+        type InventoryBatch = {
+          expirationDate?: string;
         };
 
-        const [todayData, monthData, ingredientRes] = await Promise.all([
-          fetchSales(startToday, endToday),
-          fetchSales(startMonth, endToday),
-          fetch("/api/ingredients"),
-        ]);
+        type Ingredient = {
+          name: string;
+          currentStock: number;
+          minStock: number;
+          inventoryBatches?: InventoryBatch[];
+        };
 
-        const ingredientData = await ingredientRes.json();
+        (ingredientData.data as Ingredient[]).forEach((ingredient) => {
+          if (ingredient.currentStock < ingredient.minStock) {
+            lowStock.push({
+              name: ingredient.name,
+              currentStock: ingredient.currentStock,
+              minStock: ingredient.minStock,
+            });
+          }
 
-        setTodayRevenue(todayData.totalRevenue);
-        setTodayTransactions(todayData.analytics.transactionCount);
-        setMonthRevenue(monthData.totalRevenue);
-        setMonthProfit(monthData.analytics.totalProfit);
+          ingredient.inventoryBatches?.forEach((batch: InventoryBatch) => {
+            if (!batch.expirationDate) return;
 
-        if (ingredientRes.ok && ingredientData.success) {
-          const lowStockItems: LowStockItem[] = ingredientData.data.filter(
-            (item: LowStockItem) => item.currentStock < item.minStock
-          );
-          setLowStock(lowStockItems);
-        }
-      } catch (error) {
-        console.error("Dashboard load error:", error);
-      } finally {
-        setLoading(false);
+            const expDate = new Date(batch.expirationDate);
+            const diffDays =
+              (expDate.getTime() - today.getTime()) /
+              (1000 * 60 * 60 * 24);
+
+            if (diffDays < 0) {
+              expired.push({
+                name: ingredient.name,
+                expirationDate: batch.expirationDate,
+              });
+            } else if (diffDays <= 3) {
+              expiring3.push({
+                name: ingredient.name,
+                expirationDate: batch.expirationDate,
+              });
+            } else if (diffDays <= 7) {
+              expiring7.push({
+                name: ingredient.name,
+                expirationDate: batch.expirationDate,
+              });
+            }
+          });
+        });
+
+        setAlerts({ expired, expiring3, expiring7, lowStock });
       }
-    };
+    } catch (error) {
+      console.error("Dashboard load error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadDashboardData();
-  }, []);
+  loadDashboardData();
+}, [range]); // 🔥 PENTING: tambahkan range di dependency
+
+  const totalAlertCount =
+    alerts.expired.length +
+    alerts.expiring3.length +
+    alerts.expiring7.length +
+    alerts.lowStock.length;
 
   if (loading) {
     return (
@@ -103,144 +197,280 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen p-8 space-y-10">
+    <div className="min-h-screen p-2 sm:p-4 md:p-8 space-y-8 md:space-y-10 bg-gradient-to-br animate-fadein">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg animate-slidein">
         <div>
-          <h1 className="text-3xl font-semibold text-slate-800">
-            Good {getGreeting()}, Polo 👋
+          <h1 className="text-3xl font-bold text-white flex items-center gap-2">
+            <Smile className="inline-block text-yellow-300 animate-bounce" size={32} />
+            Good {getGreeting()}, Polo
           </h1>
-          <p className="text-slate-500 mt-1">
+          <p className="text-indigo-100 mt-1">
             Here’s your business performance overview.
           </p>
         </div>
+        <div className="flex gap-2">
+          <Zap className="text-yellow-300 animate-pulse" size={32} />
+        </div>
       </div>
+
+      {/* Date Range Filter */}
+      <div className="flex gap-2 bg-slate-100 p-1 rounded-xl w-fit">
+        {[
+          { label: "Today", value: "today" },
+          { label: "7D", value: "7d" },
+          { label: "30D", value: "30d" },
+          { label: "All Time", value: "all" },
+        ].map((item) => (
+          <button
+            key={item.value}
+            onClick={() => setRange(item.value as "today" | "7d" | "30d" | "all")}
+            className={`px-4 py-2 text-sm rounded-lg transition ${
+              range === item.value
+                ? "bg-white shadow text-slate-900"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      <p className="text-sm text-slate-500 mt-2">
+        Showing data for{" "}
+        <span className="font-medium text-slate-700">
+          {range === "today" && "Today"}
+          {range === "7d" && "Last 7 Days"}
+          {range === "30d" && "Last 30 Days"}
+          {range === "all" && "All Time"}
+        </span>
+      </p>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
-          title="Today Revenue"
-          value={
-            todayRevenue !== null
-              ? formatCurrency(todayRevenue)
-              : "—"
-          }
+          title="Revenue"
+          value={todayRevenue ? formatCurrency(todayRevenue) : "—"}
         />
+
         <KpiCard
-          title="Today Transactions"
-          value={
-            todayTransactions !== null
-              ? todayTransactions
-              : "—"
-          }
+          title="Transactions"
+          value={todayTransactions ?? "—"}
         />
+
         <KpiCard
-          title="Revenue (30 Days)"
-          value={
-            monthRevenue !== null
-              ? formatCurrency(monthRevenue)
-              : "—"
-          }
+          title="Profit"
+          value={monthProfit ? formatCurrency(monthProfit) : "—"}
         />
+
         <KpiCard
-          title="Profit (30 Days)"
+          title="Avg Margin"
           value={
-            monthProfit !== null
-              ? formatCurrency(monthProfit)
+            todayRevenue && monthProfit
+              ? `${((monthProfit / todayRevenue) * 100).toFixed(1)}%`
               : "—"
           }
         />
       </div>
 
-      {/* Low Stock Alert */}
-      {lowStock.length > 0 && (
-        <div className="border border-amber-200 rounded-xl p-6 bg-amber-50/40">
-          <h3 className="text-amber-700 font-semibold mb-2">
-            ⚠ Low Stock Alert
-          </h3>
-          <ul className="text-sm text-amber-600 space-y-1">
-            {lowStock.map((item) => (
-              <li key={item.id}>
-                {item.name} ({item.currentStock}/{item.minStock})
-              </li>
-            ))}
-          </ul>
+      {/* Compact Inventory Alert Card */}
+      {totalAlertCount > 0 && (
+        <div
+          onClick={() => setIsAlertOpen(true)}
+          className="bg-gradient-to-r from-red-50 via-yellow-50 to-amber-50 border border-amber-200 rounded-2xl p-6 shadow-md cursor-pointer hover:shadow-lg transition flex items-center gap-4 animate-fadein"
+        >
+          <AlertTriangle className="text-amber-500 animate-pulse" size={32} />
+          <div className="flex-1">
+            <h3 className="font-semibold text-amber-800 flex items-center gap-2">
+              Inventory Alerts
+              <span className="ml-2 text-xs bg-amber-600 text-white px-3 py-1 rounded-full animate-bounce">
+                {totalAlertCount}
+              </span>
+            </h3>
+            <p className="text-sm text-amber-700 mt-1">
+              {alerts.lowStock.length} Low Stock • {alerts.expired.length + alerts.expiring3.length + alerts.expiring7.length} Expiring
+            </p>
+          </div>
         </div>
       )}
 
       {/* Revenue Chart */}
-      <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">
-          Revenue Trend
+      <div className="bg-white border border-slate-200 shadow-lg rounded-3xl p-4 md:p-8 animate-fadein">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+          <TrendingUp className="text-indigo-500" size={22} /> Revenue Trend
         </h2>
         <RevenueChart />
       </div>
 
-      {/* Bottom Grid */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">
-            Quick Actions
+      {/* ALERT MODAL */}
+      {isAlertOpen && (
+        <AlertModal
+          alerts={alerts}
+          onClose={() => setIsAlertOpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ---------- COMPONENTS ---------- */
+
+function KpiCard({
+  title,
+  value,
+  icon,
+  animate,
+}: {
+  title: string;
+  value: string | number;
+  icon?: React.ReactNode;
+  animate?: boolean;
+}) {
+  return (
+    <div className="bg-gradient-to-br from-indigo-100 via-white to-violet-100 border border-indigo-100 shadow-lg rounded-2xl p-6 flex flex-col gap-2 items-start hover:scale-[1.03] transition-transform duration-200 animate-fadein">
+      <div className="flex items-center gap-2">
+        {icon && <span className="bg-white rounded-full p-2 shadow-md mr-2">{icon}</span>}
+        <p className="text-slate-600 text-sm font-semibold">{title}</p>
+      </div>
+      <h2 className={`text-2xl font-bold text-slate-900 mt-1 ${animate ? 'animate-count' : ''}`}>{value}</h2>
+    </div>
+  );
+}
+
+function AlertModal({
+  alerts,
+  onClose,
+}: {
+  alerts: {
+    expired: AlertItem[];
+    expiring3: AlertItem[];
+    expiring7: AlertItem[];
+    lowStock: AlertItem[];
+  };
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 animate-fadein"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl animate-slidein"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between mb-6">
+          <h2 className="text-lg font-semibold flex items-center gap-2">
+            <AlertTriangle className="text-amber-500" size={22} /> Inventory Alerts
           </h2>
-          <div className="grid grid-cols-2 gap-4">
-            <ActionButton
-              label="New Sale"
-              onClick={() => router.push("/dashboard/pos")}
-            />
-            <ActionButton
-              label="Add Ingredient"
-              onClick={() => router.push("/dashboard/ingredients")}
-            />
-            <ActionButton
-              label="View Analytics"
-              onClick={() => router.push("/dashboard/analytics")}
-            />
-            <ActionButton
-              label="Manage Recipes"
-              onClick={() => router.push("/dashboard/recipes")}
-            />
-          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 transition-transform hover:scale-125"
+            aria-label="Close"
+          >
+            ✕
+          </button>
         </div>
 
-        {/* AI Insight */}
-        <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">
-            AI Insight
-          </h2>
-          <p className="text-slate-600 text-sm leading-relaxed">
-            Your revenue is stable this month. Consider increasing volume to boost growth.
-          </p>
+        <div className="space-y-6 text-sm max-h-[60vh] overflow-y-auto">
+          {alerts.expired.length > 0 && (
+            <AlertSection
+              title="🔴 Expired"
+              color="red"
+              items={alerts.expired}
+            />
+          )}
+          {alerts.expiring3.length > 0 && (
+            <AlertSection
+              title="🟠 Expiring ≤ 3 Days"
+              color="orange"
+              items={alerts.expiring3}
+            />
+          )}
+          {alerts.expiring7.length > 0 && (
+            <AlertSection
+              title="🟡 Expiring ≤ 7 Days"
+              color="yellow"
+              items={alerts.expiring7}
+            />
+          )}
+          {alerts.lowStock.length > 0 && (
+            <AlertSection
+              title="⚠ Low Stock"
+              color="amber"
+              items={alerts.lowStock}
+              type="stock"
+            />
+          )}
         </div>
       </div>
     </div>
   );
 }
 
-function KpiCard({ title, value }: { title: string; value: string | number }) {
+function AlertSection({
+  title,
+  color,
+  items,
+  type,
+}: {
+  title: string;
+  color: "red" | "orange" | "yellow" | "amber";
+  items: AlertItem[];
+  type?: "stock";
+}) {
+  const colorMap = {
+    red: {
+      title: "text-red-600",
+      text: "text-red-500",
+    },
+    orange: {
+      title: "text-orange-600",
+      text: "text-orange-500",
+    },
+    yellow: {
+      title: "text-yellow-600",
+      text: "text-yellow-500",
+    },
+    amber: {
+      title: "text-amber-600",
+      text: "text-amber-500",
+    },
+  };
+
   return (
-    <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-2xl p-6 transition hover:shadow-md hover:-translate-y-1 duration-300">
-      <p className="text-slate-500 text-sm">{title}</p>
-      <h2 className="text-2xl font-semibold text-slate-900 mt-2 tracking-tight">
-        {value}
-      </h2>
+    <div>
+      <p className={`font-medium ${colorMap[color].title} flex items-center gap-2`}>
+        {title} <span className="ml-1 bg-white border border-gray-200 rounded-full px-2 py-0.5 text-xs font-bold">{items.length}</span>
+      </p>
+      <ul className={`mt-2 space-y-1 ${colorMap[color].text}`}>
+        {items.map((item, i) => (
+          <li key={i} className="flex items-center gap-2 animate-fadein">
+            {type === "stock" ? (
+              <>
+                <AlertTriangle className="text-amber-500" size={16} />
+                <span>{item.name} <span className="text-xs text-slate-500">({item.currentStock}/{item.minStock})</span></span>
+              </>
+            ) : (
+              <>
+                <Zap className="text-yellow-500" size={16} />
+                <span>{item.name} <span className="text-xs text-slate-500">-
+                  {item.expirationDate
+                    ? new Date(item.expirationDate).toLocaleDateString("id-ID")
+                    : "Unknown"}
+                </span></span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
     </div>
   );
-}
-
-function ActionButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="bg-slate-900 text-white py-3 rounded-xl hover:bg-slate-800 transition text-sm font-medium shadow-sm hover:shadow-md"
-    >
-      {label}
-    </button>
-  );
+// Animations (Tailwind CSS custom)
+// Add these to your global CSS if not present:
+// .animate-fadein { animation: fadeIn 0.7s; }
+// .animate-slidein { animation: slideIn 0.7s; }
+// @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+// @keyframes slideIn { from { opacity: 0; transform: translateY(30px);} to { opacity: 1; transform: none; } }
+// .animate-count { animation: countUp 1s; }
+// @keyframes countUp { from { opacity: 0.5; transform: scale(0.95);} to { opacity: 1; transform: scale(1);} }
 }
