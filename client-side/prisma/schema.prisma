@@ -2,11 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 // ==================== ENUMS ====================
@@ -65,6 +67,27 @@ model Business {
   businessHealthScores BusinessHealthScores[]
   chatMessages         ChatMessage[]
   chatSessions         ChatSession[]
+  documents            BusinessDocument[]
+}
+
+// ==================== RAG VECTOR LAYER ====================
+
+model BusinessDocument {
+  id         Int                          @id @default(autoincrement())
+  businessId Int
+  content    String                       @db.Text
+  embedding  Unsupported("vector(768)")?
+  sourceType String                       // "product" | "ingredient" | "sale" | "recipe" | "metric" | "health"
+  sourceId   Int?
+  metadata   Json?
+  chunkIndex Int                          @default(0)
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([sourceType])
 }
 
 // ==================== AI CHAT LAYER ====================

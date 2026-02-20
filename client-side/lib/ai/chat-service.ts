@@ -1,5 +1,6 @@
 import { groq, GROQ_MODELS } from "@/lib/groq";
 import prisma from "@/lib/prisma";
+import { getRelevantContext, getIndexStatus, indexBusinessDocuments } from "@/lib/ai/rag-store";
 
 // ===================== TYPES =====================
 
@@ -60,13 +61,14 @@ KEMAMPUAN kamu:
 
 ATURAN:
 1. Jawab dalam Bahasa Indonesia yang ramah dan mudah dipahami
-2. Gunakan data bisnis yang tersedia untuk memberikan insight yang spesifik
-3. Berikan saran yang actionable dan praktis untuk UMKM
-4. Gunakan format yang rapi (bullet points, numbering) untuk readability
-5. Jika tidak ada data, berikan saran umum berdasarkan best practice UMKM
+2. Gunakan DATA BISNIS yang diberikan di bawah untuk memberikan insight SPESIFIK
+3. Data di bawah adalah hasil pencarian semantik — hanya data yang RELEVAN dengan pertanyaan user
+4. Berikan saran yang actionable dan praktis untuk UMKM
+5. Gunakan format markdown yang rapi: tabel, bold, heading, numbered list
 6. Selalu sertakan angka dan persentase jika data tersedia
-7. Gunakan emoji secukupnya untuk membuat respons lebih engaging
-8. Jangan pernah memberikan saran yang berbahaya atau menyesatkan`;
+7. Jika data tidak cukup, katakan secara jujur lalu berikan saran umum
+8. Jangan mengarang data yang tidak ada dalam konteks
+9. Gunakan emoji secukupnya untuk membuat respons lebih engaging`;
 
 // ===================== FETCH BUSINESS DATA =====================
 
@@ -198,63 +200,97 @@ export async function fetchBusinessContext(businessId: number): Promise<Business
   };
 }
 
+// ===================== RAG CONTEXT BUILDER =====================
+
+/**
+ * Ensures business data is indexed in the vector store.
+ * Auto-indexes if not yet done, re-indexes if data is stale (>1 hour).
+ */
+async function ensureRAGIndex(businessId: number): Promise<void> {
+  try {
+    const status = await getIndexStatus(businessId);
+    if (!status.indexed) {
+      console.log(`[RAG] Business ${businessId} not indexed. Auto-indexing...`);
+      await indexBusinessDocuments(businessId);
+    } else if (status.lastUpdated) {
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      if (status.lastUpdated < oneHourAgo) {
+        console.log(`[RAG] Re-indexing business ${businessId} (stale data)...`);
+        // Run in background so we don't block the response
+        indexBusinessDocuments(businessId).catch((e) =>
+          console.error("[RAG] Background re-index failed:", e)
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("[RAG] Index check failed, will use fallback context:", err);
+  }
+}
+
+/**
+ * Build context prompt using RAG semantic search.
+ * Falls back to the old dump-all approach if RAG fails.
+ */
+async function buildRAGContextPrompt(
+  businessId: number,
+  userMessage: string
+): Promise<{ prompt: string; ragUsed: boolean; sourceCount: number; sources: { sourceType: string; similarity: number; content: string }[] }> {
+  try {
+    await ensureRAGIndex(businessId);
+
+    const { context, sources } = await getRelevantContext(businessId, userMessage, {
+      topK: 10,
+      minSimilarity: 0.2,
+    });
+
+    if (sources.length > 0) {
+      console.log(
+        `[RAG] Found ${sources.length} relevant docs (similarity: ${sources.map((s) => s.similarity.toFixed(2)).join(", ")})`
+      );
+
+      const business = await prisma.business.findUnique({
+        where: { id: businessId },
+        select: { name: true },
+      });
+
+      const prompt = `
+DATA BISNIS "${business?.name || "UMKM"}" (via RAG Semantic Search — ${sources.length} dokumen relevan):
+
+${context}
+`;
+      const sourceRefs = sources.map((s) => ({
+        sourceType: s.sourceType,
+        similarity: s.similarity,
+        content: s.content.slice(0, 100),
+      }));
+      return { prompt, ragUsed: true, sourceCount: sources.length, sources: sourceRefs };
+    }
+  } catch (err) {
+    console.warn("[RAG] Semantic search failed, falling back to dump-all:", err);
+  }
+
+  // Fallback: use the old approach
+  const businessData = await fetchBusinessContext(businessId);
+  const prompt = buildContextPrompt(businessData);
+  return { prompt, ragUsed: false, sourceCount: 0, sources: [] };
+}
+
 // ===================== CHAT COMPLETION =====================
 
 export async function chatWithAssistant(
   messages: ChatMessage[],
   context: ChatContext
 ): Promise<string> {
-  const businessData = await fetchBusinessContext(context.businessId);
+  // Get the user's latest message for RAG search
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  const searchQuery = lastUserMsg?.content || messages[messages.length - 1]?.content || "";
 
-  const contextPrompt = `
-DATA BISNIS "${businessData.businessName}" (30 hari terakhir):
-
-📦 PRODUK (${businessData.products.length} aktif):
-${businessData.products
-  .slice(0, 20)
-  .map((p) => `- ${p.name}: Rp${p.sellingPrice.toLocaleString("id-ID")} ${p.category ? `[${p.category}]` : ""}`)
-  .join("\n")}
-
-💰 PENJUALAN TERKINI (${businessData.recentSales.length} transaksi):
-${
-  businessData.recentSales.length > 0
-    ? (() => {
-        const totalRev = businessData.recentSales.reduce((s, r) => s + r.totalRevenue, 0);
-        const totalCost = businessData.recentSales.reduce((s, r) => s + r.totalCost, 0);
-        const avgRev = totalRev / businessData.recentSales.length;
-        return `Total Revenue: Rp${totalRev.toLocaleString("id-ID")}
-Total Cost: Rp${totalCost.toLocaleString("id-ID")}
-Total Profit: Rp${(totalRev - totalCost).toLocaleString("id-ID")}
-Rata-rata per transaksi: Rp${avgRev.toLocaleString("id-ID")}`;
-      })()
-    : "Belum ada data penjualan"
-}
-
-🥕 BAHAN BAKU (${businessData.ingredients.length} item):
-${businessData.ingredients
-  .slice(0, 20)
-  .map((i) => {
-    const status = i.currentStock <= i.minStock ? "⚠️ RENDAH" : "✅";
-    return `- ${i.name}: ${i.currentStock} ${i.unit} (min: ${i.minStock}) ${status}`;
-  })
-  .join("\n")}
-
-📊 METRIK BISNIS:
-${
-  businessData.metrics
-    ? `Revenue: Rp${businessData.metrics.totalRevenue.toLocaleString("id-ID")}
-Profit: Rp${businessData.metrics.totalProfit.toLocaleString("id-ID")}
-Margin: ${businessData.metrics.marginAvg.toFixed(1)}%
-Growth: ${businessData.metrics.growthRate.toFixed(1)}%`
-    : "Belum ada metrik tersedia"
-}
-
-🍳 RESEP (${businessData.recipes.length} komposisi):
-${businessData.recipes
-  .slice(0, 20)
-  .map((r) => `- ${r.productName}: ${r.ingredientName} ${r.quantity} ${r.unit}`)
-  .join("\n")}
-`;
+  // Build context using RAG semantic search
+  const { prompt: contextPrompt, ragUsed, sourceCount } = await buildRAGContextPrompt(
+    context.businessId,
+    searchQuery
+  );
+  console.log(`🤖 AI Chat [RAG=${ragUsed}, sources=${sourceCount}]`);
 
   const systemMessage: ChatMessage = {
     role: "system",
@@ -323,9 +359,16 @@ export async function streamChatWithAssistant(
   messages: ChatMessage[],
   context: ChatContext
 ): Promise<ReadableStream<Uint8Array>> {
-  const businessData = await fetchBusinessContext(context.businessId);
+  // Get the user's latest message for RAG search
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  const searchQuery = lastUserMsg?.content || messages[messages.length - 1]?.content || "";
 
-  const contextPrompt = buildContextPrompt(businessData);
+  // Build context using RAG semantic search
+  const { prompt: contextPrompt, ragUsed, sourceCount, sources } = await buildRAGContextPrompt(
+    context.businessId,
+    searchQuery
+  );
+  console.log(`🤖 AI Stream [RAG=${ragUsed}, sources=${sourceCount}]`);
 
   const systemMessage: ChatMessage = {
     role: "system",
@@ -340,6 +383,13 @@ export async function streamChatWithAssistant(
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       let fullResponse = "";
+
+      // Send RAG sources as first SSE event so frontend can show badges
+      if (sources.length > 0) {
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify({ type: "sources", sources })}\n\n`)
+        );
+      }
 
       try {
         const stream = await groq.chat.completions.create({
