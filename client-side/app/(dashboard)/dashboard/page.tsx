@@ -161,8 +161,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-white p-6 rounded-xl shadow">
-          <h2 className="font-semibold mb-4">AI Insight</h2>
-          <p className="text-sm text-gray-600">{aiInsight}</p>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">🤖 AI Insight</h2>
+            <a href="/dashboard/ai-analysis" className="text-xs text-indigo-600 hover:underline font-medium">
+              Buka AI Center →
+            </a>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">{aiInsight}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <a href="/dashboard/ai-analysis" className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition">
+              <span>💬</span> AI Chat
+            </a>
+            <a href="/dashboard/ai-analysis" className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-xs font-medium text-purple-700 hover:bg-purple-100 transition">
+              <span>🧠</span> Smart Insights
+            </a>
+          </div>
         </div>
       </div>
     </div>
