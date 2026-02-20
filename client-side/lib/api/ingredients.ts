@@ -1,4 +1,5 @@
 export type Ingredient = {
+  currentStock: number
   id: string
   name: string
   unit: string

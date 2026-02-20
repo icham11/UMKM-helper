@@ -80,7 +80,7 @@ async function deductInventory(
           id: true,
           inventoryBatches: {
             where: { remainingQty: { gt: 0 } },
-            orderBy: { receivedAt: "asc" }, // FIFO
+            orderBy: { receivedAt: "asc" },
           },
         },
       },
@@ -97,13 +97,11 @@ async function deductInventory(
       const batchQty = Number(batch.remainingQty);
       const deduction = Math.min(batchQty, remainingToDeduct);
 
-      // 1️⃣ Update batch remainingQty
       await tx.inventoryBatch.update({
         where: { id: batch.id },
         data: { remainingQty: batchQty - deduction },
       });
 
-      // 2️⃣ CREATE INVENTORY MOVEMENT (OUT)
       await tx.inventoryMovement.create({
         data: {
           ingredientId: recipe.ingredient.id,
@@ -115,6 +113,11 @@ async function deductInventory(
       });
 
       remainingToDeduct -= deduction;
+    }
+
+    // 🔥 Safety check
+    if (remainingToDeduct > 0) {
+      throw new Error("Insufficient stock");
     }
   }
 }
@@ -522,16 +525,13 @@ export async function POST(request: NextRequest) {
         totalCost
       );
 
-      for (const item of items) {
-        const price = productPriceMap.get(item.productId)!;
-        const cost = await calculateProductCost(tx, item.productId, item.quantity);
-
+      for (const item of saleItemsData) {
         await updateProductMetrics(
           tx,
           item.productId,
           item.quantity,
-          price * item.quantity,
-          cost
+          item.priceAtSale * item.quantity,
+          item.costAtSale * item.quantity
         );
       }
 

@@ -25,9 +25,9 @@ export async function POST(
     const body = await request.json();
     const { quantity, notes } = body;
 
-    if (!quantity || quantity <= 0) {
+    if (typeof quantity !== "number" || quantity <= 0) {
       return NextResponse.json(
-        { error: "Quantity must be greater than 0" },
+        { error: "Quantity must be a positive number" },
         { status: 400 }
       );
     }
@@ -53,6 +53,16 @@ export async function POST(
         orderBy: { receivedAt: "asc" },
       });
 
+      // 🔎 Hitung total stock dulu (prevent partial deduct)
+      const totalStock = batches.reduce(
+        (sum, b) => sum + Number(b.remainingQty),
+        0
+      );
+
+      if (totalStock < quantity) {
+        throw new Error("Insufficient stock");
+      }
+
       let remainingToDeduct = quantity;
       let totalCost = 0;
 
@@ -71,11 +81,6 @@ export async function POST(
 
         totalCost += deductQty * Number(batch.costPerUnit);
         remainingToDeduct -= deductQty;
-      }
-
-      // ❌ Kalau stock kurang
-      if (remainingToDeduct > 0) {
-        throw new Error("Insufficient stock");
       }
 
       // 📄 Create Stock Document (Waste)
