@@ -2,11 +2,13 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [vector]
 }
 
 // ==================== ENUMS ====================
@@ -63,6 +65,56 @@ model Business {
   stockDocuments       StockDocument[]
   businessMetrics      BusinessMetrics[]
   businessHealthScores BusinessHealthScores[]
+  chatMessages         ChatMessage[]
+  chatSessions         ChatSession[]
+  documents            BusinessDocument[]
+}
+
+// ==================== RAG VECTOR LAYER ====================
+
+model BusinessDocument {
+  id         Int                          @id @default(autoincrement())
+  businessId Int
+  content    String                       @db.Text
+  embedding  Unsupported("vector(768)")?
+  sourceType String                       // "product" | "ingredient" | "sale" | "recipe" | "metric" | "health"
+  sourceId   Int?
+  metadata   Json?
+  chunkIndex Int                          @default(0)
+  createdAt  DateTime                     @default(now())
+  updatedAt  DateTime                     @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([sourceType])
+}
+
+// ==================== AI CHAT LAYER ====================
+
+model ChatSession {
+  id         Int      @id @default(autoincrement())
+  businessId Int
+  title      String   @default("New Chat")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id            Int      @id @default(autoincrement())
+  businessId    Int
+  sessionId     Int?
+  role          String   // "user" | "assistant" | "system"
+  content       String
+  contextType   String?  // "sales" | "inventory" | "product" | "general"
+  metadata      Json?    // extra context data
+  createdAt     DateTime @default(now())
+
+  business Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  session  ChatSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 // ==================== PRODUCT LAYER ====================

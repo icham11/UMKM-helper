@@ -33,6 +33,9 @@ export default function DashboardPage() {
   const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
   const [monthProfit, setMonthProfit] = useState<number | null>(null);
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+  const [aiInsight, setAiInsight] = useState<string>(
+    "Your revenue is stable this month. Consider increasing volume to boost growth."
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,7 +114,7 @@ export default function DashboardPage() {
             Good {getGreeting()}, Polo 👋
           </h1>
           <p className="text-slate-500 mt-1">
-            Here’s your business performance overview.
+            Here&apos;s your business performance overview.
           </p>
         </div>
       </div>
@@ -120,35 +123,19 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <KpiCard
           title="Today Revenue"
-          value={
-            todayRevenue !== null
-              ? formatCurrency(todayRevenue)
-              : "—"
-          }
+          value={todayRevenue !== null ? formatCurrency(todayRevenue) : "—"}
         />
         <KpiCard
           title="Today Transactions"
-          value={
-            todayTransactions !== null
-              ? todayTransactions
-              : "—"
-          }
+          value={todayTransactions !== null ? todayTransactions : "—"}
         />
         <KpiCard
           title="Revenue (30 Days)"
-          value={
-            monthRevenue !== null
-              ? formatCurrency(monthRevenue)
-              : "—"
-          }
+          value={monthRevenue !== null ? formatCurrency(monthRevenue) : "—"}
         />
         <KpiCard
           title="Profit (30 Days)"
-          value={
-            monthProfit !== null
-              ? formatCurrency(monthProfit)
-              : "—"
-          }
+          value={monthProfit !== null ? formatCurrency(monthProfit) : "—"}
         />
       </div>
 
@@ -203,14 +190,36 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* AI Insight */}
+        {/* AI Insight — Gabungan styling Ornest + fitur Release-1 */}
         <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">
-            AI Insight
-          </h2>
-          <p className="text-slate-600 text-sm leading-relaxed">
-            Your revenue is stable this month. Consider increasing volume to boost growth.
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">
+              🤖 AI Insight
+            </h2>
+            <a
+              href="/dashboard/ai-analysis"
+              className="text-xs text-indigo-600 hover:underline font-medium"
+            >
+              Buka AI Center →
+            </a>
+          </div>
+          <p className="text-slate-600 text-sm leading-relaxed mb-4">
+            {aiInsight}
           </p>
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href="/dashboard/ai-analysis"
+              className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+            >
+              <span>💬</span> AI Chat
+            </a>
+            <a
+              href="/dashboard/ai-analysis"
+              className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-xs font-medium text-purple-700 hover:bg-purple-100 transition"
+            >
+              <span>🧠</span> Smart Insights
+            </a>
+          </div>
         </div>
       </div>
     </div>
