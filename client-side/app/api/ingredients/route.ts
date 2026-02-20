@@ -35,52 +35,72 @@ export async function GET(request: NextRequest) {
     const ingredients = await prisma.ingredient.findMany({
       where: {
         businessId,
-        ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+        ...(search
+          ? { name: { contains: search, mode: "insensitive" as const } }
+          : {}),
       },
       orderBy: { name: "asc" },
       include: {
-        inventoryBatches: withBatches
-          ? {
-              where: { remainingQty: { gt: 0 } },
-              orderBy: { receivedAt: "asc" },
-            }
-          : {
-              where: { remainingQty: { gt: 0 } },
-              orderBy: { receivedAt: "desc" },
-              take: 1,
-              select: { costPerUnit: true, remainingQty: true },
-            },
+        inventoryBatches: {
+          where: { remainingQty: { gt: 0 } },
+          orderBy: { receivedAt: "asc" }, // FIFO order
+        },
       },
     });
 
-    // Always compute currentStock and costPerUnit
     const data = ingredients.map((ing) => {
       const batches = ing.inventoryBatches;
-      const currentStock = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-      // Weighted average cost, or latest batch cost if no stock
-      const totalCost = batches.reduce((sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit), 0);
+
+      // ✅ TOTAL STOCK = sum semua batch
+      const currentStock = batches.reduce(
+        (sum, b) => sum + Number(b.remainingQty),
+        0
+      );
+
+      // ✅ Weighted average cost
+      const totalCost = batches.reduce(
+        (sum, b) =>
+          sum + Number(b.remainingQty) * Number(b.costPerUnit),
+        0
+      );
+
       const costPerUnit =
-        currentStock > 0 ? totalCost / currentStock : batches[0] ? Number(batches[0].costPerUnit) : null;
+        currentStock > 0
+          ? totalCost / currentStock
+          : batches.length > 0
+          ? Number(batches[batches.length - 1].costPerUnit)
+          : null;
 
       return {
-        ...ing,
+        id: ing.id,
+        name: ing.name,
+        unit: ing.unit,
+        minStock: ing.minStock,
         currentStock,
         costPerUnit,
-        ...(withBatches ? {} : { inventoryBatches: undefined }),
+        ...(withBatches ? { inventoryBatches: batches } : {}),
       };
     });
 
     return NextResponse.json({ success: true, data });
   } catch (error: unknown) {
     if (isAuthError(error)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
+
     console.error("GET /api/ingredients error:", error);
+
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to fetch ingredients",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch ingredients",
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

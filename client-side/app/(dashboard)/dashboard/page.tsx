@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import StatCard from "../components/StatCard";
+import { useRouter } from "next/navigation";
 import RevenueChart from "../components/charts/RevenueChart";
 
 const formatCurrency = (value: number) =>
@@ -11,19 +11,41 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 0,
   }).format(value);
 
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Morning";
+  if (hour < 18) return "Afternoon";
+  return "Evening";
+}
+
+interface LowStockItem {
+  id: number;
+  name: string;
+  currentStock: number;
+  minStock: number;
+}
+
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [todayRevenue, setTodayRevenue] = useState<number | null>(null);
   const [todayTransactions, setTodayTransactions] = useState<number | null>(null);
   const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
   const [monthProfit, setMonthProfit] = useState<number | null>(null);
-  const [aiInsight, setAiInsight] = useState<string>("Memuat insight...");
+  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+  const [aiInsight, setAiInsight] = useState<string>(
+    "Your revenue is stable this month. Consider increasing volume to boost growth."
+  );
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         const now = new Date();
+
         const startToday = new Date(now);
         startToday.setHours(0, 0, 0, 0);
+
         const endToday = new Date(now);
         endToday.setHours(23, 59, 59, 999);
 
@@ -36,148 +58,198 @@ export default function DashboardPage() {
           url.searchParams.set("startDate", startDate.toISOString());
           url.searchParams.set("endDate", endDate.toISOString());
 
-          const response = await fetch(url.toString());
-          const data = await response.json();
-          if (!response.ok || !data?.success) {
-            throw new Error(data?.error || "Failed to fetch sales");
+          const res = await fetch(url.toString());
+          const data = await res.json();
+
+          if (!res.ok || !data.success) {
+            throw new Error("Failed to fetch sales");
           }
-          return data.data as {
-            sales: unknown[];
-            analytics: { transactionCount: number; totalProfit: number };
-            totalRevenue: number;
-          };
+
+          return data.data;
         };
 
-        const [todayData, monthData] = await Promise.all([
+        const [todayData, monthData, ingredientRes] = await Promise.all([
           fetchSales(startToday, endToday),
           fetchSales(startMonth, endToday),
+          fetch("/api/ingredients"),
         ]);
+
+        const ingredientData = await ingredientRes.json();
 
         setTodayRevenue(todayData.totalRevenue);
         setTodayTransactions(todayData.analytics.transactionCount);
         setMonthRevenue(monthData.totalRevenue);
         setMonthProfit(monthData.analytics.totalProfit);
 
-        const analyticsResponse = await fetch("/api/business-analytics", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "sales",
-            data: {
-              range: {
-                start: startMonth.toISOString(),
-                end: endToday.toISOString(),
-              },
-              sales: monthData.sales,
-              analytics: monthData.analytics,
-            },
-          }),
-        });
-
-        const analyticsData = await analyticsResponse.json();
-        if (analyticsResponse.ok && analyticsData?.success) {
-          setAiInsight(analyticsData.analysis || "Insight tidak tersedia.");
-        } else {
-          setAiInsight("Insight tidak tersedia.");
+        if (ingredientRes.ok && ingredientData.success) {
+          const lowStockItems: LowStockItem[] = ingredientData.data.filter(
+            (item: LowStockItem) => item.currentStock < item.minStock
+          );
+          setLowStock(lowStockItems);
         }
       } catch (error) {
-        console.error("Failed to load dashboard data:", error);
-        setAiInsight("Insight tidak tersedia.");
+        console.error("Dashboard load error:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     loadDashboardData();
   }, []);
 
-  const todayRevenueLabel =
-    todayRevenue === null ? "—" : formatCurrency(todayRevenue);
-  const todayTransactionsLabel =
-    todayTransactions === null ? "—" : todayTransactions.toLocaleString("id-ID");
-  const monthRevenueLabel =
-    monthRevenue === null ? "—" : formatCurrency(monthRevenue);
-  const monthProfitLabel =
-    monthProfit === null ? "—" : formatCurrency(monthProfit);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-slate-500">
+        Loading dashboard...
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Blue header section */}
-      <div className="w-full px-6 pt-8 pb-14 flex flex-col gap-6 relative overflow-visible">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-blue-800 text-base font-semibold mb-1">/ Pages / Default</div>
-            <div className="text-2xl font-bold text-blue-900 drop-shadow">Default</div>
-          </div>
-          <div className="flex items-center gap-4">
-            <input
-              type="text"
-              placeholder="Type here..."
-              className="px-4 py-2 rounded-lg border-none outline-none bg-white text-gray-700 shadow"
-            />
-            <span className="text-blue-800 font-medium">Sign In</span>
-          </div>
-        </div>
-
-        {/* Stat Cards */}
-        <div className="grid grid-cols-4 gap-4 mt-2">
-          <StatCard
-            title="REVENUE HARI INI"
-            value={todayRevenueLabel}
-            icon={<span className="text-indigo-600 text-xl">💰</span>}
-            tooltip="Total pendapatan hari ini dari /api/sales"
-          />
-          <StatCard
-            title="TRANSAKSI HARI INI"
-            value={todayTransactionsLabel}
-            icon={<span className="text-indigo-600 text-xl">🧾</span>}
-            tooltip="Jumlah transaksi hari ini"
-          />
-          <StatCard
-            title="REVENUE 30 HARI"
-            value={monthRevenueLabel}
-            icon={<span className="text-red-600 text-xl">📈</span>}
-            tooltip="Total pendapatan 30 hari terakhir"
-          />
-          <StatCard
-            title="PROFIT 30 HARI"
-            value={monthProfitLabel}
-            icon={<span className="text-orange-600 text-xl">💹</span>}
-            tooltip="Total profit 30 hari terakhir"
-          />
+    <div className="min-h-screen p-8 space-y-10">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-semibold text-slate-800">
+            Good {getGreeting()}, Polo 👋
+          </h1>
+          <p className="text-slate-500 mt-1">
+            Here&apos;s your business performance overview.
+          </p>
         </div>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <KpiCard
+          title="Today Revenue"
+          value={todayRevenue !== null ? formatCurrency(todayRevenue) : "—"}
+        />
+        <KpiCard
+          title="Today Transactions"
+          value={todayTransactions !== null ? todayTransactions : "—"}
+        />
+        <KpiCard
+          title="Revenue (30 Days)"
+          value={monthRevenue !== null ? formatCurrency(monthRevenue) : "—"}
+        />
+        <KpiCard
+          title="Profit (30 Days)"
+          value={monthProfit !== null ? formatCurrency(monthProfit) : "—"}
+        />
+      </div>
+
+      {/* Low Stock Alert */}
+      {lowStock.length > 0 && (
+        <div className="border border-amber-200 rounded-xl p-6 bg-amber-50/40">
+          <h3 className="text-amber-700 font-semibold mb-2">
+            ⚠ Low Stock Alert
+          </h3>
+          <ul className="text-sm text-amber-600 space-y-1">
+            {lowStock.map((item) => (
+              <li key={item.id}>
+                {item.name} ({item.currentStock}/{item.minStock})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Revenue Chart */}
-      <div className="px-6 mb-6">
+      <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
+        <h2 className="text-lg font-semibold text-slate-800 mb-4">
+          Revenue Trend
+        </h2>
         <RevenueChart />
       </div>
 
       {/* Bottom Grid */}
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-xl shadow">
-          <h2 className="font-semibold mb-4">Top Selling Menu</h2>
-          <div className="h-48 flex items-center justify-center text-gray-400">
-            Bar Chart Placeholder
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Quick Actions */}
+        <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">
+            Quick Actions
+          </h2>
+          <div className="grid grid-cols-2 gap-4">
+            <ActionButton
+              label="New Sale"
+              onClick={() => router.push("/dashboard/pos")}
+            />
+            <ActionButton
+              label="Add Ingredient"
+              onClick={() => router.push("/dashboard/ingredients")}
+            />
+            <ActionButton
+              label="View Analytics"
+              onClick={() => router.push("/dashboard/analytics")}
+            />
+            <ActionButton
+              label="Manage Recipes"
+              onClick={() => router.push("/dashboard/recipes")}
+            />
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl shadow">
+        {/* AI Insight — Gabungan styling Ornest + fitur Release-1 */}
+        <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold">🤖 AI Insight</h2>
-            <a href="/dashboard/ai-analysis" className="text-xs text-indigo-600 hover:underline font-medium">
+            <h2 className="text-lg font-semibold text-slate-800">
+              🤖 AI Insight
+            </h2>
+            <a
+              href="/dashboard/ai-analysis"
+              className="text-xs text-indigo-600 hover:underline font-medium"
+            >
               Buka AI Center →
             </a>
           </div>
-          <p className="text-sm text-gray-600 mb-4">{aiInsight}</p>
+          <p className="text-slate-600 text-sm leading-relaxed mb-4">
+            {aiInsight}
+          </p>
           <div className="grid grid-cols-2 gap-2">
-            <a href="/dashboard/ai-analysis" className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition">
+            <a
+              href="/dashboard/ai-analysis"
+              className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+            >
               <span>💬</span> AI Chat
             </a>
-            <a href="/dashboard/ai-analysis" className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-xs font-medium text-purple-700 hover:bg-purple-100 transition">
+            <a
+              href="/dashboard/ai-analysis"
+              className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-xs font-medium text-purple-700 hover:bg-purple-100 transition"
+            >
               <span>🧠</span> Smart Insights
             </a>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function KpiCard({ title, value }: { title: string; value: string | number }) {
+  return (
+    <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-2xl p-6 transition hover:shadow-md hover:-translate-y-1 duration-300">
+      <p className="text-slate-500 text-sm">{title}</p>
+      <h2 className="text-2xl font-semibold text-slate-900 mt-2 tracking-tight">
+        {value}
+      </h2>
+    </div>
+  );
+}
+
+function ActionButton({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="bg-slate-900 text-white py-3 rounded-xl hover:bg-slate-800 transition text-sm font-medium shadow-sm hover:shadow-md"
+    >
+      {label}
+    </button>
   );
 }

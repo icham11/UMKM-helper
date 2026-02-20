@@ -23,7 +23,7 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { quantity, costPerUnit, expirationDate, notes } = body;
+    const { quantity, notes } = body;
 
     if (typeof quantity !== "number" || quantity <= 0) {
       return NextResponse.json(
@@ -32,18 +32,8 @@ export async function POST(
       );
     }
 
-    if (typeof costPerUnit !== "number" || costPerUnit <= 0) {
-      return NextResponse.json(
-        { error: "Cost per unit must be a positive number" },
-        { status: 400 }
-      );
-    }
-
     const ingredient = await prisma.ingredient.findFirst({
-      where: {
-        id: ingredientId,
-        businessId,
-      },
+      where: { id: ingredientId, businessId },
     });
 
     if (!ingredient) {
@@ -54,35 +44,62 @@ export async function POST(
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      // 1️⃣ Create Stock Document (Purchase)
+      // 🔥 Ambil batch FIFO
+      const batches = await tx.inventoryBatch.findMany({
+        where: {
+          ingredientId,
+          remainingQty: { gt: 0 },
+        },
+        orderBy: { receivedAt: "asc" },
+      });
+
+      // 🔎 Hitung total stock dulu (prevent partial deduct)
+      const totalStock = batches.reduce(
+        (sum, b) => sum + Number(b.remainingQty),
+        0
+      );
+
+      if (totalStock < quantity) {
+        throw new Error("Insufficient stock");
+      }
+
+      let remainingToDeduct = quantity;
+      let totalCost = 0;
+
+      for (const batch of batches) {
+        if (remainingToDeduct <= 0) break;
+
+        const available = Number(batch.remainingQty);
+        const deductQty = Math.min(available, remainingToDeduct);
+
+        await tx.inventoryBatch.update({
+          where: { id: batch.id },
+          data: {
+            remainingQty: available - deductQty,
+          },
+        });
+
+        totalCost += deductQty * Number(batch.costPerUnit);
+        remainingToDeduct -= deductQty;
+      }
+
+      // 📄 Create Stock Document (Waste)
       const stockDoc = await tx.stockDocument.create({
         data: {
           businessId,
-          type: StockDocumentType.Purchase,
+          type: StockDocumentType.Waste,
           notes: notes ?? null,
         },
       });
 
-      // 2️⃣ Create Inventory Movement (IN)
+      // 📦 Create Movement OUT
       await tx.inventoryMovement.create({
         data: {
           ingredientId,
           stockDocumentId: stockDoc.id,
           quantity,
-          costPerUnit,
-          type: InventoryMovementType.In,
-        },
-      });
-
-      // 3️⃣ Create Inventory Batch
-      await tx.inventoryBatch.create({
-        data: {
-          ingredientId,
-          remainingQty: quantity,
-          costPerUnit,
-          expirationDate: expirationDate
-            ? new Date(expirationDate)
-            : null,
+          costPerUnit: totalCost / quantity,
+          type: InventoryMovementType.Out,
         },
       });
 
@@ -104,7 +121,7 @@ export async function POST(
         error:
           error instanceof Error
             ? error.message
-            : "Failed to restock ingredient",
+            : "Failed to consume stock",
       },
       { status: 500 }
     );

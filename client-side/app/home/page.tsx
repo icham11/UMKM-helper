@@ -23,10 +23,10 @@ function HomePage() {
   const router = useRouter();
   const { business, loading } = useBusiness();
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-100 via-indigo-100 to-blue-200 px-2 py-6 md:px-8 md:py-10 space-y-10 relative overflow-x-hidden">
+    <div className="min-h-screen bg-linear-to-br from-blue-100 via-indigo-100 to-blue-200 px-2 py-6 md:px-8 md:py-10 space-y-10 relative overflow-x-hidden flex flex-col">
       {/* Background Pattern */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        <svg width="100%" height="100%" className="opacity-10" style={{position:'absolute',top:0,left:0}}>
+        <svg width="100%" height="100%" className="opacity-10 animate-fadeIn" style={{position:'absolute',top:0,left:0}}>
           <defs>
             <pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
               <circle cx="1.5" cy="1.5" r="1.5" fill="#3b82f6" />
@@ -37,13 +37,13 @@ function HomePage() {
       </div>
       {/* Hero Section */}
       <motion.section initial={{opacity:0, y:-30}} animate={{opacity:1, y:0}} transition={{duration:0.7}} className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
-        <div className="mb-4 md:mb-0">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-2 drop-shadow-lg tracking-tight bg-linear-to-r from-blue-600 via-indigo-500 to-blue-400 bg-clip-text text-transparent">
+        <motion.div initial={{opacity:0, x:-40}} animate={{opacity:1, x:0}} transition={{duration:0.8}} className="mb-4 md:mb-0">
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold mb-2 drop-shadow-lg tracking-tight bg-linear-to-r from-blue-600 via-indigo-500 to-blue-400 bg-clip-text text-transparent animate-gradient">
             {loading ? "Memuat..." : business?.name || "UMKM Helper"}
           </h1>
-          <p className="text-blue-500 text-base sm:text-lg max-w-md font-medium">Selamat datang di pusat kontrol bisnis UMKM Anda!</p>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 w-full md:w-auto">
+          <p className="text-blue-500 text-base sm:text-lg max-w-md font-medium animate-fadeIn">Selamat datang di pusat kontrol bisnis UMKM Anda!</p>
+        </motion.div>
+        <motion.div initial={{opacity:0, x:40}} animate={{opacity:1, x:0}} transition={{duration:0.8}} className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-4 w-full md:w-auto">
           <StatCard
             title="Health Score"
             value={82}
@@ -72,23 +72,23 @@ function HomePage() {
             tooltip="Jumlah produk dengan stok rendah."
             colorClass="from-red-200 to-blue-200"
           />
-        </div>
+        </motion.div>
       </motion.section>
 
       {/* Divider */}
-      <div className="h-1 w-full bg-linear-to-r from-blue-200 via-indigo-200 to-blue-100 rounded-full my-2 opacity-60" />
+      <div className="h-1 w-full bg-linear-to-r from-blue-200 via-indigo-200 to-blue-100 rounded-full my-2 opacity-60 animate-pulse" />
 
       {/* Revenue Chart Section */}
-      <motion.section initial={{opacity:0, y:30}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.2}} className="bg-white/60 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-2xl border-4 border-transparent bg-clip-padding border-gradient-to-br from-blue-200 via-indigo-200 to-blue-100 relative z-10">
+      <motion.section initial={{opacity:0, y:30}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.2}} className="bg-white/70 backdrop-blur-md p-4 sm:p-6 rounded-2xl shadow-2xl border-4 border-transparent bg-clip-padding border-gradient-to-br from-blue-200 via-indigo-200 to-blue-100 relative z-10 animate-fadeIn">
         <RevenueChart />
       </motion.section>
 
       {/* Divider */}
-      <div className="h-1 w-full bg-linear-to-r from-blue-100 via-indigo-100 to-blue-200 rounded-full my-2 opacity-50" />
+      <div className="h-1 w-full bg-linear-to-r from-blue-100 via-indigo-100 to-blue-200 rounded-full my-2 opacity-50 animate-pulse" />
 
       {/* Quick Actions */}
-      <section className="relative z-10">
-        <h2 className="text-lg sm:text-xl font-bold text-blue-700 mb-4">Quick Actions</h2>
+      <motion.section initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.15}} className="relative z-10">
+        <h2 className="text-lg sm:text-xl font-bold text-blue-700 mb-4 animate-fadeIn">Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4">
           <ActionCard title="Masuk Kasir" icon={<ReceiptText size={32} />} onClick={() => router.push("/pos")} color="from-blue-50 to-blue-200" />
           <ActionCard title="Kelola Produk" icon={<Box size={32} />} onClick={() => router.push("/dashboard/products")} color="from-blue-50 to-indigo-100" />
@@ -97,14 +97,14 @@ function HomePage() {
           <ActionCard title="Dashboard" icon={<BarChart2 size={32} />} onClick={() => router.push("/dashboard")} color="from-blue-50 to-indigo-100" />
           <ActionCard title="AI Insight" icon={<Bot size={32} />} onClick={() => router.push("/dashboard/ai")} color="from-blue-50 to-blue-200" />
         </div>
-      </section>
+      </motion.section>
 
       {/* Divider */}
-      <div className="h-1 w-full bg-linear-to-r from-blue-200 via-indigo-200 to-blue-100 rounded-full my-2 opacity-40" />
+      <div className="h-1 w-full bg-linear-to-r from-blue-200 via-indigo-200 to-blue-100 rounded-full my-2 opacity-40 animate-pulse" />
 
       {/* Amazing Insights & Alerts */}
-      <motion.section initial={{opacity:0, y:30}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.3}} className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-        <div className="bg-white/60 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-blue-100 relative">
+      <motion.section initial={{opacity:0, y:30}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.3}} className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10 animate-fadeIn">
+        <motion.div initial={{opacity:0, x:-30}} animate={{opacity:1, x:0}} transition={{duration:0.7, delay:0.35}} className="bg-white/70 backdrop-blur-md rounded-2xl shadow-xl p-6 border border-blue-100 relative">
           <h2 className="text-lg font-semibold text-blue-700 mb-4">Alerts & Notifications</h2>
           <ul className="space-y-3 text-sm">
             <li className="flex items-center gap-2 text-red-500 font-semibold">
@@ -121,21 +121,21 @@ function HomePage() {
               AI memiliki 2 insight baru untuk Anda
             </li>
           </ul>
-        </div>
-        <div className="bg-linear-to-br from-blue-100 to-white/80 rounded-2xl shadow-xl p-6 flex flex-col justify-between border border-blue-100 relative">
+        </motion.div>
+        <motion.div initial={{opacity:0, x:30}} animate={{opacity:1, x:0}} transition={{duration:0.7, delay:0.35}} className="bg-linear-to-br from-blue-100 to-white/80 rounded-2xl shadow-xl p-6 flex flex-col justify-between border border-blue-100 relative">
           <h2 className="text-lg font-semibold text-blue-700 mb-4 flex items-center gap-2"><Bot size={20} />AI Insight</h2>
           <p className="text-sm text-gray-700 mb-2">
             Pendapatan naik <span className="font-bold text-green-600">12%</span> minggu ini. Promosikan <span className="font-semibold text-blue-700">Roti Coklat</span> untuk margin maksimal!
           </p>
           <p className="text-xs text-gray-400 mt-2">Powered by AI</p>
-        </div>
+        </motion.div>
       </motion.section>
 
       {/* Divider */}
-      <div className="h-1 w-full bg-linear-to-r from-blue-100 via-indigo-100 to-blue-200 rounded-full my-2 opacity-30" />
+      <div className="h-1 w-full bg-linear-to-r from-blue-100 via-indigo-100 to-blue-200 rounded-full my-2 opacity-30 animate-pulse" />
 
       {/* Bottom Grid Summary */}
-      <motion.section initial={{opacity:0, y:30}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.4}} className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-6 relative z-10">
+      <motion.section initial={{opacity:0, y:30}} animate={{opacity:1, y:0}} transition={{duration:0.7, delay:0.4}} className="grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-6 relative z-10 animate-fadeIn">
         <SummaryCard title="Produk Terjual" value="120" />
         <SummaryCard title="Total Revenue" value="Rp 1.200.000" />
         <SummaryCard title="Total Profit" value="Rp 450.000" />

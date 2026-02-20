@@ -7,6 +7,18 @@ import prisma from "@/lib/prisma"
 import { BusinessProvider } from "@/context/BusinessContext"
 import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info"
 import AIChatWidget from "./components/ai/AIChatWidget"
+import {
+  LayoutDashboard,
+  BarChart3,
+  Bot,
+  ShoppingCart,
+  History,
+  Boxes,
+  Soup,
+  Settings,
+  Building2,
+  User,
+} from "lucide-react"
 
 export default async function DashboardLayout({
   children,
@@ -67,69 +79,127 @@ export default async function DashboardLayout({
     <BusinessProvider>
       <div className="relative h-screen overflow-hidden bg-linear-to-br from-slate-50 via-indigo-50 to-purple-50">
         <div className="flex h-full relative z-10">
-          <aside className="w-72 bg-white flex flex-col justify-between py-8 px-7 shadow-xl rounded-3xl border border-gray-200 mt-6 mb-6 ml-6 min-h-full overflow-y-auto">
-            {/* Logo & Title */}
-            <div>
+          <aside
+            className="w-72 flex flex-col py-8 px-7 shadow-xl rounded-3xl border border-gray-200 mt-6 mb-6 ml-20 min-h-[calc(100vh-3rem)] bg-white relative"
+            style={{
+              background:
+                "linear-gradient(135deg, #f5f7fa 60%, #e0e7ff 100%)",
+            }}
+          >
+            {/* Sidebar Modern Style */}
+            <div className="flex-1 flex flex-col">
+              {/* Header */}
               <div className="flex items-center gap-3 mb-8">
                 <span className="bg-indigo-100 p-3 rounded-xl text-2xl text-indigo-600">
-                  <svg width="28" height="28" fill="none" viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#6366f1"/><text x="12" y="16" textAnchor="middle" fontSize="18" fill="#fff" fontFamily="monospace">:)</text></svg>
+                  <ShoppingCart className="w-7 h-7" />
                 </span>
-                <span className="font-bold text-lg text-indigo-700 tracking-wide">UMKM Helper</span>
+                <span className="font-bold text-lg text-indigo-700 tracking-wide">
+                  Code
+                </span>
               </div>
 
-              {/* Main Navigation */}
-              <div className="mb-7">
-                <div className="text-xs font-semibold text-gray-500 mb-2">DASHBOARD</div>
-                <a href="/dashboard" className="flex items-center gap-2 py-2 px-3 rounded-xl font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition">
-                  <span className="text-xl">🏠</span> Dashboard
+              {/* Section: Dashboard */}
+              <div className="mb-6">
+                <div className="text-xs font-semibold text-gray-400 mb-2">
+                  Dashboard
+                </div>
+                <a
+                  href="/dashboard"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
+                >
+                  <BarChart3 className="w-5 h-5" /> Overview
                 </a>
-                <a href="/dashboard/sales-history" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
-                  <span className="text-xl">📊</span> Sales History
-                </a>
-                <a href="/dashboard/ingredients" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
-                  <span className="text-xl">🍎</span> Ingredients
-                </a>
-                <a href="/dashboard/recipes" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
-                  <span className="text-xl">📖</span> Recipes
-                </a>
-                <a href="/pos" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
-                  <span className="text-xl">🛒</span> POS
-                </a>
-              </div>
-
-              {/* AI Section */}
-              <div className="mb-7">
-                <div className="text-xs font-semibold text-gray-500 mb-2">AI TOOLS</div>
-                <a href="/dashboard/ai-analysis" className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-linear-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition">
-                  <span className="text-xl">🤖</span> AI Center
-                  <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">NEW</span>
+                <a
+                  href="/dashboard/analytics"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                >
+                  <BarChart3 className="w-4 h-4" /> Analytics
                 </a>
               </div>
 
-              {/* Pages Section */}
-              <div className="mb-7">
-                <div className="text-xs font-semibold text-gray-500 mb-2">PAGES</div>
-                <a href="/dashboard/pages" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-red-600 hover:bg-red-50 transition">
-                  <span className="text-xl">📄</span> Pages
+              {/* Section: AI Tools */}
+              <div className="mb-6">
+                <div className="text-xs font-semibold text-gray-400 mb-2">
+                  AI Tools
+                </div>
+                <a
+                  href="/dashboard/ai-analysis"
+                  className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition"
+                >
+                  <Bot className="w-5 h-5" /> AI Center
+                  <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">
+                    NEW
+                  </span>
                 </a>
-                <a href="/dashboard/applications" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-cyan-600 hover:bg-cyan-50 transition">
-                  <span className="text-xl">🧩</span> Applications
+              </div>
+
+              {/* Section: Sales */}
+              <div className="mb-6">
+                <div className="text-xs font-semibold text-gray-400 mb-2">
+                  Sales
+                </div>
+                <a
+                  href="/dashboard/pos"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
+                >
+                  <ShoppingCart className="w-5 h-5" /> POS
                 </a>
-                <a href="/dashboard/ecommerce" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-green-600 hover:bg-green-50 transition">
-                  <span className="text-xl">🛍️</span> Ecommerce
+                <a
+                  href="/dashboard/sales-history"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                >
+                  <History className="w-4 h-4" /> Sales History
                 </a>
-                <a href="/dashboard/authentication" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-pink-600 hover:bg-pink-50 transition">
-                  <span className="text-xl">🔒</span> Authentication
+              </div>
+
+              {/* Section: Inventory */}
+              <div className="mb-6">
+                <div className="text-xs font-semibold text-gray-400 mb-2">
+                  Inventory
+                </div>
+                <a
+                  href="/dashboard/ingredients"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
+                >
+                  <Boxes className="w-5 h-5" /> Ingredients
+                </a>
+                <a
+                  href="/dashboard/recipes"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                >
+                  <Soup className="w-4 h-4" /> Recipes
+                </a>
+              </div>
+
+              {/* Section: Settings */}
+              <div className="mb-6">
+                <div className="text-xs font-semibold text-gray-400 mb-2">
+                  Settings
+                </div>
+                <a
+                  href="/dashboard/business"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
+                >
+                  <Building2 className="w-5 h-5" /> Business
+                </a>
+                <a
+                  href="/dashboard/profile"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                >
+                  <User className="w-4 h-4" /> Profile
                 </a>
               </div>
             </div>
 
             {/* User Info & Logout */}
-            <div className="mt-8 flex flex-col items-center justify-end">
+            <div className="flex flex-col items-center justify-end pt-4 pb-8">
               <SidebarUserInfo
                 jwtUserName={jwtUserName}
                 jwtUserEmail={jwtUserEmail}
               />
+              <div className="w-full mt-4">
+                <LogoutButton />
+              </div>
             </div>
           </aside>
 

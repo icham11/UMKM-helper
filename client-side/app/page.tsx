@@ -31,7 +31,7 @@ export default function LandingPage() {
 
   if (isChecking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+      <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-blue-50 via-white to-indigo-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
@@ -41,175 +41,137 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-indigo-50 flex flex-col relative overflow-hidden">
+      {/* Background SVG Pattern */}
+      <svg className="absolute inset-0 w-full h-full z-0" style={{pointerEvents:'none'}}>
+        <defs>
+          <radialGradient id="bg-radial" cx="50%" cy="50%" r="60%">
+            <stop offset="0%" stopColor="#a5b4fc" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#6366f1" stopOpacity="0.05" />
+          </radialGradient>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#bg-radial)" />
+        <circle cx="20%" cy="80%" r="120" fill="#60a5fa" opacity="0.08" />
+        <circle cx="80%" cy="20%" r="100" fill="#a5b4fc" opacity="0.10" />
+        <circle cx="50%" cy="50%" r="180" fill="#6366f1" opacity="0.04" />
+      </svg>
+
+      {/* Navigation */}
+      <nav className="container mx-auto px-4 py-6 flex justify-between items-center relative z-10">
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="w-8 h-8 text-blue-600 drop-shadow-md animate-bounce" />
+          <span className="text-2xl font-bold text-gray-900 tracking-tight animate-gradient">UMKM Helper</span>
+        </div>
+        <div className="flex gap-4">
+          <Link href="/login" className="px-6 py-2 text-blue-600 hover:text-blue-700 font-medium transition">Login</Link>
+          <Link href="/register" className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow-md hover:shadow-lg">Get Started</Link>
+        </div>
+      </nav>
+
       {/* Hero Section */}
-      <div className="container mx-auto px-4 py-16">
-        {/* Navigation */}
-        <nav className="flex justify-between items-center mb-16">
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="w-8 h-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">UMKM Helper</span>
+      <section className="container mx-auto px-4 py-16 flex flex-col md:flex-row items-center justify-between gap-12 relative z-10">
+        {/* Left Column */}
+        <div className="flex-1 space-y-8 animate-fadeIn">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium shadow-sm animate-pulse">
+            <Sparkles className="w-4 h-4 animate-spin-slow" />
+            Smart Business Management
           </div>
-          <div className="flex gap-4">
-            <Link
-              href="/login"
-              className="px-6 py-2 text-blue-600 hover:text-blue-700 font-medium transition"
-            >
-              Login
-            </Link>
-            <Link
-              href="/register"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition shadow-md hover:shadow-lg"
-            >
-              Get Started
-            </Link>
-          </div>
-        </nav>
-
-        {/* Hero Content */}
-        <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            {/* Left Column - Text */}
-            <div className="space-y-6">
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
-                <Sparkles className="w-4 h-4" />
-                Smart Business Management
-              </div>
-
-              <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight">
-                Kelola Bisnis UMKM Anda dengan{" "}
-                <span className="text-blue-600">Lebih Mudah</span>
-              </h1>
-
-              <p className="text-xl text-gray-600 leading-relaxed">
-                Sistem manajemen lengkap untuk UMKM: POS, Inventory, Sales Analytics, dan AI-powered insights.
-                Tingkatkan efisiensi bisnis Anda hari ini!
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link
-                  href="/register"
-                  className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition shadow-lg hover:shadow-xl text-center"
-                >
-                  Mulai Gratis
-                </Link>
-                <Link
-                  href="/login"
-                  className="px-8 py-4 bg-white text-gray-900 border-2 border-gray-200 rounded-lg hover:border-blue-600 hover:text-blue-600 font-semibold transition text-center"
-                >
-                  Login
-                </Link>
-              </div>
-
-              {/* Trust Indicators */}
-              <div className="flex items-center gap-6 pt-8">
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  Gratis Forever
-                </div>
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  No Credit Card
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column - Features Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                  <ShoppingCart className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Point of Sale</h3>
-                <p className="text-sm text-gray-600">Transaksi cepat dengan support berbagai metode pembayaran</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 mt-8">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <Package className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Inventory</h3>
-                <p className="text-sm text-gray-600">Kelola stok dengan sistem FIFO otomatis</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <BarChart3 className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">Analytics</h3>
-                <p className="text-sm text-gray-600">Dashboard real-time untuk insights bisnis</p>
-              </div>
-
-              <div className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-1 mt-8">
-                <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4">
-                  <TrendingUp className="w-6 h-6 text-orange-600" />
-                </div>
-                <h3 className="font-bold text-gray-900 mb-2">AI Analysis</h3>
-                <p className="text-sm text-gray-600">Rekomendasi bisnis powered by AI</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Features Section */}
-        <div className="max-w-6xl mx-auto mt-24">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Semua yang Anda Butuhkan dalam Satu Platform
-            </h2>
-            <p className="text-xl text-gray-600">
-              Fitur lengkap untuk mengelola bisnis UMKM Anda
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <ShoppingCart className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="font-bold text-lg text-gray-900 mb-2">POS Modern</h3>
-              <p className="text-gray-600">Support Cash, QRIS, Transfer, dan e-wallet via Midtrans</p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Package className="w-8 h-8 text-green-600" />
-              </div>
-              <h3 className="font-bold text-lg text-gray-900 mb-2">Inventory FIFO</h3>
-              <p className="text-gray-600">Tracking stok otomatis dengan perhitungan cost akurat</p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BarChart3 className="w-8 h-8 text-purple-600" />
-              </div>
-              <h3 className="font-bold text-lg text-gray-900 mb-2">Real-time Analytics</h3>
-              <p className="text-gray-600">Dashboard lengkap dengan metrics dan charts</p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="max-w-4xl mx-auto mt-24 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-3xl p-12 text-center text-white shadow-2xl">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">
-            Siap Tingkatkan Bisnis Anda?
-          </h2>
-          <p className="text-xl mb-8 text-blue-100">
-            Bergabung dengan UMKM Helper sekarang dan rasakan perbedaannya
+          <h1 className="text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight tracking-tight drop-shadow-xl animate-gradient">
+            Kelola Bisnis UMKM Anda dengan <span className="text-blue-600 animate-gradient">Lebih Mudah</span>
+          </h1>
+          <p className="text-xl text-gray-600 leading-relaxed max-w-lg animate-fadeInUp">
+            Sistem manajemen lengkap untuk UMKM: POS, Inventory, Sales Analytics, dan AI-powered insights.<br />
+            Tingkatkan efisiensi bisnis Anda hari ini!
           </p>
-          <Link
-            href="/register"
-            className="inline-block px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 font-semibold transition shadow-lg hover:shadow-xl"
-          >
-            Daftar Sekarang - Gratis!
-          </Link>
+         
+          <div className="flex items-center gap-6 pt-8">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CheckCircle className="w-5 h-5 text-green-500 animate-pulse" />
+              Gratis Forever
+            </div>
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CheckCircle className="w-5 h-5 text-green-500 animate-pulse" />
+              No Credit Card
+            </div>
+          </div>
         </div>
+        {/* Right Column */}
+        <div className="flex-1 grid grid-cols-2 gap-6 animate-fadeIn">
+          {/* Floating Cards */}
+          <div className="bg-white p-6 rounded-2xl shadow-2xl hover:shadow-blue-300/40 transition transform hover:-translate-y-3 hover:scale-110 group animate-float min-h-55 min-w-65 flex flex-col justify-between grow">
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4 group-hover:animate-spin">
+              <ShoppingCart className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="font-bold text-gray-900 mb-2 animate-gradient">Point of Sale</h3>
+            <p className="text-sm text-gray-600">Transaksi cepat dengan support berbagai metode pembayaran</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-2xl hover:shadow-green-300/40 transition transform hover:-translate-y-3 hover:scale-110 group animate-float-delay min-h-55 min-w-65 flex flex-col justify-between grow">
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4 group-hover:animate-spin">
+              <Package className="w-6 h-6 text-green-600" />
+            </div>
+            <h3 className="font-bold text-gray-900 mb-2 animate-gradient">Inventory</h3>
+            <p className="text-sm text-gray-600">Kelola stok dengan sistem FIFO otomatis</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-2xl hover:shadow-purple-300/40 transition transform hover:-translate-y-3 hover:scale-110 group animate-float min-h-55 min-w-65 flex flex-col justify-between grow">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4 group-hover:animate-spin">
+              <BarChart3 className="w-6 h-6 text-purple-600" />
+            </div>
+            <h3 className="font-bold text-gray-900 mb-2 animate-gradient">Analytics</h3>
+            <p className="text-sm text-gray-600">Dashboard real-time untuk insights bisnis</p>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-2xl hover:shadow-orange-300/40 transition transform hover:-translate-y-3 hover:scale-110 group animate-float-delay min-h-55 min-w-65 flex flex-col justify-between grow">
+            <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mb-4 group-hover:animate-spin">
+              <TrendingUp className="w-6 h-6 text-orange-600" />
+            </div>
+            <h3 className="font-bold text-gray-900 mb-2 animate-gradient">AI Analysis</h3>
+            <p className="text-sm text-gray-600">Rekomendasi bisnis powered by AI</p>
+          </div>
+        </div>
+      </section>
 
-        {/* Footer */}
-        <footer className="mt-24 pt-8 border-t border-gray-200 text-center text-gray-600">
-          <p>&copy; 2026 UMKM Helper. All rights reserved.</p>
-        </footer>
-      </div>
+      {/* Features Section */}
+      <section className="max-w-6xl mx-auto mt-24 px-4 animate-fadeIn relative z-10">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 drop-shadow-xl animate-gradient">Semua yang Anda Butuhkan dalam Satu Platform</h2>
+          <p className="text-xl text-gray-600 animate-fadeInUp">Fitur lengkap untuk mengelola bisnis UMKM Anda</p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-8">
+          <div className="text-center bg-white rounded-2xl p-8 shadow-2xl hover:shadow-blue-300/40 transition hover:-translate-y-3 hover:scale-110 animate-float">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <ShoppingCart className="w-8 h-8 text-blue-600" />
+            </div>
+            <h3 className="font-bold text-lg text-gray-900 mb-2 animate-gradient">POS Modern</h3>
+            <p className="text-gray-600">Support Cash, QRIS, Transfer, dan e-wallet via Midtrans</p>
+          </div>
+          <div className="text-center bg-white rounded-2xl p-8 shadow-2xl hover:shadow-green-300/40 transition hover:-translate-y-3 hover:scale-110 animate-float-delay">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <Package className="w-8 h-8 text-green-600" />
+            </div>
+            <h3 className="font-bold text-lg text-gray-900 mb-2 animate-gradient">Inventory FIFO</h3>
+            <p className="text-gray-600">Tracking stok otomatis dengan perhitungan cost akurat</p>
+          </div>
+          <div className="text-center bg-white rounded-2xl p-8 shadow-2xl hover:shadow-purple-300/40 transition hover:-translate-y-3 hover:scale-110 animate-float">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+              <BarChart3 className="w-8 h-8 text-purple-600" />
+            </div>
+            <h3 className="font-bold text-lg text-gray-900 mb-2 animate-gradient">Real-time Analytics</h3>
+            <p className="text-gray-600">Dashboard lengkap dengan metrics dan charts</p>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="max-w-4xl mx-auto mt-24 bg-linear-to-r from-blue-600 to-indigo-600 rounded-3xl p-12 text-center text-white shadow-2xl animate-fadeIn relative z-10">
+        <h2 className="text-3xl md:text-4xl font-bold mb-4 animate-gradient">Siap Tingkatkan Bisnis Anda?</h2>
+        <p className="text-xl mb-8 text-blue-100 animate-fadeInUp">Bergabung dengan UMKM Helper sekarang dan rasakan perbedaannya</p>
+        <Link href="/register" className="inline-block px-8 py-4 bg-white text-blue-600 rounded-lg hover:bg-gray-100 font-semibold transition shadow-lg hover:shadow-xl animate-pop">Daftar Sekarang - Gratis!</Link>
+      </section>
+
+      {/* Footer */}
+      <footer className="mt-24 pt-8 border-t border-gray-200 text-center text-gray-600 relative z-10">
+        <p>&copy; 2026 UMKM Helper. All rights reserved.</p>
+      </footer>
+      {/* Custom Animations (Tailwind CSS or global styles required) */}
     </div>
   );
 }
