@@ -23,7 +23,8 @@ export async function requireAuth() {
     if (token) {
       const decoded = verifyToken(token)
       if (decoded && typeof decoded === "object" && "userId" in decoded) {
-        userId = Number((decoded as { userId: string | number }).userId)
+        const rawUserId = (decoded as { userId: string | number }).userId
+        userId = typeof rawUserId === "string" ? Number(rawUserId) : rawUserId
       }
     }
   }
@@ -38,7 +39,8 @@ export async function requireAuth() {
       const decoded = verifyToken(token)
 
       if (decoded && typeof decoded === "object" && "userId" in decoded) {
-        userId = Number((decoded as { userId: string | number }).userId)
+        const rawUserId = (decoded as { userId: string | number }).userId
+        userId = typeof rawUserId === "string" ? Number(rawUserId) : rawUserId
       }
     }
   }
