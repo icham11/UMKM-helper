@@ -70,6 +70,7 @@ async function deductInventory(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   productId: number,
   quantity: number,
+  stockDocumentId: number
 ): Promise<void> {
   const recipes = await tx.recipe.findMany({
     where: { productId },
@@ -96,13 +97,134 @@ async function deductInventory(
       const batchQty = Number(batch.remainingQty);
       const deduction = Math.min(batchQty, remainingToDeduct);
 
+      // 1️⃣ Update batch remainingQty
       await tx.inventoryBatch.update({
         where: { id: batch.id },
         data: { remainingQty: batchQty - deduction },
       });
 
+      // 2️⃣ CREATE INVENTORY MOVEMENT (OUT)
+      await tx.inventoryMovement.create({
+        data: {
+          ingredientId: recipe.ingredient.id,
+          stockDocumentId,
+          quantity: deduction,
+          costPerUnit: batch.costPerUnit,
+          type: "Out",
+        },
+      });
+
       remainingToDeduct -= deduction;
     }
+  }
+}
+
+async function updateBusinessMetrics(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  businessId: number,
+  revenue: number,
+  cost: number
+) {
+  const today = new Date();
+  const dateOnly = new Date(today.toISOString().split("T")[0]);
+
+  const existing = await tx.businessMetrics.findUnique({
+    where: {
+      businessId_date: {
+        businessId,
+        date: dateOnly,
+      },
+    },
+  });
+
+  if (existing) {
+    const newRevenue = Number(existing.totalRevenue) + revenue;
+    const newCost = Number(existing.totalCost) + cost;
+    const newProfit = newRevenue - newCost;
+    const newMargin = newRevenue > 0 ? (newProfit / newRevenue) * 100 : 0;
+
+    await tx.businessMetrics.update({
+      where: {
+        businessId_date: {
+          businessId,
+          date: dateOnly,
+        },
+      },
+      data: {
+        totalRevenue: newRevenue,
+        totalCost: newCost,
+        totalProfit: newProfit,
+        marginAvg: newMargin,
+      },
+    });
+  } else {
+    const profit = revenue - cost;
+    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
+    await tx.businessMetrics.create({
+      data: {
+        businessId,
+        date: dateOnly,
+        totalRevenue: revenue,
+        totalCost: cost,
+        totalProfit: profit,
+        marginAvg: margin,
+        growthRate: 0,
+      },
+    });
+  }
+}
+
+async function updateProductMetrics(
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  productId: number,
+  quantity: number,
+  revenue: number,
+  cost: number
+) {
+  const today = new Date();
+  const dateOnly = new Date(today.toISOString().split("T")[0]);
+
+  const existing = await tx.productMetrics.findUnique({
+    where: {
+      productId_date: {
+        productId,
+        date: dateOnly,
+      },
+    },
+  });
+
+  if (existing) {
+    const newQty = existing.quantitySold + quantity;
+    const newRevenue = Number(existing.revenue) + revenue;
+    const newCost = Number(existing.cost) + cost;
+    const newProfit = newRevenue - newCost;
+
+    await tx.productMetrics.update({
+      where: {
+        productId_date: {
+          productId,
+          date: dateOnly,
+        },
+      },
+      data: {
+        quantitySold: newQty,
+        revenue: newRevenue,
+        cost: newCost,
+        profit: newProfit,
+      },
+    });
+  } else {
+    await tx.productMetrics.create({
+      data: {
+        productId,
+        date: dateOnly,
+        quantitySold: quantity,
+        revenue,
+        cost,
+        profit: revenue - cost,
+      },
+    });
   }
 }
 
@@ -383,10 +505,34 @@ export async function POST(request: NextRequest) {
           ...item,
         })),
       });
-
-      // 7. Deduct inventory (FIFO)
+      
       for (const item of items) {
-        await deductInventory(tx, item.productId, item.quantity);
+        await deductInventory(
+          tx,
+          item.productId,
+          item.quantity,
+          stockDocument.id
+        );
+      }
+
+      await updateBusinessMetrics(
+        tx,
+        businessId,
+        totalRevenue,
+        totalCost
+      );
+
+      for (const item of items) {
+        const price = productPriceMap.get(item.productId)!;
+        const cost = await calculateProductCost(tx, item.productId, item.quantity);
+
+        await updateProductMetrics(
+          tx,
+          item.productId,
+          item.quantity,
+          price * item.quantity,
+          cost
+        );
       }
 
       // 8. Return full sale with items
@@ -485,3 +631,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
