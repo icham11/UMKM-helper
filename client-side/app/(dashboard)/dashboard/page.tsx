@@ -173,7 +173,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-4">
             <ActionButton
               label="New Sale"
-              onClick={() => router.push("/dashboard/pos")}
+              onClick={() => router.push("/pos")}
             />
             <ActionButton
               label="Add Ingredient"

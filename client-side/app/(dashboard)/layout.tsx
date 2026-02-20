@@ -6,6 +6,7 @@ import { verifyToken } from "@/lib/auth/jwt"
 import prisma from "@/lib/prisma"
 import { BusinessProvider } from "@/context/BusinessContext"
 import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info"
+import LogoutButton from "@/app/(dashboard)/components/LogoutButton"
 import AIChatWidget from "./components/ai/AIChatWidget"
 import {
   LayoutDashboard,
@@ -139,7 +140,7 @@ export default async function DashboardLayout({
                   Sales
                 </div>
                 <a
-                  href="/dashboard/pos"
+                  href="/pos"
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <ShoppingCart className="w-5 h-5" /> POS
