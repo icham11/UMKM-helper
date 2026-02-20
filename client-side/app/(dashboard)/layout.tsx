@@ -83,6 +83,9 @@ export default async function DashboardLayout({
                 <a href="/dashboard" className="flex items-center gap-2 py-2 px-3 rounded-xl font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition">
                   <span className="text-xl">🏠</span> Dashboard
                 </a>
+                <a href="/dashboard/sales-history" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
+                  <span className="text-xl">📊</span> Sales History
+                </a>
                 <a href="/dashboard/ingredients" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
                   <span className="text-xl">🍎</span> Ingredients
                 </a>

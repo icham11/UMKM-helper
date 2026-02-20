@@ -177,6 +177,12 @@ model Sale {
   totalCost         Decimal       @db.Decimal(12, 2)
   paymentMethod     PaymentMethod
   paymentStatus     PaymentStatus @default(Pending)
+  customerName      String?
+  customerEmail     String?
+  customerPhone     String?
+  invoiceId         String?
+  invoiceUrl        String?
+  invoiceStatus     String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
