@@ -13,7 +13,7 @@ export function isAuthError(error: unknown): error is AuthError {
 export async function requireAuth() {
   // 1️⃣ Try NextAuth session
   const session = await getServerSession(authOptions)
-  let userId = session?.user?.id
+  let userId: number | undefined = session?.user?.id
 
   // 2️⃣ Try JWT from cookie
   if (!userId) {
@@ -23,7 +23,7 @@ export async function requireAuth() {
     if (token) {
       const decoded = verifyToken(token)
       if (decoded && typeof decoded === "object" && "userId" in decoded) {
-        userId = (decoded as { userId: string | number }).userId
+        userId = Number((decoded as { userId: string | number }).userId)
       }
     }
   }
@@ -38,7 +38,7 @@ export async function requireAuth() {
       const decoded = verifyToken(token)
 
       if (decoded && typeof decoded === "object" && "userId" in decoded) {
-        userId = (decoded as { userId: string | number }).userId
+        userId = Number((decoded as { userId: string | number }).userId)
       }
     }
   }
