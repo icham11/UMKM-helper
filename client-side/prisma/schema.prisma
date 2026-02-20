@@ -63,6 +63,35 @@ model Business {
   stockDocuments       StockDocument[]
   businessMetrics      BusinessMetrics[]
   businessHealthScores BusinessHealthScores[]
+  chatMessages         ChatMessage[]
+  chatSessions         ChatSession[]
+}
+
+// ==================== AI CHAT LAYER ====================
+
+model ChatSession {
+  id         Int      @id @default(autoincrement())
+  businessId Int
+  title      String   @default("New Chat")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id            Int      @id @default(autoincrement())
+  businessId    Int
+  sessionId     Int?
+  role          String   // "user" | "assistant" | "system"
+  content       String
+  contextType   String?  // "sales" | "inventory" | "product" | "general"
+  metadata      Json?    // extra context data
+  createdAt     DateTime @default(now())
+
+  business Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  session  ChatSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 // ==================== PRODUCT LAYER ====================

@@ -5,8 +5,8 @@ import { authOptions } from "@/lib/auth"
 import { verifyToken } from "@/lib/auth/jwt"
 import prisma from "@/lib/prisma"
 import { BusinessProvider } from "@/context/BusinessContext"
-import LogoutButton from "./components/LogoutButton"
 import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info"
+import AIChatWidget from "./components/ai/AIChatWidget"
 
 export default async function DashboardLayout({
   children,
@@ -92,8 +92,17 @@ export default async function DashboardLayout({
                 <a href="/dashboard/recipes" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
                   <span className="text-xl">📖</span> Recipes
                 </a>
-                <a href="/dashboard/ai-analysis" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
-                  <span className="text-xl">🤖</span> AI Analysis
+                <a href="/pos" className="flex items-center gap-2 py-2 px-3 rounded-xl font-medium text-gray-700 hover:bg-blue-50 transition">
+                  <span className="text-xl">🛒</span> POS
+                </a>
+              </div>
+
+              {/* AI Section */}
+              <div className="mb-7">
+                <div className="text-xs font-semibold text-gray-500 mb-2">AI TOOLS</div>
+                <a href="/dashboard/ai-analysis" className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-linear-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition">
+                  <span className="text-xl">🤖</span> AI Center
+                  <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">NEW</span>
                 </a>
               </div>
 
@@ -128,6 +137,9 @@ export default async function DashboardLayout({
             <div className="max-w-6xl mx-auto py-6">{children}</div>
           </main>
         </div>
+
+        {/* Floating AI Chat Widget - available on all dashboard pages */}
+        <AIChatWidget />
       </div>
     </BusinessProvider>
   )
