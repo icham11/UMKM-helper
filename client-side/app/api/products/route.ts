@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
 
     // Pagination params
     const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
-    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "10")));
+    const limit = Math.min(999, Math.max(1, Number(url.searchParams.get("limit") ?? "10")));
     const skip = (page - 1) * limit;
 
     const where = {
