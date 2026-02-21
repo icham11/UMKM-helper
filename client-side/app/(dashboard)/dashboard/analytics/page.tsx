@@ -5,8 +5,8 @@ import { TrendingUp, DollarSign, HeartPulse, BarChart3, Sparkles } from "lucide-
 import { motion } from "framer-motion";
 
 type DashboardData = {
-  todayRevenue: number;
-  todayProfit: number;
+  totalRevenue: number;
+  totalProfit: number;
 };
 
 type GrowthData = {
@@ -31,7 +31,16 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     async function fetchData() {
-      const d = await fetch("/api/analytics/dashboard").then((r) => r.json());
+      // Ambil 30 hari terakhir
+      const now = new Date();
+      const endDate = new Date(now);
+      endDate.setHours(23, 59, 59, 999);
+      const startDate = new Date(now);
+      startDate.setDate(now.getDate() - 29);
+      startDate.setHours(0, 0, 0, 0);
+
+      const params = `?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`;
+      const d = await fetch(`/api/analytics/dashboard${params}`).then((r) => r.json());
       const g = await fetch("/api/analytics/growth").then((r) => r.json());
       const h = await fetch("/api/analytics/health").then((r) => r.json());
       const i = await fetch("/api/analytics/insight").then((r) => r.json());
@@ -75,14 +84,14 @@ export default function AnalyticsPage() {
           }}
         >
           <KpiCard
-            title="Today's Revenue"
-            value={`Rp ${dashboard.todayRevenue.toLocaleString()}`}
+            title="30 Days Revenue"
+            value={`Rp ${dashboard.totalRevenue.toLocaleString()}`}
             gradient="from-blue-500 to-indigo-600"
             icon={<DollarSign className="w-7 h-7 text-white/80" />}
           />
           <KpiCard
-            title="Today's Profit"
-            value={`Rp ${dashboard.todayProfit.toLocaleString()}`}
+            title="30 Days Profit"
+            value={`Rp ${dashboard.totalProfit.toLocaleString()}`}
             gradient="from-green-500 to-emerald-600"
             icon={<TrendingUp className="w-7 h-7 text-white/80" />}
           />

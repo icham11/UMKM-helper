@@ -2,77 +2,105 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { businessId } = await requireAuth();
 
-    const today = new Date();
-    const dateOnly = new Date(today.toISOString().split("T")[0]);
+    // Ambil parameter startDate & endDate dari query, default ke hari ini jika tidak ada
+    const url = new URL(request.url);
+    const startDateParam = url.searchParams.get("startDate");
+    const endDateParam = url.searchParams.get("endDate");
+
+    let startDate: Date;
+    let endDate: Date;
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      endDate = new Date(endDateParam);
+    } else {
+      const today = new Date();
+      startDate = new Date(today);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(today);
+      endDate.setHours(23, 59, 59, 999);
+    }
 
     // =========================
-    // 1️⃣ Today Business Metrics
+    // SALES DATA (RANGE)
     // =========================
-    const todayMetrics = await prisma.businessMetrics.findUnique({
-      where: {
-        businessId_date: {
-          businessId,
-          date: dateOnly,
-        },
-      },
-    });
-
-    const todayRevenue = Number(todayMetrics?.totalRevenue ?? 0);
-    const todayProfit = Number(todayMetrics?.totalProfit ?? 0);
-
-    // =========================
-    // 2️⃣ Transaction Count Today
-    // =========================
-    const transactionCount = await prisma.sale.count({
+    const sales = await prisma.sale.findMany({
       where: {
         businessId,
         createdAt: {
-          gte: dateOnly,
+          gte: startDate,
+          lte: endDate,
         },
       },
     });
 
+    const totalRevenue = sales.reduce(
+      (sum, s) => sum + Number(s.totalRevenue),
+      0
+    );
+
+    const totalCost = sales.reduce(
+      (sum, s) => sum + Number(s.totalCost),
+      0
+    );
+
+    const totalProfit = totalRevenue - totalCost;
+    const avgMargin =
+      totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+
+    const transactionCount = sales.length;
+
     // =========================
-    // 3️⃣ Top Selling Products Today
+    // TOP SELLING PRODUCTS (RANGE)
     // =========================
-    const topProducts = await prisma.productMetrics.findMany({
+    const topProductsRaw = await prisma.saleItem.groupBy({
+      by: ["productId"],
       where: {
-        date: dateOnly,
-        product: {
+        sale: {
           businessId,
-        },
-      },
-      orderBy: {
-        quantitySold: "desc",
-      },
-      take: 5,
-      include: {
-        product: {
-          select: {
-            id: true,
-            name: true,
+          createdAt: {
+            gte: startDate,
+            lte: endDate,
           },
         },
       },
+      _sum: {
+        quantity: true,
+      },
+      orderBy: {
+        _sum: {
+          quantity: "desc",
+        },
+      },
+      take: 5,
     });
 
+    const topProducts = await Promise.all(
+      topProductsRaw.map(async (item) => {
+        const product = await prisma.product.findUnique({
+          where: { id: item.productId },
+          select: { id: true, name: true },
+        });
+
+        return {
+          product,
+          quantitySold: item._sum.quantity ?? 0,
+        };
+      })
+    );
+
     // =========================
-    // 4️⃣ Low Stock Ingredients
+    // LOW STOCK INGREDIENTS
     // =========================
     const ingredients = await prisma.ingredient.findMany({
       where: { businessId },
       include: {
         inventoryBatches: {
-          where: {
-            remainingQty: { gt: 0 },
-          },
-          select: {
-            remainingQty: true,
-          },
+          where: { remainingQty: { gt: 0 } },
+          select: { remainingQty: true },
         },
       },
     });
@@ -96,8 +124,9 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        todayRevenue,
-        todayProfit,
+        totalRevenue,
+        totalProfit,
+        avgMargin: Math.round(avgMargin * 100) / 100,
         transactionCount,
         topProducts,
         lowStockIngredients,
@@ -108,7 +137,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    console.error("Dashboard error:", error);
+    console.error("Analytics dashboard error:", error);
     return NextResponse.json(
       { error: "Failed to fetch dashboard data" },
       { status: 500 }

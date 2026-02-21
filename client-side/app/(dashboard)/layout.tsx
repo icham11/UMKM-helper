@@ -123,7 +123,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 mb-2">Sales</div>
                 <a
-                  href="/pos"
+                  href="/dashboard/pos"
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <ShoppingCart className="w-5 h-5" /> POS
