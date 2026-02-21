@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { createProductSchema, bulkCreateProductsSchema } from "@/lib/validations/product";
+import { recomputeRecipeCost } from "@/lib/computeRecipeCost";
 
 export const runtime = "nodejs";
 
@@ -71,29 +73,14 @@ async function checkDuplicateProducts(
 /**
  * GET /api/products
  *
- * Query params: ?search=kopi&categoryId=1&withRecipe=true (default withRecipe=true)
- *
- * Success (200):
- *   {
- *     "success": true,
- *     "data": [{
- *       "id": 1, "name": "Kopi Susu", "sellingPrice": 25000,
- *       "businessId": 1, "categoryId": 1,
- *       "category": { "id": 1, "name": "Minuman" },
- *       "recipes": [{
- *         "id": 1, "quantity": 0.02,
- *         "ingredient": {
- *           "id": 1, "name": "Kopi Bubuk", "unit": "kg",
- *           "costPerUnit": 120000, "currentStock": 5
- *         }
- *       }],
- *       "recipeCost": 2400
- *     }]
- *   }
- *
- * Errors:
- *   401 — { "error": "Unauthorized" }
- *   500 — { "error": "Failed to fetch products" }
+ * Query params:
+ *   ?search=kopi
+ *   &categoryId=1
+ *   &sortBy=name|sellingPrice|createdAt   (default: createdAt)
+ *   &sortOrder=asc|desc                   (default: desc)
+ *   &withRecipe=true                      (default: true)
+ *   &page=1                               (default: 1)
+ *   &limit=10                             (default: 10, max: 100)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -104,25 +91,88 @@ export async function GET(request: NextRequest) {
     const categoryId = url.searchParams.get("categoryId");
     const withRecipe = url.searchParams.get("withRecipe") !== "false"; // default true
 
+    // Sort params — DB-sortable fields (margin handled via raw SQL)
+    const sortByRaw = url.searchParams.get("sortBy") ?? "createdAt";
+    const sortOrder = (url.searchParams.get("sortOrder") ?? "desc") as "asc" | "desc";
+    const isMarginSort = sortByRaw === "margin";
+    const allowedSortFields = ["name", "sellingPrice", "recipeCost", "createdAt"] as const;
+    type SortField = (typeof allowedSortFields)[number];
+    const sortBy: SortField = (allowedSortFields as readonly string[]).includes(sortByRaw)
+      ? (sortByRaw as SortField)
+      : "createdAt";
+
+    // Pagination params
+    const page = Math.max(1, Number(url.searchParams.get("page") ?? "1"));
+    const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") ?? "10")));
+    const skip = (page - 1) * limit;
+
     const where = {
       businessId,
       ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
       ...(categoryId ? { categoryId: Number(categoryId) } : {}),
     };
 
+    // Build raw WHERE fragments (reused for stats + margin sort query)
+    const whereParts: Prisma.Sql[] = [Prisma.sql`"businessId" = ${businessId}`];
+    if (search) whereParts.push(Prisma.sql`name ILIKE ${"%" + search + "%"}`);
+    if (categoryId) whereParts.push(Prisma.sql`"categoryId" = ${Number(categoryId)}`);
+    const whereRaw = Prisma.join(whereParts, " AND ");
+
+    const total = await prisma.product.count({ where });
+    const totalPages = Math.ceil(total / limit) || 1;
+
+    // Global stats — computed over ALL matching products, not just the current page
+    const statsRows = await prisma.$queryRaw<{ avg_price: string | null; avg_margin: string | null }[]>`
+      SELECT
+        AVG("sellingPrice")::text                                                     AS avg_price,
+        AVG(
+          CASE WHEN "sellingPrice" > 0
+               THEN ("sellingPrice" - "recipeCost") / "sellingPrice" * 100
+               ELSE NULL
+          END
+        )::text                                                                       AS avg_margin
+      FROM "Product"
+      WHERE ${whereRaw}
+    `;
+    const sr = statsRows[0];
+    const avgSellingPrice = sr?.avg_price ? Math.round(Number(sr.avg_price)) : 0;
+    const avgMargin = sr?.avg_margin ? Math.round(Number(sr.avg_margin)) : 0;
+    const meta = { total, page, limit, totalPages, avgSellingPrice, avgMargin };
+
     // Split query paths so Prisma can infer ingredient.inventoryBatches type
     if (!withRecipe) {
       const products = await prisma.product.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: { [sortBy]: sortOrder },
+        skip,
+        take: limit,
         include: { category: { select: { id: true, name: true } } },
       });
-      return NextResponse.json({ success: true, data: products });
+      return NextResponse.json({ success: true, data: products, meta });
+    }
+
+    // For margin sort: get paginated+sorted IDs via raw SQL, then fetch data by those IDs
+    let orderedIds: number[] | null = null;
+    if (isMarginSort) {
+      const sortDir = sortOrder === "asc" ? Prisma.sql`ASC NULLS LAST` : Prisma.sql`DESC NULLS LAST`;
+      const marginRows = await prisma.$queryRaw<{ id: number }[]>`
+        SELECT id
+        FROM "Product"
+        WHERE ${whereRaw}
+        ORDER BY
+          CASE WHEN "sellingPrice" = 0 THEN NULL
+               ELSE ("sellingPrice" - "recipeCost") / "sellingPrice"
+          END ${sortDir}
+        LIMIT ${limit} OFFSET ${skip}
+      `;
+      orderedIds = marginRows.map((r) => Number(r.id));
     }
 
     const products = await prisma.product.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
+      where: orderedIds ? { id: { in: orderedIds } } : where,
+      orderBy: orderedIds ? undefined : { [sortBy]: sortOrder },
+      skip: orderedIds ? undefined : skip,
+      take: orderedIds ? undefined : limit,
       include: {
         category: { select: { id: true, name: true } },
         recipes: {
@@ -172,7 +222,15 @@ export async function GET(request: NextRequest) {
       return { ...product, recipes: recipesWithCost, recipeCost: Math.round(recipeCost) };
     });
 
-    return NextResponse.json({ success: true, data: enriched });
+    // Re-sort to preserve raw-SQL margin order
+    const finalProducts = orderedIds
+      ? (() => {
+          const map = new Map(enriched.map((p) => [p.id, p]));
+          return orderedIds.map((id) => map.get(id)).filter(Boolean) as typeof enriched;
+        })()
+      : enriched;
+
+    return NextResponse.json({ success: true, data: finalProducts, meta });
   } catch (error: unknown) {
     if (isAuthError(error)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -297,6 +355,9 @@ export async function POST(request: NextRequest) {
         },
       });
 
+      // Recompute stored recipeCost for each new product
+      await Promise.all(createdIds.map((id) => recomputeRecipeCost(id).catch(() => {})));
+
       return NextResponse.json({ success: true, data: result }, { status: 201 });
     }
 
@@ -366,6 +427,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Recompute stored recipeCost
+    await recomputeRecipeCost(createdId).catch(() => {});
+
     return NextResponse.json({ success: true, data: result }, { status: 201 });
   } catch (error: unknown) {
     if (isAuthError(error)) {
@@ -383,6 +447,47 @@ export async function POST(request: NextRequest) {
     console.error("POST /api/products error:", error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to create product(s)" },
+      { status: 500 },
+    );
+  }
+}
+
+// ---------- DELETE (bulk) ----------
+
+/**
+ * DELETE /api/products
+ * Body: { ids: number[] }
+ * Deletes multiple products (and their recipes via cascade) that belong to the business.
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { businessId } = await requireAuth();
+
+    const body = await request.json();
+    const ids: number[] = Array.isArray(body?.ids) ? body.ids.map(Number) : [];
+    if (ids.length === 0) {
+      return NextResponse.json({ error: "No product IDs provided" }, { status: 400 });
+    }
+
+    // Verify all IDs belong to this business
+    const owned = await prisma.product.findMany({
+      where: { id: { in: ids }, businessId },
+      select: { id: true },
+    });
+    if (owned.length !== ids.length) {
+      return NextResponse.json({ error: "Some products were not found" }, { status: 404 });
+    }
+
+    await prisma.product.deleteMany({ where: { id: { in: ids }, businessId } });
+
+    return NextResponse.json({ success: true, deleted: ids.length });
+  } catch (error) {
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("DELETE /api/products error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to delete products" },
       { status: 500 },
     );
   }
