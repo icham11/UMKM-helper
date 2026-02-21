@@ -42,11 +42,26 @@ export async function POST(request: NextRequest) {
     const deletedFiles: string[] = [];
     const errors: string[] = [];
 
-    // List all files with 'temp' tag
-    const files = await imagekit.listFiles({
-      tags: "temp",
-      limit: 1000,
-    });
+    // List files with 'temp' tag — limit to 50 per cycle to avoid timeout
+    let files;
+    try {
+      files = await Promise.race([
+        imagekit.listFiles({ tags: "temp", limit: 50 }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("ImageKit listFiles timeout")), 10_000)
+        ),
+      ]);
+    } catch (err) {
+      console.warn("ImageKit listFiles failed:", err instanceof Error ? err.message : err);
+      return NextResponse.json({
+        success: true,
+        message: "Cleanup skipped — ImageKit unavailable",
+        deleted: 0,
+        errors: 0,
+        deletedFiles: [],
+        errorDetails: [],
+      });
+    }
 
     console.log(`Found ${files.length} temporary files to check`);
 
@@ -66,9 +81,14 @@ export async function POST(request: NextRequest) {
 
           // If expired, delete it
           if (now > expiryTime) {
-            await imagekit.deleteFile(file.fileId);
+            await Promise.race([
+              imagekit.deleteFile(file.fileId),
+              new Promise<never>((_, reject) =>
+                setTimeout(() => reject(new Error("deleteFile timeout")), 8_000)
+              ),
+            ]);
             deletedFiles.push(file.fileId);
-            console.log(`Deleted expired file: ${file.fileId} (${file.name})`);
+            console.log(`Auto-deleted file: ${file.fileId}`);
           }
         }
       } catch (error) {
