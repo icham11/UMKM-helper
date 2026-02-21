@@ -2,48 +2,59 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { businessId } = await requireAuth();
 
-    const today = new Date();
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
+    // Ambil parameter startDate & endDate dari query, default ke hari ini jika tidak ada
+    const url = new URL(request.url);
+    const startDateParam = url.searchParams.get("startDate");
+    const endDateParam = url.searchParams.get("endDate");
 
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    let startDate: Date;
+    let endDate: Date;
+    if (startDateParam && endDateParam) {
+      startDate = new Date(startDateParam);
+      endDate = new Date(endDateParam);
+    } else {
+      const today = new Date();
+      startDate = new Date(today);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(today);
+      endDate.setHours(23, 59, 59, 999);
+    }
 
     // =========================
-    // 1️⃣ SALES TODAY (REAL DATA)
+    // SALES DATA (RANGE)
     // =========================
-    const salesToday = await prisma.sale.findMany({
+    const sales = await prisma.sale.findMany({
       where: {
         businessId,
         createdAt: {
-          gte: startOfDay,
-          lte: endOfDay,
+          gte: startDate,
+          lte: endDate,
         },
       },
     });
 
-    const todayRevenue = salesToday.reduce(
+    const totalRevenue = sales.reduce(
       (sum, s) => sum + Number(s.totalRevenue),
       0
     );
 
-    const todayCost = salesToday.reduce(
+    const totalCost = sales.reduce(
       (sum, s) => sum + Number(s.totalCost),
       0
     );
 
-    const todayProfit = todayRevenue - todayCost;
+    const totalProfit = totalRevenue - totalCost;
     const avgMargin =
-      todayRevenue > 0 ? (todayProfit / todayRevenue) * 100 : 0;
+      totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
-    const transactionCount = salesToday.length;
+    const transactionCount = sales.length;
 
     // =========================
-    // 2️⃣ TOP SELLING PRODUCTS
+    // TOP SELLING PRODUCTS (RANGE)
     // =========================
     const topProductsRaw = await prisma.saleItem.groupBy({
       by: ["productId"],
@@ -51,8 +62,8 @@ export async function GET() {
         sale: {
           businessId,
           createdAt: {
-            gte: startOfDay,
-            lte: endOfDay,
+            gte: startDate,
+            lte: endDate,
           },
         },
       },
@@ -82,7 +93,7 @@ export async function GET() {
     );
 
     // =========================
-    // 3️⃣ LOW STOCK INGREDIENTS
+    // LOW STOCK INGREDIENTS
     // =========================
     const ingredients = await prisma.ingredient.findMany({
       where: { businessId },
@@ -113,8 +124,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        todayRevenue,
-        todayProfit,
+        totalRevenue,
+        totalProfit,
         avgMargin: Math.round(avgMargin * 100) / 100,
         transactionCount,
         topProducts,
