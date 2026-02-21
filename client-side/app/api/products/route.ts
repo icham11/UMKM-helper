@@ -237,61 +237,64 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const result = await prisma.$transaction(async (tx) => {
-        const productNames = parsed.data.products.map((p) => p.name);
+      // Run creates inside a transaction (no refetch inside — avoids timeout)
+      const createdIds = await prisma.$transaction(
+        async (tx) => {
+          const productNames = parsed.data.products.map((p) => p.name);
 
-        // Duplicate check
-        const duplicates = await checkDuplicateProducts(tx, businessId, productNames);
-        if (duplicates.length > 0) {
-          throw new Error(`Products already exist: ${duplicates.join(", ")}. Remove duplicates or rename them.`);
-        }
-
-        // Validate all ingredient IDs upfront
-        const allIngredientIds = parsed.data.products.flatMap((p) => p.recipe.map((r) => r.ingredientId));
-        await validateIngredients(tx, businessId, allIngredientIds);
-
-        const created = [];
-
-        for (const item of parsed.data.products) {
-          const categoryId = await resolveCategory(tx, businessId, item.categoryName);
-
-          const product = await tx.product.create({
-            data: {
-              businessId,
-              categoryId,
-              name: item.name,
-              sellingPrice: item.sellingPrice,
-            },
-          });
-
-          // Create recipe entries
-          if (item.recipe.length > 0) {
-            await tx.recipe.createMany({
-              data: item.recipe.map((r) => ({
-                productId: product.id,
-                ingredientId: r.ingredientId,
-                quantity: r.quantity,
-              })),
-            });
+          // Duplicate check
+          const duplicates = await checkDuplicateProducts(tx, businessId, productNames);
+          if (duplicates.length > 0) {
+            throw new Error(`Products already exist: ${duplicates.join(", ")}. Remove duplicates or rename them.`);
           }
 
-          // Refetch with relations
-          const full = await tx.product.findUnique({
-            where: { id: product.id },
-            include: {
-              category: { select: { id: true, name: true } },
-              recipes: {
-                include: {
-                  ingredient: { select: { id: true, name: true, unit: true } },
-                },
+          // Validate all ingredient IDs upfront
+          const allIngredientIds = parsed.data.products.flatMap((p) => p.recipe.map((r) => r.ingredientId));
+          await validateIngredients(tx, businessId, allIngredientIds);
+
+          const ids: number[] = [];
+
+          for (const item of parsed.data.products) {
+            const categoryId = await resolveCategory(tx, businessId, item.categoryName);
+
+            const product = await tx.product.create({
+              data: {
+                businessId,
+                categoryId,
+                name: item.name,
+                sellingPrice: item.sellingPrice,
               },
+            });
+
+            if (item.recipe.length > 0) {
+              await tx.recipe.createMany({
+                data: item.recipe.map((r) => ({
+                  productId: product.id,
+                  ingredientId: r.ingredientId,
+                  quantity: r.quantity,
+                })),
+              });
+            }
+
+            ids.push(product.id);
+          }
+
+          return ids;
+        },
+        { timeout: 30000 },
+      );
+
+      // Refetch with relations OUTSIDE the transaction
+      const result = await prisma.product.findMany({
+        where: { id: { in: createdIds } },
+        include: {
+          category: { select: { id: true, name: true } },
+          recipes: {
+            include: {
+              ingredient: { select: { id: true, name: true, unit: true } },
             },
-          });
-
-          created.push(full);
-        }
-
-        return created;
+          },
+        },
       });
 
       return NextResponse.json({ success: true, data: result }, { status: 201 });
@@ -308,53 +311,59 @@ export async function POST(request: NextRequest) {
 
     const { name, categoryName, sellingPrice, recipe } = parsed.data;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // Duplicate check
-      const duplicates = await checkDuplicateProducts(tx, businessId, [name]);
-      if (duplicates.length > 0) {
-        throw new Error(`Product "${name}" already exists.`);
-      }
+    // Run creates inside a transaction (refetch outside to avoid timeout)
+    const createdId = await prisma.$transaction(
+      async (tx) => {
+        // Duplicate check
+        const duplicates = await checkDuplicateProducts(tx, businessId, [name]);
+        if (duplicates.length > 0) {
+          throw new Error(`Product "${name}" already exists.`);
+        }
 
-      // Validate ingredients
-      const ingredientIds = recipe.map((r) => r.ingredientId);
-      await validateIngredients(tx, businessId, ingredientIds);
+        // Validate ingredients
+        const ingredientIds = recipe.map((r) => r.ingredientId);
+        await validateIngredients(tx, businessId, ingredientIds);
 
-      // Resolve category
-      const categoryId = await resolveCategory(tx, businessId, categoryName);
+        // Resolve category
+        const categoryId = await resolveCategory(tx, businessId, categoryName);
 
-      // Create product
-      const product = await tx.product.create({
-        data: {
-          businessId,
-          categoryId,
-          name,
-          sellingPrice,
-        },
-      });
-
-      // Create recipe entries
-      if (recipe.length > 0) {
-        await tx.recipe.createMany({
-          data: recipe.map((r) => ({
-            productId: product.id,
-            ingredientId: r.ingredientId,
-            quantity: r.quantity,
-          })),
+        // Create product
+        const product = await tx.product.create({
+          data: {
+            businessId,
+            categoryId,
+            name,
+            sellingPrice,
+          },
         });
-      }
 
-      // Return full product with relations
-      return tx.product.findUnique({
-        where: { id: product.id },
-        include: {
-          category: { select: { id: true, name: true } },
-          recipes: {
-            include: {
-              ingredient: { select: { id: true, name: true, unit: true } },
-            },
+        // Create recipe entries
+        if (recipe.length > 0) {
+          await tx.recipe.createMany({
+            data: recipe.map((r) => ({
+              productId: product.id,
+              ingredientId: r.ingredientId,
+              quantity: r.quantity,
+            })),
+          });
+        }
+
+        return product.id;
+      },
+      { timeout: 15000 },
+    );
+
+    // Refetch with relations OUTSIDE the transaction
+    const result = await prisma.product.findUnique({
+      where: { id: createdId },
+      include: {
+        category: { select: { id: true, name: true } },
+        recipes: {
+          include: {
+            ingredient: { select: { id: true, name: true, unit: true } },
           },
         },
-      });
+      },
     });
 
     return NextResponse.json({ success: true, data: result }, { status: 201 });

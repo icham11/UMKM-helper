@@ -16,10 +16,10 @@ export const GROQ_MODELS = {
     primary: "meta-llama/llama-4-scout-17b-16e-instruct",
     fallback: "meta-llama/llama-4-maverick-17b-128e-instruct",
   },
-  // Text-only models (better for text analysis)
+  // Text-only models — must support response_format: { type: "json_object" }
   text: {
-    primary: "openai/gpt-oss-120b",
-    fallback: "openai/gpt-oss-safeguard-20b",
+    primary: "llama-3.3-70b-versatile",
+    fallback: "llama3-70b-8192",
   },
 };
 
