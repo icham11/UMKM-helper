@@ -7,11 +7,11 @@ import { createXenditInvoice } from "@/lib/xendit/invoices";
 import {
   generateTransactionNumber,
   calculateProductCost,
-  deductInventory,
   updateBusinessMetrics,
   updateProductMetrics,
   recomputeRecipeCost,
 } from "@/lib/services/saleHelpers";
+import { deductFIFO } from "@/lib/inventory/engine";
 
 export const runtime = "nodejs";
 
@@ -250,10 +250,35 @@ export async function POST(request: NextRequest) {
       for (const item of items) {
         const price = productPriceMap.get(item.productId)!;
 
-        const {
-          totalCost: cost,
-          ingredientBreakdowns,
-        } = await calculateProductCost(tx, item.productId, item.quantity);
+        type CostResult =
+          | number
+          | {
+              cost: number;
+              ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[];
+            };
+
+        const costResult = await calculateProductCost(
+          tx,
+          item.productId,
+          item.quantity
+        ) as CostResult;
+
+        let cost: number;
+        let ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[] = [];
+
+        if (typeof costResult === "number") {
+          cost = costResult;
+        } else if (
+          costResult &&
+          typeof costResult === "object" &&
+          "cost" in costResult &&
+          "ingredientBreakdowns" in costResult
+        ) {
+          cost = costResult.cost;
+          ingredientBreakdowns = costResult.ingredientBreakdowns;
+        } else {
+          throw new Error("Unexpected return value from calculateProductCost");
+        }
 
         totalRevenue += price * item.quantity;
         totalCost += cost;
@@ -302,10 +327,21 @@ export async function POST(request: NextRequest) {
       });
       
       for (const ingredient of allIngredientBreakdowns) {
+        // Fetch costPerUnit for each batch in the breakdown
+        const batchIds = ingredient.breakdown.map(b => b.batchId);
+        const batches = await tx.inventoryBatch.findMany({
+          where: { id: { in: batchIds } },
+          select: { id: true, costPerUnit: true },
+        });
+        const batchCostMap = new Map(batches.map(b => [b.id, Number(b.costPerUnit)]));
+        const breakdownWithCost = ingredient.breakdown.map(b => ({
+          ...b,
+          costPerUnit: batchCostMap.get(b.batchId) ?? 0,
+        }));
         await deductFIFO(
           tx,
           ingredient.ingredientId,
-          ingredient.breakdown,
+          breakdownWithCost,
           stockDocument.id
         );
       }
