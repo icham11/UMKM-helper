@@ -15,7 +15,7 @@ export type SaleItemInput = z.infer<typeof saleItemSchema>;
 export const createSaleSchema = z.object({
   items: z.array(saleItemSchema).min(1, "At least one item is required"),
   paymentMethod: z.nativeEnum(PaymentMethod, {
-    errorMap: () => ({ message: "Invalid payment method" }),
+    error: "Invalid payment method",
   }),
   paymentStatus: z.nativeEnum(PaymentStatus).optional().default(PaymentStatus.Paid),
   customerName: z.string().optional(),

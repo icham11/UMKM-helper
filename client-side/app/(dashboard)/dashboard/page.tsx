@@ -60,7 +60,7 @@ export default function DashboardPage() {
   const [range, setRange] =
     useState<"today" | "7d" | "30d" | "all">("today");
 
-  // Declare totalAlertCount only once here
+  // Move totalAlertCount up so it's defined before alertPulse
   const totalAlertCount =
     alerts.expired.length +
     alerts.expiring3.length +
@@ -175,7 +175,7 @@ export default function DashboardPage() {
     loadDashboardData();
   }, [range]);
 
-  //
+  // Removed duplicate totalAlertCount declaration
 
   if (loading)
     return (
