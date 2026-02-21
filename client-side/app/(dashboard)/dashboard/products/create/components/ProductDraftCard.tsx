@@ -66,10 +66,10 @@ export default function ProductDraftCard({ draft, index, ingredientOptions, onCh
     <div
       className={`bg-white rounded-2xl shadow border ${
         draft.aiGenerated ? "border-indigo-200" : "border-gray-200"
-      } overflow-hidden transition-all`}
+      } transition-all`}
     >
       {/* Card Header */}
-      <div className="flex items-center gap-4 px-5 py-4">
+      <div className="flex items-center gap-4 px-5 py-4 rounded-t-2xl">
         <div className="flex-1 min-w-0">
           {editing ? (
             <input
@@ -140,7 +140,7 @@ export default function ProductDraftCard({ draft, index, ingredientOptions, onCh
 
       {/* Expanded edit panel */}
       {expanded && (
-        <div className="border-t border-gray-100 px-5 py-4 space-y-4 bg-indigo-50/30">
+        <div className="border-t border-gray-100 px-5 py-4 space-y-4 bg-indigo-50/30 rounded-b-2xl">
           {/* Category + Selling Price */}
           <div className="grid grid-cols-2 gap-3">
             <div>

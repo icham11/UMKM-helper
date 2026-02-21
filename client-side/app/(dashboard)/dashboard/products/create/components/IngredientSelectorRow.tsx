@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Trash2, ChevronDown, Lock } from "lucide-react";
+import { Trash2, ChevronDown, Lock, Check } from "lucide-react";
 import type { DraftRecipeRow } from "@/types/product";
 import type { IngredientOption } from "@/lib/api/products";
 
 /**
  * Determines whether the row is "new" — either AI-generated (positive id, isNew true)
  * or typed-but-not-yet-saved (negative id).
- * New rows get full edit access; existing rows are qty-only.
+ * New rows go through a two-phase flow:
+ *   1. "naming"  — name input + dropdown visible; pick or type an ingredient name
+ *   2. "editing" — name locked (no dropdown), unit + cost/unit editable, Confirm button visible
+ * Confirming transitions to "confirmed" (visually identical to existing rows).
  */
 function isNewRow(row: DraftRecipeRow) {
   return row.isNew === true || row.ingredientId < 0;
@@ -24,6 +27,15 @@ interface Props {
   /** Called when user clicks delete.
    *  ProductForm decides whether to also call the DELETE API. */
   onRemove: () => void;
+  /**
+   * Called when the user confirms the unit / cost-per-unit values.
+   * For AI-generated rows with a real DB id this is a good place to PATCH the ingredient.
+   */
+  onConfirm?: () => void;
+  /** Highlight the unit field as invalid (set by parent on submit). */
+  unitError?: boolean;
+  /** Highlight the cost/unit field as invalid (set by parent on submit). */
+  costError?: boolean;
 }
 
 const formatCurrency = (value: number) =>
@@ -40,10 +52,28 @@ export default function IngredientSelectorRow({
   usedIngredientIds,
   onChange,
   onRemove,
+  onConfirm,
+  unitError,
+  costError,
 }: Props) {
   const isNew = isNewRow(row);
 
-  // Name-search state — only used for new rows
+  /**
+   * Two local states for new rows:
+   *  phase          — "naming" (dropdown visible) | "editing" (dropdown hidden, confirm shown)
+   *  localConfirmed — true once the user clicks ✓; row becomes read-only like existing rows
+   *
+   * Rows that already have a name (e.g. AI-generated) skip straight to "editing".
+   */
+  const [phase, setPhase] = useState<"naming" | "editing">(() => {
+    if (!isNew) return "naming"; // doesn't matter for existing rows
+    return row.ingredientName?.trim() ? "editing" : "naming";
+  });
+  const [localConfirmed, setLocalConfirmed] = useState(false);
+  // Tracks whether the user has clicked Done at least once (drives inline errors)
+  const [rowTouched, setRowTouched] = useState(false);
+
+  // Name-search state — only used during "naming" phase
   const [query, setQuery] = useState(row.ingredientName ?? "");
   const [open, setOpen] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState(false);
@@ -84,10 +114,12 @@ export default function IngredientSelectorRow({
     });
     setQuery(opt.name);
     setOpen(false);
+    // Selecting from dropdown → move to editing phase so user can review unit/cost
+    setPhase("editing");
   };
 
   const handleNameBlur = () => {
-    if (!isNew) return;
+    if (!isNew || phase !== "naming") return;
     const match = ingredientOptions.find((o) => o.name.toLowerCase() === query.toLowerCase());
     if (match) {
       handleSelect(match);
@@ -98,24 +130,62 @@ export default function IngredientSelectorRow({
         ingredientName: query.trim(),
         isNew: true,
       });
+      setPhase("editing");
     }
     setOpen(false);
+  };
+
+  const handleConfirm = () => {
+    setRowTouched(true);
+    const unitMissing = !row.unit?.trim();
+    const costMissing = row.costPerUnit == null || row.costPerUnit <= 0;
+    if (unitMissing || costMissing) return; // stay in editing phase
+    setLocalConfirmed(true);
+    onConfirm?.();
   };
 
   const subtotal = row.quantity * (row.costPerUnit ?? 0);
   const willDeleteFromDB = isNew && row.ingredientId > 0;
 
+  // Whether the row should render as fully read-only (like an existing ingredient)
+  const readOnly = !isNew || localConfirmed;
+  // Whether we're in the unit/cost-edit phase (new, named, but not yet confirmed)
+  const inEditPhase = isNew && !localConfirmed && phase === "editing";
+
   return (
     <div
       className={`grid grid-cols-12 gap-2 items-start py-3 px-3 rounded-xl border transition ${
-        isNew
+        inEditPhase || (isNew && !localConfirmed)
           ? "bg-amber-50/40 border-amber-200 hover:border-amber-300"
           : "bg-white border-gray-100 hover:border-indigo-200"
       }`}
     >
       {/* ── Name (col 4) ─────────────────────────────── */}
       <div className="col-span-4 relative" ref={containerRef}>
-        {isNew ? (
+        {readOnly ? (
+          /* Confirmed / existing ingredient — read-only name with lock icon */
+          <div className="flex items-center gap-1.5 py-1.5">
+            <Lock size={11} className="text-gray-300 shrink-0" />
+            <span className="text-sm font-semibold text-slate-700 truncate leading-tight">{row.ingredientName}</span>
+          </div>
+        ) : inEditPhase ? (
+          /* Edit phase — plain text input (no dropdown), NEW badge below */
+          <>
+            <input
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                onChange({ ...row, ingredientName: e.target.value });
+              }}
+              placeholder="Ingredient name"
+              className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+            />
+            <span className="inline-flex items-center mt-1 text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold leading-none">
+              NEW
+            </span>
+          </>
+        ) : (
+          /* Naming phase — name input + dropdown */
           <>
             <div className="flex items-center gap-1">
               <input
@@ -170,12 +240,6 @@ export default function IngredientSelectorRow({
               </ul>
             )}
           </>
-        ) : (
-          /* Existing ingredient — read-only name with lock icon */
-          <div className="flex items-center gap-1.5 py-1.5">
-            <Lock size={11} className="text-gray-300 shrink-0" />
-            <span className="text-sm font-semibold text-slate-700 truncate leading-tight">{row.ingredientName}</span>
-          </div>
         )}
       </div>
 
@@ -194,13 +258,22 @@ export default function IngredientSelectorRow({
 
       {/* ── Unit (col 2) ─────────────────────────────── */}
       <div className="col-span-2">
-        {isNew ? (
-          <input
-            value={row.unit}
-            onChange={(e) => onChange({ ...row, unit: e.target.value })}
-            placeholder="Unit"
-            className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
-          />
+        {inEditPhase ? (
+          <>
+            <input
+              value={row.unit}
+              onChange={(e) => onChange({ ...row, unit: e.target.value })}
+              placeholder="Unit"
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+                (rowTouched || unitError) && !row.unit?.trim()
+                  ? "border-red-400 focus:ring-red-300"
+                  : "border-amber-300 focus:ring-amber-400"
+              }`}
+            />
+            {(rowTouched || unitError) && !row.unit?.trim() && (
+              <p className="text-[10px] text-red-500 font-semibold mt-0.5">Required</p>
+            )}
+          </>
         ) : (
           <div className="py-1.5">
             <span className="text-sm text-gray-500 font-medium">{row.unit || "—"}</span>
@@ -210,22 +283,30 @@ export default function IngredientSelectorRow({
 
       {/* ── Cost / unit (col 2) ──────────────────────── */}
       <div className="col-span-2">
-        {isNew ? (
-          <input
-            type="number"
-            min={0}
-            value={row.costPerUnit ?? ""}
-            onChange={(e) =>
-              onChange({
-                ...row,
-                costPerUnit: e.target.value === "" ? null : Number(e.target.value),
-              })
-            }
-            placeholder="Cost/unit"
-            className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
-          />
+        {inEditPhase ? (
+          <>
+            <input
+              type="number"
+              min={0}
+              value={row.costPerUnit ?? ""}
+              onChange={(e) =>
+                onChange({
+                  ...row,
+                  costPerUnit: e.target.value === "" ? null : Number(e.target.value),
+                })
+              }
+              placeholder="Cost/unit"
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+                (rowTouched || costError) && (row.costPerUnit == null || row.costPerUnit <= 0)
+                  ? "border-red-400 focus:ring-red-300"
+                  : "border-amber-300 focus:ring-amber-400"
+              }`}
+            />
+            {(rowTouched || costError) && (row.costPerUnit == null || row.costPerUnit <= 0) && (
+              <p className="text-[10px] text-red-500 font-semibold mt-0.5">Required</p>
+            )}
+          </>
         ) : (
-          /* Existing — display cost per unit as read-only */
           <div className="py-1.5">
             <span className="text-xs text-indigo-600 font-semibold">
               {row.costPerUnit != null && row.costPerUnit > 0 ? formatCurrency(row.costPerUnit) : "—"}
@@ -234,16 +315,29 @@ export default function IngredientSelectorRow({
         )}
       </div>
 
-      {/* ── Subtotal + delete (col 2) ─────────────────── */}
+      {/* ── Subtotal / actions (col 2) ───────────────── */}
       <div className="col-span-2 flex items-center justify-between gap-1 py-1.5">
-        <span className={`text-xs font-bold truncate ${subtotal > 0 ? "text-indigo-700" : "text-gray-300"}`}>
-          {subtotal > 0 ? formatCurrency(subtotal) : "—"}
-        </span>
+        {inEditPhase ? (
+          /* Edit phase: amber confirm button instead of subtotal */
+          <button
+            type="button"
+            onClick={handleConfirm}
+            title="Confirm unit & cost"
+            className="flex items-center gap-1 px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition"
+          >
+            <Check size={12} />
+            Done
+          </button>
+        ) : (
+          <span className={`text-xs font-bold truncate ${subtotal > 0 ? "text-indigo-700" : "text-gray-300"}`}>
+            {subtotal > 0 ? formatCurrency(subtotal) : "—"}
+          </span>
+        )}
         <button
           type="button"
           onClick={onRemove}
           title={willDeleteFromDB ? "Delete this AI-created ingredient from the database" : "Remove from recipe"}
-          className={`p-1.5 rounded-full transition ${
+          className={`p-1.5 rounded-full transition shrink-0 ${
             willDeleteFromDB
               ? "hover:bg-red-100 text-red-400 hover:text-red-600"
               : "hover:bg-red-50 text-red-300 hover:text-red-500"

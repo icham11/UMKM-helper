@@ -184,18 +184,31 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
   };
 
   // ── Validation ──────────────────────────────────────────────────────────
+  const [submitted, setSubmitted] = useState(false);
+
+  /** Returns true if the row is a new ingredient that still needs unit/cost filled in. */
+  const rowNeedsUnit = (r: DraftRecipeRow) =>
+    (r.isNew === true || r.ingredientId < 0) && !!r.ingredientName?.trim() && !r.unit?.trim();
+  const rowNeedsCost = (r: DraftRecipeRow) =>
+    (r.isNew === true || r.ingredientId < 0) &&
+    !!r.ingredientName?.trim() &&
+    (r.costPerUnit == null || r.costPerUnit <= 0);
+
   const validate = () => {
     if (!name.trim()) return "Product name is required.";
     if (!categoryName.trim()) return "Category is required.";
     if (!sellingPrice || sellingPrice <= 0) return "Selling price must be greater than 0.";
     const hasInvalid = recipe.some((r) => !r.ingredientName.trim() || r.quantity <= 0);
     if (recipe.length > 0 && hasInvalid) return "Each recipe row needs an ingredient name and a positive quantity.";
+    if (recipe.some(rowNeedsUnit)) return "Some new ingredients are missing a unit.";
+    if (recipe.some(rowNeedsCost)) return "Some new ingredients are missing a cost per unit.";
     return null;
   };
 
   // ── Submit ──────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitted(true);
     const err = validate();
     if (err) {
       setError(err);
@@ -372,8 +385,8 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
       </div>
 
       {/* ── Recipe section ─ */}
-      <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
-        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
+      <div className="bg-white rounded-2xl shadow border border-gray-100">
+        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50 rounded-t-2xl">
           <div>
             <h3 className="font-bold text-indigo-700">Recipe / Ingredients</h3>
             {recipeCost > 0 && <p className="text-xs text-gray-500 mt-0.5">Total cost: {formatCurrency(recipeCost)}</p>}
@@ -407,6 +420,8 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
               usedIngredientIds={
                 new Set(recipe.filter((r, j) => j !== i && r.ingredientId > 0).map((r) => r.ingredientId))
               }
+              unitError={submitted && rowNeedsUnit(row)}
+              costError={submitted && rowNeedsCost(row)}
               onChange={(updated) => updateRow(i, updated)}
               onRemove={() => removeRow(i)}
             />
