@@ -2,22 +2,42 @@ import type { Product, CreateProductInput } from "@/types/product";
 
 // ─── Fetch helpers ─────────────────────────────────────────────────────────────
 
+export type PaginationMeta = {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  avgSellingPrice: number;
+  avgMargin: number;
+};
+
 export type GetProductsParams = {
   search?: string;
   categoryId?: number;
+  sortBy?: "name" | "sellingPrice" | "createdAt" | "recipeCost" | "margin";
+  sortOrder?: "asc" | "desc";
   withRecipe?: boolean;
+  page?: number;
+  limit?: number;
 };
 
-export async function getProducts(params?: GetProductsParams): Promise<Product[]> {
+export async function getProducts(params?: GetProductsParams): Promise<{ data: Product[]; meta: PaginationMeta }> {
   const url = new URL("/api/products", window.location.origin);
   if (params?.search) url.searchParams.set("search", params.search);
   if (params?.categoryId) url.searchParams.set("categoryId", String(params.categoryId));
+  if (params?.sortBy) url.searchParams.set("sortBy", params.sortBy);
+  if (params?.sortOrder) url.searchParams.set("sortOrder", params.sortOrder);
   if (params?.withRecipe === false) url.searchParams.set("withRecipe", "false");
+  if (params?.page) url.searchParams.set("page", String(params.page));
+  if (params?.limit) url.searchParams.set("limit", String(params.limit));
 
   const res = await fetch(url.toString(), { credentials: "include" });
   if (!res.ok) throw new Error("Failed to fetch products");
-  const data = await res.json();
-  return data.data ?? [];
+  const json = await res.json();
+  return {
+    data: json.data ?? [],
+    meta: json.meta ?? { total: 0, page: 1, limit: 10, totalPages: 1, avgSellingPrice: 0, avgMargin: 0 },
+  };
 }
 
 // ─── Create helpers ────────────────────────────────────────────────────────────
@@ -159,6 +179,20 @@ export async function deleteProduct(id: number): Promise<void> {
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error ?? "Failed to delete product");
+  }
+}
+
+/** DELETE /api/products — permanently delete multiple products and their recipes */
+export async function bulkDeleteProducts(ids: number[]): Promise<void> {
+  const res = await fetch("/api/products", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ ids }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error ?? "Failed to delete products");
   }
 }
 

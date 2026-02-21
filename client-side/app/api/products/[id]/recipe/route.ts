@@ -2,15 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { recipeItemSchema } from "@/lib/validations/product";
+import { recomputeRecipeCost } from "@/lib/computeRecipeCost";
 
 export const runtime = "nodejs";
 
 // ================= GET =================
 
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { businessId } = await requireAuth();
     const { id } = await context.params;
@@ -47,10 +45,7 @@ export async function GET(
 
 // ================= POST =================
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { businessId } = await requireAuth();
     const { id } = await context.params;
@@ -66,7 +61,7 @@ export async function POST(
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -96,6 +91,9 @@ export async function POST(
       },
     });
 
+    // Recompute stored recipeCost for the product
+    await recomputeRecipeCost(productId).catch(() => {});
+
     return NextResponse.json({ success: true, data: recipe }, { status: 201 });
   } catch (error) {
     if (isAuthError(error)) {
@@ -104,9 +102,6 @@ export async function POST(
 
     console.error("Recipe error:", error);
 
-    return NextResponse.json(
-      { error: "Failed to create/update recipe" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create/update recipe" }, { status: 500 });
   }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, X, ImageIcon, Loader2, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Info, Upload, X, ImageIcon, Loader2 } from "lucide-react";
 import { generateProductsByImage } from "@/lib/api/products";
 import type { ProductDraft } from "@/types/product";
 
@@ -15,6 +15,8 @@ export default function PhotoUploadModal({ onClose, onSuccess }: Props) {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
+  const [pendingDrafts, setPendingDrafts] = useState<ProductDraft[] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (selected: File) => {
@@ -43,6 +45,8 @@ export default function PhotoUploadModal({ onClose, onSuccess }: Props) {
     if (!file) return;
     setLoading(true);
     setError(null);
+    setWarning(null);
+    setPendingDrafts(null);
     try {
       const result = await generateProductsByImage(file);
       if (!result.isValid) {
@@ -75,6 +79,14 @@ export default function PhotoUploadModal({ onClose, onSuccess }: Props) {
           aiGenerated: true,
         }),
       );
+      const skipped: number = result.meta?.skippedDuplicates ?? 0;
+      if (skipped > 0) {
+        setWarning(
+          `${skipped} product${skipped !== 1 ? "s" : ""} were skipped because they already exist in your product list.`,
+        );
+        setPendingDrafts(drafts);
+        return;
+      }
       onSuccess(drafts);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to process image");
@@ -141,6 +153,13 @@ export default function PhotoUploadModal({ onClose, onSuccess }: Props) {
           </div>
         )}
 
+        {warning && (
+          <div className="mt-4 flex items-start gap-2 text-amber-700 bg-amber-50 rounded-xl p-3 text-sm">
+            <Info size={16} className="mt-0.5 shrink-0" />
+            <span>{warning}</span>
+          </div>
+        )}
+
         <div className="flex gap-3 mt-6">
           <button
             onClick={onClose}
@@ -148,23 +167,33 @@ export default function PhotoUploadModal({ onClose, onSuccess }: Props) {
           >
             Cancel
           </button>
-          <button
-            onClick={handleConfirm}
-            disabled={!file || loading}
-            className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <Loader2 size={18} className="animate-spin" />
-                Analysing...
-              </>
-            ) : (
-              <>
-                <Upload size={18} />
-                Generate
-              </>
-            )}
-          </button>
+          {pendingDrafts ? (
+            <button
+              onClick={() => onSuccess(pendingDrafts)}
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+            >
+              <Upload size={18} />
+              Continue with {pendingDrafts.length} product{pendingDrafts.length !== 1 ? "s" : ""}
+            </button>
+          ) : (
+            <button
+              onClick={handleConfirm}
+              disabled={!file || loading}
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Analysing...
+                </>
+              ) : (
+                <>
+                  <Upload size={18} />
+                  Generate
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -15,8 +15,17 @@ import {
   X,
   Loader2,
   CheckCircle2,
+  ChevronUp,
+  ChevronDown,
+  Filter,
 } from "lucide-react";
-import { getProducts, updateProductPrice, deleteProduct } from "@/lib/api/products";
+import {
+  getProducts,
+  getCategoryOptions,
+  updateProductPrice,
+  deleteProduct,
+  bulkDeleteProducts,
+} from "@/lib/api/products";
 import { useBusiness } from "@/context/BusinessContext";
 import type { Product } from "@/types/product";
 
@@ -27,9 +36,7 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 0,
   }).format(value);
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 // Recipe modal
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
 function RecipeModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -133,9 +140,7 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
   );
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 // Edit price modal
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
 function EditPriceModal({
   product,
@@ -256,9 +261,7 @@ function EditPriceModal({
   );
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 // Delete confirmation modal
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
 function DeleteConfirmModal({
   product,
@@ -335,9 +338,74 @@ function DeleteConfirmModal({
   );
 }
 
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
+// Bulk delete confirmation modal
+
+function BulkDeleteConfirmModal({
+  count,
+  deleting,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  count: number;
+  deleting: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-6 py-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
+              <Trash2 size={18} />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-800">
+                Delete {count} Product{count !== 1 ? "s" : ""}?
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                All selected products and their recipes will be permanently deleted. This cannot be undone.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={deleting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+            >
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              Delete {count}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Main page
-// 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -348,17 +416,55 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  // Filter / sort
+  const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
+  const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
+  const [sortBy, setSortBy] = useState<"name" | "sellingPrice" | "recipeCost" | "margin" | "createdAt">("name");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [avgSellingPrice, setAvgSellingPrice] = useState(0);
+  const [avgMargin, setAvgMargin] = useState(0);
+
+  // Multi-select
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
+
   // Modal state
   const [recipeModal, setRecipeModal] = useState<Product | null>(null);
   const [editModal, setEditModal] = useState<Product | null>(null);
   const [deleteModal, setDeleteModal] = useState<Product | null>(null);
 
-  const fetchProducts = async (searchTerm = "") => {
+  const fetchProducts = async (pageNum = page) => {
     try {
       setLoading(true);
       setError(null);
-      const data = await getProducts({ search: searchTerm });
+      // recipeCost is a stored DB column; margin uses raw SQL on the server
+      const apiSortBy =
+        sortBy === "name" || sortBy === "sellingPrice" || sortBy === "recipeCost" || sortBy === "createdAt"
+          ? sortBy
+          : undefined;
+      const apiSortArg = sortBy === "margin" ? "margin" : apiSortBy;
+      const { data, meta } = await getProducts({
+        search,
+        categoryId: categoryFilter ?? undefined,
+        sortBy: apiSortArg as "name" | "sellingPrice" | "createdAt" | undefined,
+        sortOrder,
+        page: pageNum,
+        limit: 10,
+      });
       setProducts(data);
+      setPage(meta.page);
+      setTotalPages(meta.totalPages);
+      setTotalCount(meta.total);
+      setAvgSellingPrice(meta.avgSellingPrice);
+      setAvgMargin(meta.avgMargin);
+      setSelectedIds(new Set());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch products");
     } finally {
@@ -366,23 +472,75 @@ export default function ProductsPage() {
     }
   };
 
+  // Load category options once
   useEffect(() => {
     if (!business || businessLoading) return;
-    fetchProducts();
+    getCategoryOptions()
+      .then((cats) => setCategories(cats as { id: number; name: string }[]))
+      .catch(() => {});
   }, [business, businessLoading]);
 
-  // Debounced search
+  // Debounced re-fetch on filter/sort/search changes — always resets to page 1
   useEffect(() => {
     if (!business) return;
-    const timer = setTimeout(() => fetchProducts(search), 400);
+    const timer = setTimeout(() => fetchProducts(1), 400);
     return () => clearTimeout(timer);
-  }, [search, business]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, categoryFilter, sortBy, sortOrder, business]);
 
-  if (businessLoading || loading) {
+  const handleSortClick = (col: typeof sortBy) => {
+    if (sortBy === col) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    else {
+      setSortBy(col);
+      setSortOrder("asc");
+    }
+  };
+
+  const SortIcon = ({ col }: { col: typeof sortBy }) =>
+    sortBy !== col ? (
+      <ChevronUp size={12} className="ml-1 text-gray-300" />
+    ) : sortOrder === "asc" ? (
+      <ChevronUp size={12} className="ml-1 text-indigo-500" />
+    ) : (
+      <ChevronDown size={12} className="ml-1 text-indigo-500" />
+    );
+
+  const toggleSelect = (id: number) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const allSelected = products.length > 0 && selectedIds.size === products.length;
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  const toggleSelectAll = () => {
+    if (allSelected) setSelectedIds(new Set());
+    else setSelectedIds(new Set(products.map((p) => p.id)));
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    setBulkDeleteError(null);
+    try {
+      await bulkDeleteProducts(Array.from(selectedIds));
+      setProducts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      setBulkDeleteError(err instanceof Error ? err.message : "Failed to delete products");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  if (businessLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-500 animate-pulse">
         <ShoppingBag size={48} />
-        <span className="mt-4 text-lg font-semibold">Loading products...</span>
+        <span className="mt-4 text-lg font-semibold">Loading...</span>
       </div>
     );
   }
@@ -392,21 +550,6 @@ export default function ProductsPage() {
       <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-400">
         <ShoppingBag size={48} />
         <span className="mt-4 text-lg font-semibold">Anda belum memiliki bisnis.</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-red-500">
-        <AlertTriangle size={48} />
-        <span className="mt-4 text-lg font-semibold">{error}</span>
-        <button
-          onClick={() => fetchProducts()}
-          className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition"
-        >
-          Try again
-        </button>
       </div>
     );
   }
@@ -429,51 +572,104 @@ export default function ProductsPage() {
           </button>
         </div>
 
-        {/* SEARCH */}
-        <div className="relative max-w-md">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products..."
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none transition bg-white shadow-sm"
-          />
+        {/* TOOLBAR: search + category filter */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-48 max-w-md">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search products..."
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none transition bg-white shadow-sm"
+            />
+          </div>
+
+          {categories.length > 0 && (
+            <div className="relative">
+              <Filter
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+              />
+              <select
+                value={categoryFilter ?? ""}
+                onChange={(e) => setCategoryFilter(e.target.value === "" ? null : Number(e.target.value))}
+                className="pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-400 outline-none appearance-none cursor-pointer"
+              >
+                <option value="">All categories</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
+
+        {/* BULK ACTION BAR */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3">
+            <span className="text-sm font-semibold text-indigo-700">
+              {selectedIds.size} product{selectedIds.size !== 1 ? "s" : ""} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-white border border-gray-200 transition"
+              >
+                Deselect all
+              </button>
+              <button
+                onClick={() => {
+                  setBulkDeleteError(null);
+                  setBulkDeleteOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition"
+              >
+                <Trash2 size={13} />
+                Delete selected
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* STATS ROW */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl p-4 shadow border border-indigo-50">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Products</p>
-            <p className="text-3xl font-extrabold text-indigo-700 mt-1">{products.length}</p>
+            <p className="text-3xl font-extrabold text-indigo-700 mt-1">{totalCount}</p>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow border border-violet-50">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Avg Selling Price</p>
             <p className="text-2xl font-extrabold text-violet-700 mt-1">
-              {products.length
-                ? formatCurrency(products.reduce((s, p) => s + Number(p.sellingPrice), 0) / products.length)
-                : "—"}
+              {totalCount > 0 ? formatCurrency(avgSellingPrice) : "—"}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow border border-green-50">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Avg Margin</p>
-            <p className="text-2xl font-extrabold text-green-700 mt-1">
-              {products.length
-                ? Math.round(
-                    products
-                      .filter((p) => Number(p.sellingPrice) > 0)
-                      .reduce(
-                        (s, p) => s + ((Number(p.sellingPrice) - Number(p.recipeCost)) / Number(p.sellingPrice)) * 100,
-                        0,
-                      ) / products.filter((p) => Number(p.sellingPrice) > 0).length,
-                  ) + "%"
-                : "—"}
-            </p>
+            <p className="text-2xl font-extrabold text-green-700 mt-1">{totalCount > 0 ? `${avgMargin}%` : "—"}</p>
           </div>
         </div>
 
         {/* TABLE */}
-        {products.length === 0 ? (
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl shadow">
+            <Loader2 size={40} className="animate-spin text-indigo-400" />
+            <p className="mt-4 text-sm font-semibold text-gray-400">Loading products...</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl shadow text-red-500">
+            <AlertTriangle size={40} />
+            <p className="mt-4 text-sm font-semibold">{error}</p>
+            <button
+              onClick={() => fetchProducts()}
+              className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition"
+            >
+              Try again
+            </button>
+          </div>
+        ) : products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-white rounded-3xl shadow">
             <ChefHat size={56} className="mb-4 text-indigo-200" />
             <p className="text-lg font-semibold">No products yet.</p>
@@ -489,106 +685,247 @@ export default function ProductsPage() {
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl shadow-xl overflow-x-auto">
-            <table className="w-full min-w-160 text-base">
-              <thead className="bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
-                <tr>
-                  <th className="px-6 py-4 text-left font-bold">Product</th>
-                  <th className="px-6 py-4 text-left font-bold">Category</th>
-                  <th className="px-6 py-4 text-right font-bold">Selling Price</th>
-                  <th className="px-6 py-4 text-right font-bold">Cost</th>
-                  <th className="px-6 py-4 text-right font-bold">Margin</th>
-                  <th className="px-6 py-4 text-center font-bold">Recipe</th>
-                  <th className="px-6 py-4 text-center font-bold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product) => {
-                  const sp = Number(product.sellingPrice);
-                  const rc = Number(product.recipeCost);
-                  const margin = sp > 0 ? Math.round(((sp - rc) / sp) * 100) : 0;
-                  return (
-                    <tr key={product.id} className="border-t bg-white hover:bg-indigo-50/40 transition-all">
-                      <td className="px-6 py-4">
-                        <div className="font-bold text-slate-800">{product.name}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {product.category ? (
-                          <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">
-                            <Tag size={12} />
-                            {product.category.name}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => setEditModal(product)}
-                          title="Edit selling price"
-                          className="group inline-flex items-center gap-1.5 justify-end w-full font-bold text-indigo-700 hover:text-indigo-900 transition"
-                        >
-                          <span>{formatCurrency(sp)}</span>
-                          <Pencil
-                            size={12}
-                            className="opacity-0 group-hover:opacity-60 transition text-indigo-400 shrink-0"
+          <>
+            <div className="bg-white rounded-3xl shadow-xl overflow-x-auto">
+              <table className="w-full min-w-160 text-base">
+                <thead className="bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
+                  <tr>
+                    {/* Select-all checkbox */}
+                    <th className="pl-5 pr-2 py-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={allSelected}
+                        ref={(el) => {
+                          if (el) el.indeterminate = someSelected;
+                        }}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                      />
+                    </th>
+                    <th
+                      className="px-4 py-4 text-left font-bold cursor-pointer select-none"
+                      onClick={() => handleSortClick("name")}
+                    >
+                      <span className="inline-flex items-center">
+                        Product <SortIcon col="name" />
+                      </span>
+                    </th>
+                    <th className="px-6 py-4 text-left font-bold">Category</th>
+                    <th
+                      className="px-6 py-4 text-right font-bold cursor-pointer select-none"
+                      onClick={() => handleSortClick("sellingPrice")}
+                    >
+                      <span className="inline-flex items-center justify-end w-full">
+                        Selling Price <SortIcon col="sellingPrice" />
+                      </span>
+                    </th>
+                    <th
+                      className="px-6 py-4 text-right font-bold cursor-pointer select-none"
+                      onClick={() => handleSortClick("recipeCost")}
+                    >
+                      <span className="inline-flex items-center justify-end w-full">
+                        Cost <SortIcon col="recipeCost" />
+                      </span>
+                    </th>
+                    <th
+                      className="px-6 py-4 text-right font-bold cursor-pointer select-none"
+                      onClick={() => handleSortClick("margin")}
+                    >
+                      <span className="inline-flex items-center justify-end w-full">
+                        Margin <SortIcon col="margin" />
+                      </span>
+                    </th>
+                    <th
+                      className="px-6 py-4 text-left font-bold cursor-pointer select-none"
+                      onClick={() => handleSortClick("createdAt")}
+                    >
+                      <span className="inline-flex items-center">
+                        Added <SortIcon col="createdAt" />
+                      </span>
+                    </th>
+                    <th className="px-6 py-4 text-center font-bold">Recipe</th>
+                    <th className="px-6 py-4 text-center font-bold">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {products.map((product) => {
+                    const sp = Number(product.sellingPrice);
+                    const rc = Number(product.recipeCost);
+                    const margin = sp > 0 ? Math.round(((sp - rc) / sp) * 100) : 0;
+                    const isSelected = selectedIds.has(product.id);
+                    return (
+                      <tr
+                        key={product.id}
+                        className={`border-t transition-all ${
+                          isSelected ? "bg-indigo-50" : "bg-white hover:bg-indigo-50/40"
+                        }`}
+                      >
+                        <td className="pl-5 pr-2 py-4">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(product.id)}
+                            className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
                           />
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 text-right text-slate-600 font-medium">
-                        {rc > 0 ? formatCurrency(rc) : "—"}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <span
-                          className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full ${
-                            margin >= 50
-                              ? "bg-green-100 text-green-700"
-                              : margin >= 20
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="font-bold text-slate-800">{product.name}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          {product.category ? (
+                            <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">
+                              <Tag size={12} />
+                              {product.category.name}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-sm">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button
+                            onClick={() => setEditModal(product)}
+                            title="Edit selling price"
+                            className="group inline-flex items-center gap-1.5 justify-end w-full font-bold text-indigo-700 hover:text-indigo-900 transition"
+                          >
+                            <span>{formatCurrency(sp)}</span>
+                            <Pencil
+                              size={12}
+                              className="opacity-0 group-hover:opacity-60 transition text-indigo-400 shrink-0"
+                            />
+                          </button>
+                        </td>
+                        <td className="px-6 py-4 text-right text-slate-600 font-medium">
+                          {rc > 0 ? formatCurrency(rc) : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span
+                            className={`inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full ${
+                              margin >= 50
+                                ? "bg-green-100 text-green-700"
+                                : margin >= 20
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : "bg-red-100 text-red-700"
+                            }`}
+                          >
+                            {margin}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-left text-xs text-gray-400 whitespace-nowrap">
+                          {product.createdAt
+                            ? new Date(product.createdAt).toLocaleDateString("id-ID", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "—"}
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          {product.recipes.length > 0 ? (
+                            <button
+                              onClick={() => setRecipeModal(product)}
+                              title="View recipe"
+                              className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1 rounded-full hover:bg-violet-200 transition"
+                            >
+                              <ChefHat size={12} />
+                              {product.recipes.length} items
+                            </button>
+                          ) : (
+                            <span className="text-gray-300 text-sm">—</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => setRecipeModal(product)}
+                              title="View recipe"
+                              className="p-2 rounded-full hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 transition"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <button
+                              onClick={() => setDeleteModal(product)}
+                              title="Delete product"
+                              className="p-2 rounded-full hover:bg-red-50 text-red-300 hover:text-red-600 transition"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* PAGINATION */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-2 py-4 flex-wrap gap-3">
+                <p className="text-sm text-gray-500">
+                  Page <span className="font-semibold text-slate-700">{page}</span> of{" "}
+                  <span className="font-semibold text-slate-700">{totalPages}</span>
+                  <span className="text-gray-400"> — {totalCount} products</span>
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => fetchProducts(1)}
+                    disabled={page === 1 || loading}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    «
+                  </button>
+                  <button
+                    onClick={() => fetchProducts(page - 1)}
+                    disabled={page === 1 || loading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    ‹ Prev
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                    .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                      acc.push(p);
+                      return acc;
+                    }, [])
+                    .map((item, idx) =>
+                      item === "..." ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 text-xs">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={item}
+                          onClick={() => fetchProducts(item as number)}
+                          disabled={loading}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
+                            item === page
+                              ? "bg-indigo-600 text-white shadow"
+                              : "border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
                           }`}
                         >
-                          {margin}%
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        {product.recipes.length > 0 ? (
-                          <button
-                            onClick={() => setRecipeModal(product)}
-                            title="View recipe"
-                            className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1 rounded-full hover:bg-violet-200 transition"
-                          >
-                            <ChefHat size={12} />
-                            {product.recipes.length} items
-                          </button>
-                        ) : (
-                          <span className="text-gray-300 text-sm">—</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-1">
-                          <button
-                            onClick={() => setRecipeModal(product)}
-                            title="View recipe"
-                            className="p-2 rounded-full hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 transition"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button
-                            onClick={() => setDeleteModal(product)}
-                            title="Delete product"
-                            className="p-2 rounded-full hover:bg-red-50 text-red-300 hover:text-red-600 transition"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          {item}
+                        </button>
+                      ),
+                    )}
+                  <button
+                    onClick={() => fetchProducts(page + 1)}
+                    disabled={page === totalPages || loading}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    Next ›
+                  </button>
+                  <button
+                    onClick={() => fetchProducts(totalPages)}
+                    disabled={page === totalPages || loading}
+                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    »
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -616,6 +953,16 @@ export default function ProductsPage() {
             setProducts((prev) => prev.filter((p) => p.id !== deleteModal.id));
             setDeleteModal(null);
           }}
+        />
+      )}
+
+      {bulkDeleteOpen && (
+        <BulkDeleteConfirmModal
+          count={selectedIds.size}
+          deleting={bulkDeleting}
+          error={bulkDeleteError}
+          onClose={() => setBulkDeleteOpen(false)}
+          onConfirm={handleBulkDelete}
         />
       )}
     </>
