@@ -12,7 +12,7 @@ export default function AnimatedNumber({ value, duration = 800 }: AnimatedNumber
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    let start = 0;
+    const start = 0;
     const startTime = performance.now();
     const animate = (now: number) => {
       const elapsed = now - startTime;

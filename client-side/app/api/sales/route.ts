@@ -4,6 +4,7 @@ import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { createSaleSchema } from "@/lib/validations/sale";
 import { PaymentMethod } from "@prisma/client";
 import { createXenditInvoice } from "@/lib/xendit/invoices";
+import { simulateFIFOCost, deductFIFO } from "@/lib/inventory/engine";
 
 export const runtime = "nodejs";
 
@@ -23,104 +24,45 @@ function generateTransactionNumber(): string {
 async function calculateProductCost(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   productId: number,
-  quantity: number,
-): Promise<number> {
-  // Get all recipes for this product
+  quantity: number
+): Promise<{
+  totalCost: number;
+  ingredientBreakdowns: {
+    ingredientId: number;
+    breakdown: {
+      batchId: number;
+      quantity: number;
+      costPerUnit: number;
+    }[];
+  }[];
+}> {
   const recipes = await tx.recipe.findMany({
     where: { productId },
-    include: {
-      ingredient: {
-        select: {
-          id: true,
-          inventoryBatches: {
-            where: { remainingQty: { gt: 0 } },
-            orderBy: { receivedAt: "asc" }, // FIFO
-            select: { costPerUnit: true, remainingQty: true },
-          },
-        },
-      },
-    },
   });
 
   let totalCost = 0;
+  const ingredientBreakdowns = [];
 
   for (const recipe of recipes) {
-    const batches = recipe.ingredient.inventoryBatches;
-    if (batches.length === 0) continue;
+    const requiredQty = Number(recipe.quantity) * quantity;
 
-    // Calculate weighted average cost
-    const totalQty = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-    const totalValue = batches.reduce(
-      (sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit),
-      0,
+    const { totalCost: cost, breakdown } = await simulateFIFOCost(
+      tx,
+      recipe.ingredientId,
+      requiredQty
     );
-    const avgCost = totalQty > 0 ? totalValue / totalQty : 0;
 
-    // Cost for this recipe item
-    totalCost += Number(recipe.quantity) * avgCost * quantity;
+    totalCost += cost;
+
+    ingredientBreakdowns.push({
+      ingredientId: recipe.ingredientId,
+      breakdown,
+    });
   }
 
-  return totalCost;
+  return { totalCost, ingredientBreakdowns };
 }
 
-/**
- * Deduct ingredients from inventory using FIFO method.
- */
-async function deductInventory(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  productId: number,
-  quantity: number,
-  stockDocumentId: number
-): Promise<void> {
-  const recipes = await tx.recipe.findMany({
-    where: { productId },
-    include: {
-      ingredient: {
-        select: {
-          id: true,
-          inventoryBatches: {
-            where: { remainingQty: { gt: 0 } },
-            orderBy: { receivedAt: "asc" },
-          },
-        },
-      },
-    },
-  });
-
-  for (const recipe of recipes) {
-    let remainingToDeduct = Number(recipe.quantity) * quantity;
-    const batches = recipe.ingredient.inventoryBatches;
-
-    for (const batch of batches) {
-      if (remainingToDeduct <= 0) break;
-
-      const batchQty = Number(batch.remainingQty);
-      const deduction = Math.min(batchQty, remainingToDeduct);
-
-      await tx.inventoryBatch.update({
-        where: { id: batch.id },
-        data: { remainingQty: batchQty - deduction },
-      });
-
-      await tx.inventoryMovement.create({
-        data: {
-          ingredientId: recipe.ingredient.id,
-          stockDocumentId,
-          quantity: deduction,
-          costPerUnit: batch.costPerUnit,
-          type: "Out",
-        },
-      });
-
-      remainingToDeduct -= deduction;
-    }
-
-    // 🔥 Safety check
-    if (remainingToDeduct > 0) {
-      throw new Error("Insufficient stock");
-    }
-  }
-}
 
 async function updateBusinessMetrics(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
@@ -461,9 +403,15 @@ export async function POST(request: NextRequest) {
 
       const saleItemsData = [];
 
+      const allIngredientBreakdowns = [];
+
       for (const item of items) {
         const price = productPriceMap.get(item.productId)!;
-        const cost = await calculateProductCost(tx, item.productId, item.quantity);
+
+        const {
+          totalCost: cost,
+          ingredientBreakdowns,
+        } = await calculateProductCost(tx, item.productId, item.quantity);
 
         totalRevenue += price * item.quantity;
         totalCost += cost;
@@ -472,8 +420,10 @@ export async function POST(request: NextRequest) {
           productId: item.productId,
           quantity: item.quantity,
           priceAtSale: price,
-          costAtSale: cost / item.quantity, // per unit cost
+          costAtSale: cost / item.quantity,
         });
+
+        allIngredientBreakdowns.push(...ingredientBreakdowns);
       }
 
       // 4. Create stock document for this sale
@@ -509,11 +459,11 @@ export async function POST(request: NextRequest) {
         })),
       });
       
-      for (const item of items) {
-        await deductInventory(
+      for (const ingredient of allIngredientBreakdowns) {
+        await deductFIFO(
           tx,
-          item.productId,
-          item.quantity,
+          ingredient.ingredientId,
+          ingredient.breakdown,
           stockDocument.id
         );
       }
