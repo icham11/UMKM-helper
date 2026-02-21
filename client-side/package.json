@@ -50,7 +50,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "prisma": "^7.4.0",
-    "tailwindcss": "^4",
+    "tailwindcss": "^4.2.0",
     "typescript": "^5"
   }
 }
