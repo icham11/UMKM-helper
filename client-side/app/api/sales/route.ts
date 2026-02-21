@@ -245,9 +245,15 @@ export async function POST(request: NextRequest) {
 
       const saleItemsData = [];
 
+      const allIngredientBreakdowns = [];
+
       for (const item of items) {
         const price = productPriceMap.get(item.productId)!;
-        const cost = await calculateProductCost(tx, item.productId, item.quantity);
+
+        const {
+          totalCost: cost,
+          ingredientBreakdowns,
+        } = await calculateProductCost(tx, item.productId, item.quantity);
 
         totalRevenue += price * item.quantity;
         totalCost += cost;
@@ -256,8 +262,10 @@ export async function POST(request: NextRequest) {
           productId: item.productId,
           quantity: item.quantity,
           priceAtSale: price,
-          costAtSale: cost / item.quantity, // per unit cost
+          costAtSale: cost / item.quantity,
         });
+
+        allIngredientBreakdowns.push(...ingredientBreakdowns);
       }
 
       // 4. Create stock document for this sale
@@ -293,11 +301,11 @@ export async function POST(request: NextRequest) {
         })),
       });
       
-      for (const item of items) {
-        await deductInventory(
+      for (const ingredient of allIngredientBreakdowns) {
+        await deductFIFO(
           tx,
-          item.productId,
-          item.quantity,
+          ingredient.ingredientId,
+          ingredient.breakdown,
           stockDocument.id
         );
       }

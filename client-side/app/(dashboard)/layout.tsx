@@ -21,6 +21,9 @@ import {
   Building2,
   User,
 } from "lucide-react";
+import Link from "next/link";
+import { DateRangeProvider } from "@/context/DateRangeContext";
+import DashboardClientLayout from "./DashboardClientLayout";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   // 🔐 1. Check NextAuth session
@@ -69,7 +72,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
       : undefined;
 
   return (
-    <BusinessProvider>
+  <BusinessProvider>
+    <DashboardClientLayout>
       <div className="relative h-screen overflow-hidden bg-linear-to-br from-slate-50 via-indigo-50 to-purple-50">
         <div className="flex h-full relative z-10">
           <aside
@@ -91,24 +95,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
               {/* Section: Dashboard */}
               <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 mb-2">Dashboard</div>
-                <a
+                <Link
                   href="/dashboard"
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
                 >
                   <BarChart3 className="w-5 h-5" /> Overview
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/dashboard/analytics"
-                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <BarChart3 className="w-4 h-4" /> Analytics
-                </a>
+                </Link>
+                <Link
+                  href="/analytics/products"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-blue-700 hover:bg-blue-50 transition"
+                >
+                  <BarChart3 className="w-4 h-4" /> Product Analytics
+                </Link>
               </div>
 
               {/* Section: AI Tools */}
               <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 mb-2">AI Tools</div>
-                <a
+                <Link
                   href="/dashboard/ai-analysis"
                   className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-linear-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition"
                 >
@@ -116,7 +126,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">
                     NEW
                   </span>
-                </a>
+                </Link>
               </div>
 
               {/* Section: Sales */}
@@ -127,53 +137,53 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <ShoppingCart className="w-5 h-5" /> POS
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/dashboard/sales-history"
-                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <History className="w-4 h-4" /> Sales History
-                </a>
+                </Link>
               </div>
 
               {/* Section: Inventory */}
               <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 mb-2">Inventory</div>
-                <a
+                <Link
                   href="/dashboard/products"
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <Package className="w-5 h-5" /> Products
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/dashboard/ingredients"
-                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <Boxes className="w-4 h-4" /> Ingredients
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/dashboard/recipes"
-                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <Soup className="w-4 h-4" /> Recipes
-                </a>
+                </Link>
               </div>
 
               {/* Section: Settings */}
               <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 mb-2">Settings</div>
-                <a
+                <Link
                   href="/dashboard/business"
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <Building2 className="w-5 h-5" /> Business
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/dashboard/profile"
-                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition ml-6"
+                  className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <User className="w-4 h-4" /> Profile
-                </a>
+                </Link>
               </div>
             </div>
 
@@ -194,6 +204,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         {/* Floating AI Chat Widget - available on all dashboard pages */}
         <AIChatWidget />
       </div>
+      </DashboardClientLayout>
     </BusinessProvider>
   );
 }

@@ -163,7 +163,7 @@ export default function SalesHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-8 px-6">
+    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-indigo-50 py-8 px-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
@@ -184,7 +184,7 @@ export default function SalesHistoryPage() {
 
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-lg text-white">
+            <div className="bg-linear-to-br from-blue-500 to-blue-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm">Total Transaksi</p>
@@ -194,7 +194,7 @@ export default function SalesHistoryPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-lg text-white">
+            <div className="bg-linear-to-br from-green-500 to-green-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-green-100 text-sm">Total Revenue</p>
@@ -204,7 +204,7 @@ export default function SalesHistoryPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-4 rounded-lg text-white">
+            <div className="bg-linear-to-br from-purple-500 to-purple-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm">Total Profit</p>
@@ -214,7 +214,7 @@ export default function SalesHistoryPage() {
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-4 rounded-lg text-white">
+            <div className="bg-linear-to-br from-orange-500 to-orange-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-100 text-sm">Lunas</p>
