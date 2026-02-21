@@ -151,7 +151,7 @@ export default function POSPage() {
           const orderId = data.data.orderId;
 
           // Load Midtrans Snap
-          // @ts-ignore
+          // @ts-expect-error - Midtrans Snap is loaded from external script
           window.snap.pay(data.data.snapToken, {
             onSuccess: () => {
               // Redirect to payment success page for auto-download invoice
@@ -353,7 +353,7 @@ export default function POSPage() {
               </label>
               <select
                 value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as any)}
+                onChange={(e) => setPaymentMethod(e.target.value as "Cash" | "QRIS" | "Transfer" | "Digital")}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="Cash">Cash</option>
