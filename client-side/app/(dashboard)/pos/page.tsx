@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   ShoppingCart,
   Search,
@@ -110,6 +110,40 @@ export default function POSPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Keyboard shortcuts for cashier speed ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Don't intercept when typing in input fields (except shortcuts)
+      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(
+        (e.target as HTMLElement)?.tagName,
+      );
+
+      if (e.key === "F2") {
+        e.preventDefault();
+        if (cart.length > 0 && paymentMethod === "Cash" && !loading) {
+          handleCheckout(false);
+        }
+      } else if (e.key === "F3") {
+        e.preventDefault();
+        if (cart.length > 0 && paymentMethod !== "Cash" && !loading) {
+          handleCheckout(true);
+        }
+      } else if (e.key === "F4") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === "Escape") {
+        if (isInput) {
+          (e.target as HTMLElement).blur();
+          setSearchQuery("");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [cart, paymentMethod, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Live clock
   useEffect(() => {
@@ -134,7 +168,7 @@ export default function POSPage() {
   const fetchProducts = async () => {
     setProductsLoading(true);
     try {
-      const response = await fetch("/api/products?withRecipe=true");
+      const response = await fetch("/api/products?withRecipe=true&limit=999");
       const data = await response.json();
       if (data.success) {
         setProducts(data.data.filter((p: Product) => p.isActive));
@@ -331,8 +365,9 @@ export default function POSPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Cari menu atau produk..."
+                placeholder="Cari menu atau produk... (F4)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -613,7 +648,7 @@ export default function POSPage() {
                 className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition"
               >
                 <Banknote className="w-4 h-4" />
-                Cash
+                Cash <span className="text-[10px] opacity-70">(F2)</span>
               </button>
               <button
                 onClick={() => handleCheckout(true)}
@@ -621,7 +656,7 @@ export default function POSPage() {
                 className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition"
               >
                 <CreditCard className="w-4 h-4" />
-                Online
+                Online <span className="text-[10px] opacity-70">(F3)</span>
               </button>
             </div>
           </div>

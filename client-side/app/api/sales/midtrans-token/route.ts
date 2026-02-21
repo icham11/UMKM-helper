@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
         totalRevenue,
         itemDetails,
       };
-    });
+    }, { timeout: 15000 });
 
     const origin = request.nextUrl?.origin ?? new URL(request.url).origin;
 

@@ -4,174 +4,16 @@ import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { createSaleSchema } from "@/lib/validations/sale";
 import { PaymentMethod } from "@prisma/client";
 import { createXenditInvoice } from "@/lib/xendit/invoices";
-import { simulateFIFOCost, deductFIFO } from "@/lib/inventory/engine";
+import {
+  generateTransactionNumber,
+  calculateProductCost,
+  deductInventory,
+  updateBusinessMetrics,
+  updateProductMetrics,
+  recomputeRecipeCost,
+} from "@/lib/services/saleHelpers";
 
 export const runtime = "nodejs";
-
-// ---------- helpers ----------
-
-/** Generate unique transaction number */
-function generateTransactionNumber(): string {
-  const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
-  return `TRX-${timestamp}-${random}`;
-}
-
-/**
- * Calculate recipe cost for a product based on FIFO inventory batches.
- * Returns total cost for the given quantity.
- */
-async function calculateProductCost(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  productId: number,
-  quantity: number
-): Promise<{
-  totalCost: number;
-  ingredientBreakdowns: {
-    ingredientId: number;
-    breakdown: {
-      batchId: number;
-      quantity: number;
-      costPerUnit: number;
-    }[];
-  }[];
-}> {
-  const recipes = await tx.recipe.findMany({
-    where: { productId },
-  });
-
-  let totalCost = 0;
-  const ingredientBreakdowns = [];
-
-  for (const recipe of recipes) {
-    const requiredQty = Number(recipe.quantity) * quantity;
-
-    const { totalCost: cost, breakdown } = await simulateFIFOCost(
-      tx,
-      recipe.ingredientId,
-      requiredQty
-    );
-
-    totalCost += cost;
-
-    ingredientBreakdowns.push({
-      ingredientId: recipe.ingredientId,
-      breakdown,
-    });
-  }
-
-  return { totalCost, ingredientBreakdowns };
-}
-
-
-async function updateBusinessMetrics(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  businessId: number,
-  revenue: number,
-  cost: number
-) {
-  const today = new Date();
-  const dateOnly = new Date(today.toISOString().split("T")[0]);
-
-  const existing = await tx.businessMetrics.findUnique({
-    where: {
-      businessId_date: {
-        businessId,
-        date: dateOnly,
-      },
-    },
-  });
-
-  if (existing) {
-    const newRevenue = Number(existing.totalRevenue) + revenue;
-    const newCost = Number(existing.totalCost) + cost;
-    const newProfit = newRevenue - newCost;
-    const newMargin = newRevenue > 0 ? (newProfit / newRevenue) * 100 : 0;
-
-    await tx.businessMetrics.update({
-      where: {
-        businessId_date: {
-          businessId,
-          date: dateOnly,
-        },
-      },
-      data: {
-        totalRevenue: newRevenue,
-        totalCost: newCost,
-        totalProfit: newProfit,
-        marginAvg: newMargin,
-      },
-    });
-  } else {
-    const profit = revenue - cost;
-    const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-
-    await tx.businessMetrics.create({
-      data: {
-        businessId,
-        date: dateOnly,
-        totalRevenue: revenue,
-        totalCost: cost,
-        totalProfit: profit,
-        marginAvg: margin,
-        growthRate: 0,
-      },
-    });
-  }
-}
-
-async function updateProductMetrics(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  productId: number,
-  quantity: number,
-  revenue: number,
-  cost: number
-) {
-  const today = new Date();
-  const dateOnly = new Date(today.toISOString().split("T")[0]);
-
-  const existing = await tx.productMetrics.findUnique({
-    where: {
-      productId_date: {
-        productId,
-        date: dateOnly,
-      },
-    },
-  });
-
-  if (existing) {
-    const newQty = existing.quantitySold + quantity;
-    const newRevenue = Number(existing.revenue) + revenue;
-    const newCost = Number(existing.cost) + cost;
-    const newProfit = newRevenue - newCost;
-
-    await tx.productMetrics.update({
-      where: {
-        productId_date: {
-          productId,
-          date: dateOnly,
-        },
-      },
-      data: {
-        quantitySold: newQty,
-        revenue: newRevenue,
-        cost: newCost,
-        profit: newProfit,
-      },
-    });
-  } else {
-    await tx.productMetrics.create({
-      data: {
-        productId,
-        date: dateOnly,
-        quantitySold: quantity,
-        revenue,
-        cost,
-        profit: revenue - cost,
-      },
-    });
-  }
-}
 
 // ---------- GET ----------
 
@@ -468,6 +310,12 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // 7. Recompute recipeCost on each sold product (keeps margin data fresh)
+      const soldProductIds = [...new Set(items.map((i) => i.productId))];
+      for (const pid of soldProductIds) {
+        await recomputeRecipeCost(tx, pid);
+      }
+
       await updateBusinessMetrics(
         tx,
         businessId,
@@ -502,7 +350,7 @@ export async function POST(request: NextRequest) {
           },
         },
       });
-    });
+    }, { timeout: 30000 });
 
     if (result && result.paymentStatus === "Paid") {
       try {
@@ -581,5 +429,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-

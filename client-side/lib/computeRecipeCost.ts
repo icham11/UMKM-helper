@@ -28,8 +28,9 @@ export async function recomputeRecipeCost(productId: number): Promise<void> {
     return sum + Number(r.quantity) * costPerUnit;
   }, 0);
 
-  await prisma.product.update({
-    where: { id: productId },
-    data: { recipeCost: Math.round(recipeCost) },
-  });
+  await prisma.$executeRawUnsafe(
+    `UPDATE "Product" SET "recipeCost" = $1, "updatedAt" = NOW() WHERE id = $2`,
+    Math.round(recipeCost * 100) / 100,
+    productId,
+  );
 }
