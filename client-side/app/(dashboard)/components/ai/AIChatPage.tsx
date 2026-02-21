@@ -312,7 +312,7 @@ export default function AIChatPage() {
   };
 
   return (
-    <div className="relative flex h-[calc(100vh-200px)] min-h-[500px] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+    <div className="relative flex flex-col md:flex-row min-h-125 md:min-h-150 max-h-[90vh] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden justify-center">
       {/* ═══ Sidebar Overlay ═══ */}
       <AnimatePresence>
         {showSidebar && (
@@ -406,9 +406,9 @@ export default function AIChatPage() {
       </AnimatePresence>
 
       {/* ═══ Main Chat Area ═══ */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 justify-between">
         {/* Chat Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center gap-3 shrink-0">
+        <div className="bg-linear-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center gap-3 shrink-0">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             className="text-white/80 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10"
@@ -444,7 +444,7 @@ export default function AIChatPage() {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-gray-50/80 to-white">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-linear-to-b from-gray-50/80 to-white" style={{ minHeight: '350px', paddingBottom: '60px' }}>
           {/* Empty State */}
           {messages.length === 0 && !streamingContent && (
             <div className="text-center py-6">
@@ -564,7 +564,7 @@ export default function AIChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+        <div className="p-3 border-t border-gray-100 bg-white shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10 }}>
           <div className="flex gap-2 items-end">
             <textarea
               ref={inputRef}
