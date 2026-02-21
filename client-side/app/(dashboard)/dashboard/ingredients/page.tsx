@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react"
 import {
   Plus,
-  AlertTriangle,
-  CheckCircle,
   PackageOpen,
   X,
   History,
   RefreshCw,
+  AlertTriangle,
 } from "lucide-react"
+import IngredientStatusBadge from "./components/IngredientStatusBadge";
 import { getIngredients, type Ingredient } from "@/lib/api/ingredients"
 
 import { useBusiness } from "@/context/BusinessContext"
@@ -20,7 +20,7 @@ export default function IngredientsPage() {
   const [error, setError] = useState<string | null>(null)
   // Pagination
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const pageSize = 10;
   // Sort
   const [sortBy, setSortBy] = useState<'name'|'currentStock'|'minStock'|'costPerUnit'>('name')
   const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
@@ -100,12 +100,15 @@ export default function IngredientsPage() {
     return matchesSearch && matchesStatus
   })
   // Sorting
-  const sorted = [...filtered].sort((a, b) => {
-    let cmp = 0
-    if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
-    else cmp = (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
-    return sortDir === 'asc' ? cmp : -cmp
-  })
+  // NOTE: Default urutan dari backend adalah latest created (createdAt desc)
+  // Jika sortBy bukan 'name', tetap lakukan sorting sesuai pilihan user
+  let sorted = [...filtered];
+  if (sortBy !== 'name') {
+    sorted = sorted.sort((a, b) => {
+      const cmp = (a[sortBy] ?? 0) - (b[sortBy] ?? 0);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }
   // Pagination
   const totalPages = Math.ceil(sorted.length / pageSize)
   const paged = sorted.slice((page-1)*pageSize, page*pageSize)
@@ -216,15 +219,7 @@ export default function IngredientsPage() {
                     {formatCurrency(ingredient.costPerUnit)}
                   </td>
                   <td className="px-4 py-3">
-                    {isLow ? (
-                      <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
-                        <AlertTriangle size={14} /> Low
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 bg-green-100 text-green-600 text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
-                        <CheckCircle size={14} /> Aman
-                      </span>
-                    )}
+                    <IngredientStatusBadge stock={ingredient.currentStock} minStock={ingredient.minStock} />
                   </td>
                   <td className="px-4 py-3 flex gap-2">
                     <button
@@ -256,60 +251,25 @@ export default function IngredientsPage() {
       </div>
       {/* PAGINATION BAR */}
       {totalPages > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-4 border-t border-gray-100 bg-gray-50 rounded-b-3xl">
-          <div className="text-sm text-gray-500">
-            Page <span className="font-semibold text-indigo-700">{page}</span> of <span className="font-semibold text-indigo-700">{totalPages}</span>
-          </div>
-          <div className="flex flex-wrap gap-1">
+        <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t  rounded-b-3xl">
+          <div className="flex items-center gap-6">
             <button
-              className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+              className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
               disabled={page === 1}
               onClick={() => setPage(page - 1)}
             >
-              ‹
+              ‹ Previous
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1)
-              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                if (idx > 0 && (p) - (arr[idx - 1]) > 1) acc.push("...");
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((item, idx) =>
-                item === "..." ? (
-                  <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">…</span>
-                ) : (
-                  <button
-                    key={item}
-                    className={`w-8 h-8 rounded-full font-bold transition border ${item === page ? "bg-indigo-600 text-white shadow" : "bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 border-gray-300"}`}
-                    onClick={() => setPage(item as number)}
-                    disabled={item === page}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
+            <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
+              Page {page} of {totalPages}
+            </span>
             <button
-              className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+              className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
               disabled={page === totalPages}
               onClick={() => setPage(page + 1)}
             >
-              ›
+              Next ›
             </button>
-          </div>
-          <div>
-            <select
-              className="px-2 py-1 rounded-xl border border-gray-300 text-sm bg-white transition focus:ring-2 focus:ring-indigo-400"
-              value={pageSize}
-              onChange={e => {
-                setPageSize(Number(e.target.value));
-                setPage(1);
-              }}
-            >
-              {[10, 20, 50].map(size => (
-                <option key={size} value={size}>{size} per page</option>
-              ))}
-            </select>
           </div>
         </div>
       )}

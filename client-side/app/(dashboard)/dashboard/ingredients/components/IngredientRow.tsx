@@ -1,5 +1,6 @@
 import { Ingredient } from "../type";
 import LowStockBadge from "./LowStockBadge";
+import IngredientStatusBadge from "./IngredientStatusBadge";
 
 interface Props {
   ingredient: Ingredient;
@@ -24,7 +25,7 @@ export default function IngredientRow({ ingredient }: Props) {
         )}
       </td>
       <td className="p-4">
-        {(ingredient.minStock === -1 || ingredient.minStock === 0) ? (
+        {ingredient.minStock === -1 ? (
           <span className="text-gray-400 italic">Belum di-set</span>
         ) : (
           ingredient.minStock
@@ -32,6 +33,9 @@ export default function IngredientRow({ ingredient }: Props) {
       </td>
       <td className="p-4">
         Rp {ingredient.costPerUnit.toLocaleString("id-ID")}
+      </td>
+      <td className="p-4">
+        <IngredientStatusBadge stock={ingredient.stock} minStock={ingredient.minStock} />
       </td>
     </tr>
   );
