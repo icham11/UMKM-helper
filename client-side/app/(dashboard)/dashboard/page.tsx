@@ -35,6 +35,7 @@ export default function DashboardPage() {
   );
   const [monthRevenue, setMonthRevenue] = useState<number | null>(null);
   const [monthProfit, setMonthProfit] = useState<number | null>(null);
+<<<<<<< HEAD
 
   const [alerts, setAlerts] = useState({
     expired: [] as AlertItem[],
@@ -43,6 +44,12 @@ export default function DashboardPage() {
     lowStock: [] as AlertItem[],
   });
 
+=======
+  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
+  const [aiInsight, setAiInsight] = useState<string>(
+    "Your revenue is stable this month. Consider increasing volume to boost growth."
+  );
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
   const [loading, setLoading] = useState(true);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [range, setRange] = useState<"today" | "7d" | "30d" | "all">("today");
@@ -205,8 +212,13 @@ export default function DashboardPage() {
             <Smile className="inline-block text-yellow-300 animate-bounce" size={32} />
             Good {getGreeting()}, Polo
           </h1>
+<<<<<<< HEAD
           <p className="text-indigo-100 mt-1">
             Here’s your business performance overview.
+=======
+          <p className="text-slate-500 mt-1">
+            Here&apos;s your business performance overview.
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
           </p>
         </div>
         <div className="flex gap-2">
@@ -249,27 +261,47 @@ export default function DashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         <KpiCard
+<<<<<<< HEAD
           title="Revenue"
           value={todayRevenue ? formatCurrency(todayRevenue) : "—"}
+=======
+          title="Today Revenue"
+          value={todayRevenue !== null ? formatCurrency(todayRevenue) : "—"}
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
         />
 
         <KpiCard
+<<<<<<< HEAD
           title="Transactions"
           value={todayTransactions ?? "—"}
+=======
+          title="Today Transactions"
+          value={todayTransactions !== null ? todayTransactions : "—"}
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
         />
 
         <KpiCard
+<<<<<<< HEAD
           title="Profit"
           value={monthProfit ? formatCurrency(monthProfit) : "—"}
+=======
+          title="Revenue (30 Days)"
+          value={monthRevenue !== null ? formatCurrency(monthRevenue) : "—"}
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
         />
 
         <KpiCard
+<<<<<<< HEAD
           title="Avg Margin"
           value={
             todayRevenue && monthProfit
               ? `${((monthProfit / todayRevenue) * 100).toFixed(1)}%`
               : "—"
           }
+=======
+          title="Profit (30 Days)"
+          value={monthProfit !== null ? formatCurrency(monthProfit) : "—"}
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
         />
       </div>
 
@@ -371,6 +403,7 @@ function AlertModal({
           </button>
         </div>
 
+<<<<<<< HEAD
         <div className="space-y-6 text-sm max-h-[60vh] overflow-y-auto">
           {alerts.expired.length > 0 && (
             <AlertSection
@@ -401,6 +434,38 @@ function AlertModal({
               type="stock"
             />
           )}
+=======
+        {/* AI Insight — Gabungan styling Ornest + fitur Release-1 */}
+        <div className="bg-white/80 backdrop-blur border border-slate-200 shadow-sm rounded-3xl p-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-slate-800">
+              🤖 AI Insight
+            </h2>
+            <a
+              href="/dashboard/ai-analysis"
+              className="text-xs text-indigo-600 hover:underline font-medium"
+            >
+              Buka AI Center →
+            </a>
+          </div>
+          <p className="text-slate-600 text-sm leading-relaxed mb-4">
+            {aiInsight}
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <a
+              href="/dashboard/ai-analysis"
+              className="flex items-center gap-2 p-2 bg-indigo-50 rounded-lg text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition"
+            >
+              <span>💬</span> AI Chat
+            </a>
+            <a
+              href="/dashboard/ai-analysis"
+              className="flex items-center gap-2 p-2 bg-purple-50 rounded-lg text-xs font-medium text-purple-700 hover:bg-purple-100 transition"
+            >
+              <span>🧠</span> Smart Insights
+            </a>
+          </div>
+>>>>>>> 0b9abc8cf33235afdea23256de948bcbeb9d9404
         </div>
       </div>
     </div>
