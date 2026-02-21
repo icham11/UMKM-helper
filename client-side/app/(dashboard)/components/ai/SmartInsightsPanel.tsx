@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 
 interface InventoryAlert {
@@ -68,7 +69,9 @@ export default function SmartInsightsPanel() {
       if (!response.ok) throw new Error(result.error);
       setData(result.data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal memuat insights");
+      const msg = err instanceof Error ? err.message : "Gagal memuat insights";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

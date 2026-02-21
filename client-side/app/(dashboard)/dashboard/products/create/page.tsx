@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Image as ImageIcon, Plus, Loader2, CheckCircle2, Sparkles } from "lucide-react";
 import { useBusiness } from "@/context/BusinessContext";
@@ -50,7 +51,16 @@ export default function CreateProductsPage() {
       setSuccess(true);
       setTimeout(() => router.push("/dashboard/products"), 1400);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save products");
+      const msg = err instanceof Error ? err.message : "Failed to save products";
+      setError(msg);
+      // Tampilkan toast error berbeda jika ada kata 'duplicate' atau 'sebagian'
+      if (msg.toLowerCase().includes("semua")) {
+        toast.error("Semua produk yang diupload sudah ada di database (duplikat semua). Tidak ada produk baru yang disimpan.");
+      } else if (msg.toLowerCase().includes("sebagian")) {
+        toast.error("Beberapa produk sudah ada di database (duplikat sebagian). Produk lain tetap disimpan.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }

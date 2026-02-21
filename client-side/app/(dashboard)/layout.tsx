@@ -9,7 +9,6 @@ import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info";
 import LogoutButton from "@/app/(dashboard)/components/LogoutButton";
 import AIChatWidget from "./components/ai/AIChatWidget";
 import {
-  LayoutDashboard,
   BarChart3,
   Bot,
   ShoppingCart,
@@ -17,12 +16,10 @@ import {
   Boxes,
   Soup,
   Package,
-  Settings,
   Building2,
   User,
 } from "lucide-react";
 import Link from "next/link";
-import { DateRangeProvider } from "@/context/DateRangeContext";
 import DashboardClientLayout from "./DashboardClientLayout";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
