@@ -3,120 +3,25 @@ import prisma from "@/lib/prisma";
 import { verifySignature, mapTransactionStatus } from "@/lib/midtrans/notification";
 import type { MidtransNotification } from "@/lib/midtrans/types";
 import { createXenditInvoice } from "@/lib/xendit/invoices";
+import {
+  calculateProductCost,
+  deductInventory,
+  updateBusinessMetrics,
+  updateProductMetrics,
+  recomputeRecipeCost,
+} from "@/lib/services/saleHelpers";
 
 export const runtime = "nodejs";
 
 /**
- * Helper: Calculate recipe cost for a product based on FIFO inventory batches
- */
-async function calculateProductCost(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  productId: number,
-  quantity: number,
-): Promise<number> {
-  const recipes = await tx.recipe.findMany({
-    where: { productId },
-    include: {
-      ingredient: {
-        select: {
-          id: true,
-          inventoryBatches: {
-            where: { remainingQty: { gt: 0 } },
-            orderBy: { receivedAt: "asc" },
-            select: { costPerUnit: true, remainingQty: true },
-          },
-        },
-      },
-    },
-  });
-
-  let totalCost = 0;
-
-  for (const recipe of recipes) {
-    const batches = recipe.ingredient.inventoryBatches;
-    if (batches.length === 0) continue;
-
-    const totalQty = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-    const totalValue = batches.reduce(
-      (sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit),
-      0,
-    );
-    const avgCost = totalQty > 0 ? totalValue / totalQty : 0;
-
-    totalCost += Number(recipe.quantity) * avgCost * quantity;
-  }
-
-  return totalCost;
-}
-
-/**
- * Helper: Deduct ingredients from inventory using FIFO method
- */
-async function deductInventory(
-  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
-  productId: number,
-  quantity: number,
-): Promise<void> {
-  const recipes = await tx.recipe.findMany({
-    where: { productId },
-    include: {
-      ingredient: {
-        select: {
-          id: true,
-          inventoryBatches: {
-            where: { remainingQty: { gt: 0 } },
-            orderBy: { receivedAt: "asc" },
-          },
-        },
-      },
-    },
-  });
-
-  for (const recipe of recipes) {
-    let remainingToDeduct = Number(recipe.quantity) * quantity;
-    const batches = recipe.ingredient.inventoryBatches;
-
-    for (const batch of batches) {
-      if (remainingToDeduct <= 0) break;
-
-      const batchQty = Number(batch.remainingQty);
-      const deduction = Math.min(batchQty, remainingToDeduct);
-
-      await tx.inventoryBatch.update({
-        where: { id: batch.id },
-        data: { remainingQty: batchQty - deduction },
-      });
-
-      remainingToDeduct -= deduction;
-    }
-  }
-}
-
-/**
  * POST /api/sales/midtrans-notification
  *
- * Webhook endpoint for Midtrans payment notifications
- * This endpoint is called by Midtrans server when payment status changes
- *
- * Midtrans will send notification with POST body containing:
- *   {
- *     "transaction_id": "xxx",
- *     "order_id": "TRX-1234567890-001",
- *     "gross_amount": "50000.00",
- *     "payment_type": "gopay",
- *     "transaction_status": "settlement" | "pending" | "deny" | "expire" | "cancel",
- *     "fraud_status": "accept" | "challenge" | "deny",
- *     "transaction_time": "2026-02-20 10:00:00",
- *     "signature_key": "xxx"
- *   }
- *
- * Success (200):
- *   { "success": true, "message": "Payment processed" }
- *
- * Errors:
- *   400 — { "error": "Invalid signature" }
- *   404 — { "error": "Sale not found" }
- *   500 — { "error": "Failed to process payment" }
+ * Webhook endpoint for Midtrans payment notifications.
+ * When payment is confirmed ("Paid"), this handler:
+ *   1. Calculates FIFO-based cost per item
+ *   2. Creates StockDocument + deducts inventory with full InventoryMovement trail
+ *   3. Updates BusinessMetrics + ProductMetrics (margin_avg)
+ *   4. Recomputes recipeCost on sold products
  */
 export async function POST(request: NextRequest) {
   try {
@@ -155,35 +60,81 @@ export async function POST(request: NextRequest) {
     // 4. Update sale and process inventory if paid
     await prisma.$transaction(async (tx) => {
       if (paymentStatus === "Paid" && sale.paymentStatus !== "Paid") {
-        // Payment successful - calculate costs and deduct inventory
+        // ── Payment successful ──
+
+        // 4a. Create StockDocument for audit trail
+        const stockDocument = await tx.stockDocument.create({
+          data: {
+            businessId: sale.businessId,
+            type: "Sale",
+            notes: `Midtrans payment confirmed: ${order_id}`,
+          },
+        });
 
         let totalCost = 0;
+        const saleItemDetails: Array<{
+          productId: number;
+          quantity: number;
+          priceAtSale: number;
+          costAtSale: number;
+        }> = [];
 
-        // Calculate cost for each item
+        // 4b. Calculate cost + deduct inventory for each item
         for (const item of sale.saleItems) {
           const cost = await calculateProductCost(tx, item.productId, item.quantity);
           totalCost += cost;
 
+          const unitCost = item.quantity > 0 ? cost / item.quantity : 0;
+
           // Update sale item with actual cost
           await tx.saleItem.update({
             where: { id: item.id },
-            data: { costAtSale: cost / item.quantity },
+            data: { costAtSale: unitCost },
           });
 
-          // Deduct inventory
-          await deductInventory(tx, item.productId, item.quantity);
+          // Deduct inventory with full InventoryMovement trail (FIFO)
+          await deductInventory(tx, item.productId, item.quantity, stockDocument.id);
+
+          saleItemDetails.push({
+            productId: item.productId,
+            quantity: item.quantity,
+            priceAtSale: Number(item.priceAtSale),
+            costAtSale: unitCost,
+          });
         }
 
-        // Update sale with cost and status
+        // 4c. Update sale with cost, status, and link to stock document
         await tx.sale.update({
           where: { id: sale.id },
           data: {
             totalCost,
             paymentStatus: "Paid",
+            stockDocumentId: stockDocument.id,
           },
         });
 
-        console.log(`Payment successful for order ${order_id}, inventory deducted`);
+        // 4d. Update BusinessMetrics (margin_avg)
+        const totalRevenue = Number(sale.totalRevenue);
+        await updateBusinessMetrics(tx, sale.businessId, totalRevenue, totalCost);
+
+        // 4e. Update ProductMetrics per item
+        for (const detail of saleItemDetails) {
+          await updateProductMetrics(
+            tx,
+            detail.productId,
+            detail.quantity,
+            detail.priceAtSale * detail.quantity,
+            detail.costAtSale * detail.quantity,
+          );
+        }
+
+        // 4f. Recompute recipeCost on sold products
+        const soldProductIds = [...new Set(sale.saleItems.map((i) => i.productId))];
+        for (const pid of soldProductIds) {
+          await recomputeRecipeCost(tx, pid);
+        }
+
+        console.log(`✅ Payment successful for order ${order_id}: inventory deducted, metrics updated`);
       } else {
         // Just update status for other cases (pending, failed, etc.)
         await tx.sale.update({
@@ -193,8 +144,9 @@ export async function POST(request: NextRequest) {
 
         console.log(`Payment status updated to ${paymentStatus} for order ${order_id}`);
       }
-    });
+    }, { timeout: 30000 });
 
+    // 5. Create Xendit invoice (non-critical, outside transaction)
     if (paymentStatus === "Paid" && !sale.invoiceId) {
       try {
         if (sale.customerEmail) {
@@ -210,7 +162,6 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          // Only update if invoice was successfully created
           if (invoice) {
             await prisma.sale.update({
               where: { id: sale.id },
