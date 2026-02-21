@@ -85,6 +85,7 @@ interface GenerateByImageParams {
   imageUrl: string;
   existingIngredients: { id: number; name: string; unit: string; costPerUnit?: number | null }[];
   existingCategories: { id: number; name: string }[];
+  existingProductNames?: string[];
 }
 
 /**
@@ -94,13 +95,18 @@ interface GenerateByImageParams {
 export async function generateProductsByImage(
   params: GenerateByImageParams,
 ): Promise<{ isValid: boolean; products: AIGeneratedProduct[]; error?: string }> {
-  const { imageUrl, existingIngredients, existingCategories } = params;
+  const { imageUrl, existingIngredients, existingCategories, existingProductNames = [] } = params;
+
+  const existingProductsBlock =
+    existingProductNames.length > 0
+      ? `\nEXISTING PRODUCTS (already in the system — DO NOT include these in your output, skip them entirely):\n${existingProductNames.map((n) => `- ${n}`).join("\n")}\n`
+      : "";
 
   const prompt = `Analyze this image. Is it a list of products, a menu, a price list, or a product display?
 
 If YES — extract all products from the image and generate structured data for each.
 If NO — respond with: { "isValid": false, "error": "description of why this is not a product list", "products": [] }
-
+${existingProductsBlock}
 EXISTING INGREDIENTS in the business database (prefer using these by their exact ID and name):
 ${JSON.stringify(existingIngredients, null, 2)}
 

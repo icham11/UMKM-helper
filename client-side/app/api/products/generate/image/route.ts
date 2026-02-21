@@ -73,8 +73,8 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     const uploadResult = await uploadProductImage(buffer, "product-list", 2);
 
-    // Fetch existing ingredients (with cost data) and categories for AI context
-    const [rawIngredients, categories] = await Promise.all([
+    // Fetch existing ingredients, categories, and product names for AI context + duplicate check
+    const [rawIngredients, categories, existingProductsRaw] = await Promise.all([
       prisma.ingredient.findMany({
         where: { businessId },
         select: {
@@ -94,6 +94,10 @@ export async function POST(request: NextRequest) {
         select: { id: true, name: true },
         orderBy: { name: "asc" },
       }),
+      prisma.product.findMany({
+        where: { businessId },
+        select: { name: true },
+      }),
     ]);
 
     const ingredients = rawIngredients.map((ing) => {
@@ -104,11 +108,15 @@ export async function POST(request: NextRequest) {
       return { id: ing.id, name: ing.name, unit: ing.unit, costPerUnit };
     });
 
-    // AI validation + extraction
+    const existingProductNames = existingProductsRaw.map((p) => p.name);
+    const existingNamesSet = new Set(existingProductNames.map((n) => n.toLowerCase()));
+
+    // AI validation + extraction — passing existing product names so AI skips them
     const result = await generateProductsByImage({
       imageUrl: uploadResult.url,
       existingIngredients: ingredients,
       existingCategories: categories,
+      existingProductNames,
     });
 
     if (!result.isValid) {
@@ -123,8 +131,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Backend duplicate filter as a safety net (catches AI oversights)
+    const newProducts = result.products.filter((p) => !existingNamesSet.has(p.name.trim().toLowerCase()));
+
+    if (newProducts.length === 0) {
+      const duplicateNames = result.products.map((p) => p.name);
+      return NextResponse.json(
+        {
+          success: false,
+          isValid: false,
+          error: `All ${duplicateNames.length} product${duplicateNames.length !== 1 ? "s" : ""} found in this image already exist in your product list: ${duplicateNames.join(", ")}.`,
+          products: [],
+        },
+        { status: 409 },
+      );
+    }
+
     // Auto-resolve ingredients: find existing or create new ones
-    const { resolved, newIngredientsCreated } = await resolveIngredients(businessId, result.products);
+    const { resolved, newIngredientsCreated } = await resolveIngredients(businessId, newProducts);
 
     // Transform to POST /api/products ready format
     const readyProducts = resolved.map((p) => ({
@@ -145,6 +169,7 @@ export async function POST(request: NextRequest) {
       meta: {
         productsFound: resolved.length,
         newIngredientsCreated,
+        skippedDuplicates: result.products.length - newProducts.length,
         imageUrl: uploadResult.url,
         expiresIn: "2 minutes",
         note: "Ingredients have been auto-resolved. Use readyToCreate payload to POST /api/products directly.",
