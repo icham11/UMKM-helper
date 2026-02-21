@@ -119,7 +119,7 @@ export default function IngredientsPage() {
           </thead>
           <tbody>
             {ingredients.map((ingredient) => {
-              const isLow = ingredient.currentStock < ingredient.minStock
+              const isLow = ingredient.currentStock < ingredient.minStock;
               return (
                 <tr
                   key={ingredient.id}
@@ -129,10 +129,20 @@ export default function IngredientsPage() {
                     {ingredient.name}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
-                    <span className="font-semibold">{ingredient.currentStock}</span> <span className="text-xs text-slate-500">{ingredient.unit}</span>
+                    {ingredient.currentStock === 0 ? (
+                      <span className="text-gray-400 italic">Belum di-set</span>
+                    ) : (
+                      <>
+                        <span className="font-semibold">{ingredient.currentStock}</span> <span className="text-xs text-slate-500">{ingredient.unit}</span>
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-700 font-semibold">
-                    {ingredient.minStock}
+                    {ingredient.minStock === 0 ? (
+                      <span className="text-gray-400 italic">Belum di-set</span>
+                    ) : (
+                      ingredient.minStock
+                    )}
                   </td>
                   <td className="px-4 py-3 text-indigo-700 font-bold">
                     {formatCurrency(ingredient.costPerUnit)}
@@ -371,8 +381,8 @@ function AddIngredientModal({
   const [form, setForm] = useState({
     name: "",
     unit: "",
-    minStock: 0,
-    quantity: 0,
+    minStock: -1,
+    quantity: -1,
     costPerUnit: 0,
     expirationDate: "",
   })
@@ -397,7 +407,7 @@ function AddIngredientModal({
         body: JSON.stringify({
           name: form.name,
           unit: form.unit,
-          minStock: Number(form.minStock),
+          minStock: form.minStock === -1 || form.minStock === undefined ? 0 : Number(form.minStock),
           initialBatch:
             form.quantity > 0
               ? {

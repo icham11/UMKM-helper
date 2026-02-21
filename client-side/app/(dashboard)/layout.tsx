@@ -19,6 +19,7 @@ import {
   Building2,
   User,
 } from "lucide-react"
+import LogoutButton from "./components/LogoutButton"
 
 export default async function DashboardLayout({
   children,
