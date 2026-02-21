@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
+import { Toaster } from "sonner";
 import "./globals.css";
 import AppProviders from "@/context/AppProviders";
 
-// Initialize auto-cleanup scheduler for ImageKit
-if (typeof window === 'undefined') {
-  import('@/lib/cleanup-scheduler');
+// Initialize auto-cleanup scheduler for ImageKit (server only)
+if (typeof window === "undefined") {
+  import("@/lib/cleanup-scheduler");
 }
 
 const geistSans = Geist({
@@ -25,21 +27,28 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <head>
-        <script
-          src="https://app.sandbox.midtrans.com/snap/snap.js"
-          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
-        />
-      </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <head />
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <AppProviders>
           {children}
         </AppProviders>
+
+        {/* 🔥 Toast System */}
+        <Toaster richColors position="top-right" />
+
+        {/* Midtrans Script */}
+        <Script
+          src="https://app.sandbox.midtrans.com/snap/snap.js"
+          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

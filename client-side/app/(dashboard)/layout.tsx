@@ -9,7 +9,6 @@ import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info";
 import LogoutButton from "@/app/(dashboard)/components/LogoutButton";
 import AIChatWidget from "./components/ai/AIChatWidget";
 import {
-  LayoutDashboard,
   BarChart3,
   Bot,
   ShoppingCart,
@@ -17,12 +16,10 @@ import {
   Boxes,
   Soup,
   Package,
-  Settings,
   Building2,
   User,
 } from "lucide-react";
 import Link from "next/link";
-import { DateRangeProvider } from "@/context/DateRangeContext";
 import DashboardClientLayout from "./DashboardClientLayout";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -133,7 +130,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
               <div className="mb-6">
                 <div className="text-xs font-semibold text-gray-400 mb-2">Sales</div>
                 <Link
-                  href="/pos"
+                  href="/dashboard/pos"
                   className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                 >
                   <ShoppingCart className="w-5 h-5" /> POS

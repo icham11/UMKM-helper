@@ -285,7 +285,7 @@ export default function AnalyticsPage() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-[260px] text-gray-400 text-sm">
+            <div className="flex items-center justify-center h-65 text-gray-400 text-sm">
               Belum ada data bulan ini
             </div>
           )}
@@ -441,7 +441,7 @@ export default function AnalyticsPage() {
             Peringatan Stok Rendah
           </h3>
           {(dashboard?.lowStockIngredients?.length ?? 0) > 0 ? (
-            <div className="space-y-2 max-h-[200px] overflow-y-auto">
+            <div className="space-y-2 max-h-50 overflow-y-auto">
               {dashboard?.lowStockIngredients.map((item) => {
                 const pct = item.minStock > 0 ? Math.min((item.currentStock / item.minStock) * 100, 100) : 0;
                 const isOut = item.currentStock <= 0;
@@ -511,7 +511,7 @@ export default function AnalyticsPage() {
         >
           {/* Executive Summary */}
           {insight.summary && (
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-5 text-white shadow-lg">
+            <div className="bg-linear-to-r from-indigo-600 to-purple-600 rounded-2xl p-5 text-white shadow-lg">
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles className="w-5 h-5 text-indigo-200" />
                 <h3 className="text-sm font-bold text-indigo-100">Ringkasan Eksekutif</h3>

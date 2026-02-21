@@ -11,16 +11,25 @@ import {
   RefreshCw,
 } from "lucide-react"
 import { getIngredients, type Ingredient } from "@/lib/api/ingredients"
+
 import { useBusiness } from "@/context/BusinessContext"
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  // Sort
+  const [sortBy, setSortBy] = useState<'name'|'currentStock'|'minStock'|'costPerUnit'>('name')
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
+  // Filter
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all'|'low'|'safe'>('all')
 
   const [isAddOpen, setIsAddOpen] = useState(false)
-  const [selectedIngredient, setSelectedIngredient] =
-    useState<Ingredient | null>(null)
+  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
   const [isRestockOpen, setIsRestockOpen] = useState(false)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
 
@@ -83,11 +92,29 @@ export default function IngredientsPage() {
     )
   }
 
+  // Filtering
+  const filtered = ingredients.filter(ing => {
+    const matchesSearch = ing.name.toLowerCase().includes(search.toLowerCase())
+    const isLow = ing.currentStock < ing.minStock
+    const matchesStatus = statusFilter === 'all' || (statusFilter === 'low' && isLow) || (statusFilter === 'safe' && !isLow)
+    return matchesSearch && matchesStatus
+  })
+  // Sorting
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0
+    if (sortBy === 'name') cmp = a.name.localeCompare(b.name)
+    else cmp = (a[sortBy] ?? 0) - (b[sortBy] ?? 0)
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+  // Pagination
+  const totalPages = Math.ceil(sorted.length / pageSize)
+  const paged = sorted.slice((page-1)*pageSize, page*pageSize)
+
   return (
     <div className="space-y-10">
 
       {/* HEADER */}
-      <div className="flex justify-between items-center bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
+      <div className="flex justify-between items-center bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
         <div>
           <h1 className="text-3xl font-bold text-white">Ingredients</h1>
           <p className="text-indigo-100">
@@ -104,10 +131,51 @@ export default function IngredientsPage() {
         </button>
       </div>
 
+      {/* FILTER, SORT, PAGINATION CONTROLS */}
+      <div className="flex flex-wrap gap-2 items-center justify-between mb-2 px-1">
+        <div className="flex gap-2 items-center">
+          <input
+            type="text"
+            placeholder="Cari nama bahan..."
+            className="px-3 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1); }}
+          />
+          <select
+            className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value as 'all' | 'low' | 'safe'); setPage(1); }}
+          >
+            <option value="all">Semua Status</option>
+            <option value="low">Stok Rendah</option>
+            <option value="safe">Aman</option>
+          </select>
+        </div>
+        <div className="flex gap-2 items-center">
+          <label className="text-xs text-gray-500">Sort:</label>
+          <select
+            className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+            value={sortBy}
+            onChange={e => { setSortBy(e.target.value as 'name' | 'currentStock' | 'minStock' | 'costPerUnit'); setPage(1); }}
+          >
+            <option value="name">Nama</option>
+            <option value="currentStock">Stok</option>
+            <option value="minStock">Min</option>
+            <option value="costPerUnit">Harga</option>
+          </select>
+          <button
+            className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+            onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+            title="Urutan"
+          >
+            {sortDir === 'asc' ? '⬆️' : '⬇️'}
+          </button>
+        </div>
+      </div>
       {/* TABLE */}
       <div className="bg-white rounded-3xl shadow-xl overflow-x-auto custom-scroll">
-        <table className="w-full min-w-[600px] text-base">
-          <thead className="bg-gradient-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
+        <table className="w-full min-w-150 text-base">
+          <thead className="bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
             <tr>
               <th className="px-6 py-4 text-left font-bold">Nama</th>
               <th className="px-6 py-4 text-left font-bold">Stok</th>
@@ -118,7 +186,7 @@ export default function IngredientsPage() {
             </tr>
           </thead>
           <tbody>
-            {ingredients.map((ingredient) => {
+            {paged.map((ingredient) => {
               const isLow = ingredient.currentStock < ingredient.minStock;
               return (
                 <tr
@@ -186,6 +254,65 @@ export default function IngredientsPage() {
           </tbody>
         </table>
       </div>
+      {/* PAGINATION BAR */}
+      {totalPages > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-4 border-t border-gray-100 bg-gray-50 rounded-b-3xl">
+          <div className="text-sm text-gray-500">
+            Page <span className="font-semibold text-indigo-700">{page}</span> of <span className="font-semibold text-indigo-700">{totalPages}</span>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <button
+              className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+              disabled={page === 1}
+              onClick={() => setPage(page - 1)}
+            >
+              ‹
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+              .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p) - (arr[idx - 1]) > 1) acc.push("...");
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === "..." ? (
+                  <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">…</span>
+                ) : (
+                  <button
+                    key={item}
+                    className={`w-8 h-8 rounded-full font-bold transition border ${item === page ? "bg-indigo-600 text-white shadow" : "bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 border-gray-300"}`}
+                    onClick={() => setPage(item as number)}
+                    disabled={item === page}
+                  >
+                    {item}
+                  </button>
+                )
+              )}
+            <button
+              className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+              disabled={page === totalPages}
+              onClick={() => setPage(page + 1)}
+            >
+              ›
+            </button>
+          </div>
+          <div>
+            <select
+              className="px-2 py-1 rounded-xl border border-gray-300 text-sm bg-white transition focus:ring-2 focus:ring-indigo-400"
+              value={pageSize}
+              onChange={e => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+            >
+              {[10, 20, 50].map(size => (
+                <option key={size} value={size}>{size} per page</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
 
       {isAddOpen && (
         <AddIngredientModal
@@ -196,7 +323,6 @@ export default function IngredientsPage() {
           }}
         />
       )}
-
       {isRestockOpen && selectedIngredient && (
         <RestockModal
           ingredient={selectedIngredient}
@@ -207,7 +333,6 @@ export default function IngredientsPage() {
           }}
         />
       )}
-
       {isHistoryOpen && selectedIngredient && (
         <BatchHistoryModal
           ingredient={selectedIngredient}
@@ -220,7 +345,7 @@ export default function IngredientsPage() {
 
 /* =======================
    RESTOCK MODAL
-======================= */
+======================= */ 
 
 interface RestockModalProps {
   ingredient: Ingredient
@@ -291,7 +416,7 @@ function RestockModal({
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-gradient-to-r from-indigo-500 to-violet-500 text-white py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
+          className="w-full bg-linear-to-r from-indigo-500 to-violet-500 text-white py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
         >
           {loading ? "Processing..." : "Restock"}
         </button>
@@ -339,7 +464,7 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
           batches.map((batch, idx) => (
             <div
               key={batch.id}
-              className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
+              className="rounded-xl border border-indigo-100 bg-linear-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
             >
               <div className="flex flex-col md:flex-row md:items-center gap-2">
                 <span className="font-semibold text-indigo-800">Batch #{idx + 1}</span>
@@ -515,7 +640,7 @@ function AddIngredientModal({
           <button
             type="submit"
             disabled={loading}
-            className="bg-gradient-to-r from-indigo-500 to-violet-500 text-white px-7 py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
+            className="bg-linear-to-r from-indigo-500 to-violet-500 text-white px-7 py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
           >
             {loading ? "Saving..." : "Save"}
           </button>

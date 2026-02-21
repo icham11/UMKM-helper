@@ -858,28 +858,27 @@ export default function ProductsPage() {
               </table>
             </div>
 
-            {/* PAGINATION */}
+            {/* Modern PAGINATION */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-between px-2 py-4 flex-wrap gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-4">
                 <p className="text-sm text-gray-500">
-                  Page <span className="font-semibold text-slate-700">{page}</span> of{" "}
-                  <span className="font-semibold text-slate-700">{totalPages}</span>
+                  Page <span className="font-semibold text-indigo-700">{page}</span> of <span className="font-semibold text-indigo-700">{totalPages}</span>
                   <span className="text-gray-400"> — {totalCount} products</span>
                 </p>
-                <div className="flex items-center gap-1">
+                <div className="flex flex-wrap gap-1">
                   <button
                     onClick={() => fetchProducts(1)}
                     disabled={page === 1 || loading}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
                   >
                     «
                   </button>
                   <button
                     onClick={() => fetchProducts(page - 1)}
                     disabled={page === 1 || loading}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
                   >
-                    ‹ Prev
+                    ‹
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
                     .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
@@ -890,19 +889,13 @@ export default function ProductsPage() {
                     }, [])
                     .map((item, idx) =>
                       item === "..." ? (
-                        <span key={`ellipsis-${idx}`} className="px-2 text-gray-400 text-xs">
-                          …
-                        </span>
+                        <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">…</span>
                       ) : (
                         <button
                           key={item}
                           onClick={() => fetchProducts(item as number)}
-                          disabled={loading}
-                          className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
-                            item === page
-                              ? "bg-indigo-600 text-white shadow"
-                              : "border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40"
-                          }`}
+                          disabled={item === page || loading}
+                          className={`w-8 h-8 rounded-full font-bold transition border ${item === page ? "bg-indigo-600 text-white shadow" : "bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 border-gray-300"}`}
                         >
                           {item}
                         </button>
@@ -911,14 +904,14 @@ export default function ProductsPage() {
                   <button
                     onClick={() => fetchProducts(page + 1)}
                     disabled={page === totalPages || loading}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
                   >
-                    Next ›
+                    ›
                   </button>
                   <button
                     onClick={() => fetchProducts(totalPages)}
                     disabled={page === totalPages || loading}
-                    className="px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
                   >
                     »
                   </button>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 import { Search, Filter, Calendar, DollarSign } from "lucide-react";
 import { InvoiceViewer } from "../../components/InvoiceViewer";
 
@@ -37,6 +38,11 @@ export default function SalesHistoryPage() {
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("All");
   const [dateFilter, setDateFilter] = useState<string>("All");
 
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10); // default 10 per page
+  const totalPages = Math.ceil(filteredSales.length / pageSize);
+
   useEffect(() => {
     fetchSales();
   }, []);
@@ -69,7 +75,9 @@ export default function SalesHistoryPage() {
       }
     } catch (err) {
       setSales([]); // Ensure sales is always an array
-      setError(err instanceof Error ? err.message : "Failed to fetch sales");
+      const msg = err instanceof Error ? err.message : "Failed to fetch sales";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -130,6 +138,7 @@ export default function SalesHistoryPage() {
 
   useEffect(() => {
     applyFilters();
+    setPage(1); // Reset to first page on filter change
   }, [applyFilters]);
 
   // Calculate statistics
@@ -288,7 +297,7 @@ export default function SalesHistoryPage() {
           </div>
         </div>
 
-        {/* Sales Table */}
+        {/* Sales Table with Pagination */}
         <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -329,80 +338,145 @@ export default function SalesHistoryPage() {
                     </td>
                   </tr>
                 ) : (
-                  filteredSales.map((sale) => (
-                    <tr key={sale.id} className="hover:bg-gray-50 transition">
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{sale.transactionNumber}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <div className="font-medium text-gray-900">
-                            {sale.customerName || "Guest"}
+                  filteredSales
+                    .slice((page - 1) * pageSize, page * pageSize)
+                    .map((sale, idx) => (
+                      <tr
+                        key={sale.id}
+                        className="hover:bg-indigo-50 transition duration-300"
+                        style={{ opacity: 0, animation: `fadeInUp 0.4s ease ${idx * 0.04}s forwards` }}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="font-medium text-gray-900">{sale.transactionNumber}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm">
+                            <div className="font-medium text-gray-900">
+                              {sale.customerName || "Guest"}
+                            </div>
+                            {sale.customerEmail && (
+                              <div className="text-gray-500 text-xs">{sale.customerEmail}</div>
+                            )}
                           </div>
-                          {sale.customerEmail && (
-                            <div className="text-gray-500 text-xs">{sale.customerEmail}</div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm text-gray-900">
-                          {sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)} items
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {sale.saleItems.slice(0, 2).map((item) => item.product.name).join(", ")}
-                          {sale.saleItems.length > 2 && "..."}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-gray-900">
-                          Rp {Number(sale.totalRevenue).toLocaleString("id-ID")}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Profit: Rp{" "}
-                          {(Number(sale.totalRevenue) - Number(sale.totalCost)).toLocaleString(
-                            "id-ID"
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
-                          {sale.paymentMethod}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        {sale.paymentStatus === "Paid" ? (
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                            ✓ Paid
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-sm text-gray-900">
+                            {sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)} items
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {sale.saleItems.slice(0, 2).map((item) => item.product.name).join(", ")}
+                            {sale.saleItems.length > 2 && "..."}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-semibold text-gray-900">
+                            Rp {Number(sale.totalRevenue).toLocaleString("id-ID")}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Profit: Rp{" "}
+                            {(Number(sale.totalRevenue) - Number(sale.totalCost)).toLocaleString(
+                              "id-ID"
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-4">
+                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                            {sale.paymentMethod}
                           </span>
-                        ) : (
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
-                            ⏳ Pending
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {new Date(sale.createdAt).toLocaleDateString("id-ID", {
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-6 py-4">
-                        {sale.paymentStatus === "Paid" && (
-                          <InvoiceViewer
-                            saleId={sale.id}
-                            transactionNumber={sale.transactionNumber}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                        </td>
+                        <td className="px-2 py-4">
+                          {sale.paymentStatus === "Paid" ? (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                              ✓ Paid
+                            </span>
+                          ) : (
+                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
+                              ⏳ Pending
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 py-4 text-sm text-gray-500">
+                          {new Date(sale.createdAt).toLocaleDateString("id-ID", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="px-2 py-4">
+                          {sale.paymentStatus === "Paid" && (
+                            <InvoiceViewer
+                              saleId={sale.id}
+                              transactionNumber={sale.transactionNumber}
+                            />
+                          )}
+                        </td>
+                      </tr>
+                    ))
                 )}
               </tbody>
             </table>
           </div>
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
+              <div className="text-sm text-gray-500">
+                Page <span className="font-semibold text-indigo-700">{page}</span> of <span className="font-semibold text-indigo-700">{totalPages}</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                <button
+                  className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+                  disabled={page === 1}
+                  onClick={() => setPage(page - 1)}
+                >
+                  ‹
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, idx) =>
+                    item === "..." ? (
+                      <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">…</span>
+                    ) : (
+                      <button
+                        key={item}
+                        className={`w-8 h-8 rounded-full font-bold transition border ${item === page ? "bg-indigo-600 text-white shadow" : "bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 border-gray-300"}`}
+                        onClick={() => setPage(item as number)}
+                        disabled={item === page}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+                <button
+                  className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
+                  disabled={page === totalPages}
+                  onClick={() => setPage(page + 1)}
+                >
+                  ›
+                </button>
+              </div>
+              <div>
+                <select
+                  className="px-2 py-1 rounded-xl border border-gray-300 text-sm bg-white transition focus:ring-2 focus:ring-indigo-400"
+                  value={pageSize}
+                  onChange={e => {
+                    setPageSize(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  {[10, 20, 50].map(size => (
+                    <option key={size} value={size}>{size} per page</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
