@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { ChefHat, Sparkles, Trash2, ChevronDown, ChevronUp, Edit3, Tag, Plus } from "lucide-react";
 import type { ProductDraft, DraftRecipeRow } from "@/types/product";
 import type { IngredientOption } from "@/lib/api/products";
-import { deleteIngredient } from "@/lib/api/products";
+import { deleteIngredient, createIngredient } from "@/lib/api/products";
 import IngredientSelectorRow from "./IngredientSelectorRow";
 
 interface Props {
@@ -13,6 +13,8 @@ interface Props {
   ingredientOptions: IngredientOption[];
   onChange: (updated: ProductDraft) => void;
   onRemove: () => void;
+  /** Called whenever a manually-typed new ingredient is confirmed and saved to DB */
+  onIngredientCreated?: (option: IngredientOption) => void;
 }
 
 const formatCurrency = (value: number) =>
@@ -22,7 +24,14 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 0,
   }).format(value);
 
-export default function ProductDraftCard({ draft, index, ingredientOptions, onChange, onRemove }: Props) {
+export default function ProductDraftCard({
+  draft,
+  index,
+  ingredientOptions,
+  onChange,
+  onRemove,
+  onIngredientCreated,
+}: Props) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -194,6 +203,43 @@ export default function ProductDraftCard({ draft, index, ingredientOptions, onCh
                     }
                     onChange={(updated) => updateRow(i, updated)}
                     onRemove={() => removeRow(i)}
+                    // Manually-typed new ingredient (negative id): save to DB on confirm
+                    onConfirm={
+                      row.isNew && row.ingredientId < 0
+                        ? async (confirmedRow) => {
+                            try {
+                              const created = await createIngredient({
+                                name: confirmedRow.ingredientName,
+                                unit: confirmedRow.unit,
+                                costPerUnit: confirmedRow.costPerUnit ?? 0,
+                                ...(confirmedRow.initialStock !== undefined
+                                  ? { initialStock: confirmedRow.initialStock }
+                                  : {}),
+                                ...(confirmedRow.expirationDate ? { expirationDate: confirmedRow.expirationDate } : {}),
+                              });
+                              // Update row immediately with real DB id so it's included in the final save
+                              updateRow(i, {
+                                ...confirmedRow,
+                                ingredientId: created.id,
+                                isNew: false,
+                              });
+                              // Add to the shared options pool so all other draft cards can pick it
+                              onIngredientCreated?.({
+                                id: created.id,
+                                name: created.name,
+                                unit: created.unit,
+                                costPerUnit: confirmedRow.costPerUnit ?? null,
+                                currentStock: confirmedRow.initialStock ?? 0,
+                              });
+                            } catch {
+                              // Non-critical: row stays locally confirmed; real id needed for save
+                            }
+                          }
+                        : undefined
+                    }
+                    // AI-created new ingredients (positive ID) are managed in the central
+                    // "New Ingredients" panel at the top of the page — disable per-row editing.
+                    managedCentrally={row.isNew === true && row.ingredientId > 0}
                   />
                 ))}
               </div>

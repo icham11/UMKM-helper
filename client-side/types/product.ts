@@ -42,6 +42,10 @@ export type DraftRecipeRow = {
   quantity: number;
   costPerUnit: number | null;
   isNew?: boolean;
+  /** Optional initial qty-on-hand to set when the ingredient is confirmed/saved */
+  initialStock?: number;
+  /** Optional ISO date string (YYYY-MM-DD) for the first batch expiry */
+  expirationDate?: string;
 };
 
 /** A product draft (pre-save, may come from AI or be written manually) */

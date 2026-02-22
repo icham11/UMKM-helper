@@ -196,6 +196,53 @@ export async function bulkDeleteProducts(ids: number[]): Promise<void> {
   }
 }
 
+/** POST /api/ingredients — create a new ingredient (find-or-create), always seats an initial batch */
+export async function createIngredient(data: {
+  name: string;
+  unit: string;
+  costPerUnit: number;
+  initialStock?: number;
+  expirationDate?: string;
+}): Promise<{ id: number; name: string; unit: string }> {
+  const res = await fetch("/api/ingredients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({
+      name: data.name,
+      unit: data.unit,
+      initialBatch: {
+        quantity: data.initialStock ?? 0,
+        costPerUnit: data.costPerUnit,
+        ...(data.expirationDate ? { expirationDate: data.expirationDate } : {}),
+      },
+    }),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "Failed to create ingredient");
+  }
+  const json = await res.json();
+  return json.data;
+}
+
+/** PATCH /api/ingredients/[id] — update name, unit, costPerUnit, initialStock, and/or expirationDate */
+export async function patchIngredient(
+  id: number,
+  data: { name?: string; unit?: string; costPerUnit?: number; initialStock?: number; expirationDate?: string },
+): Promise<void> {
+  const res = await fetch(`/api/ingredients/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "Failed to update ingredient");
+  }
+}
+
 /** DELETE /api/ingredients/[id] — permanently remove an auto-created (AI) ingredient */
 export async function deleteIngredient(id: number): Promise<void> {
   const res = await fetch(`/api/ingredients/${id}`, {

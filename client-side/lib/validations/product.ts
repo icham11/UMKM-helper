@@ -16,9 +16,9 @@ export const createIngredientSchema = z.object({
   minStock: z.number().int().min(0).default(0),
   initialBatch: z
     .object({
-      quantity: z.number().positive("Quantity must be positive"),
+      quantity: z.number().min(0, "Quantity must be 0 or more"),
       costPerUnit: z.number().min(0, "Cost must be non-negative"),
-      expirationDate: z.string().datetime().optional(),
+      expirationDate: z.string().optional(),
     })
     .optional(),
 });
