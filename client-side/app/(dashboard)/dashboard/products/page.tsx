@@ -419,8 +419,9 @@ export default function ProductsPage() {
   // Filter / sort
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
-  const [sortBy, setSortBy] = useState<"name" | "sellingPrice" | "recipeCost" | "margin" | "createdAt">("name");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  // Default sort: latest created
+  const [sortBy, setSortBy] = useState<"createdAt">("createdAt");
+  const [sortOrder, setSortOrder] = useState<"desc">("desc");
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -572,39 +573,46 @@ export default function ProductsPage() {
           </button>
         </div>
 
-        {/* TOOLBAR: search + category filter */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-48 max-w-md">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        {/* FILTER, SORT, PAGINATION CONTROLS (like ingredients) */}
+        <div className="flex flex-wrap gap-2 items-center justify-between mb-2 px-1">
+          <div className="flex gap-2 items-center">
             <input
               type="text"
+              placeholder="Cari nama produk..."
+              className="px-3 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search products..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-400 outline-none transition bg-white shadow-sm"
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
             />
-          </div>
-
-          {categories.length > 0 && (
-            <div className="relative">
-              <Filter
-                size={15}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-              />
+            {categories.length > 0 && (
               <select
+                className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
                 value={categoryFilter ?? ""}
-                onChange={(e) => setCategoryFilter(e.target.value === "" ? null : Number(e.target.value))}
-                className="pl-9 pr-8 py-2.5 border border-gray-200 rounded-xl text-sm bg-white shadow-sm focus:ring-2 focus:ring-indigo-400 outline-none appearance-none cursor-pointer"
+                onChange={e => { setCategoryFilter(e.target.value === "" ? null : Number(e.target.value)); setPage(1); }}
               >
-                <option value="">All categories</option>
+                <option value="">Semua Kategori</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="flex gap-2 items-center">
+            <label className="text-xs text-gray-500">Sort:</label>
+            <select
+              className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+              value={sortBy}
+              onChange={e => { setSortBy(e.target.value as "createdAt"); setPage(1); }}
+            >
+              <option value="createdAt">Terbaru</option>
+            </select>
+            <button
+              className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+              onClick={() => setSortOrder(d => d === "asc" ? "desc" : "asc")}
+              title="Urutan"
+            >
+              {sortOrder === "asc" ? "⬆️" : "⬇️"}
+            </button>
+          </div>
         </div>
 
         {/* BULK ACTION BAR */}
@@ -858,62 +866,26 @@ export default function ProductsPage() {
               </table>
             </div>
 
-            {/* Modern PAGINATION */}
+            {/* PAGINATION BAR (like ingredients) */}
             {totalPages > 1 && (
-              <div className="flex flex-wrap items-center justify-between gap-3 px-2 py-4">
-                <p className="text-sm text-gray-500">
-                  Page <span className="font-semibold text-indigo-700">{page}</span> of <span className="font-semibold text-indigo-700">{totalPages}</span>
-                  <span className="text-gray-400"> — {totalCount} products</span>
-                </p>
-                <div className="flex flex-wrap gap-1">
+              <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t rounded-b-3xl">
+                <div className="flex items-center gap-6">
                   <button
-                    onClick={() => fetchProducts(1)}
+                    className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
                     disabled={page === 1 || loading}
-                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
-                  >
-                    «
-                  </button>
-                  <button
                     onClick={() => fetchProducts(page - 1)}
-                    disabled={page === 1 || loading}
-                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
                   >
-                    ‹
+                    ‹ Previous
                   </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                    .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
-                      acc.push(p);
-                      return acc;
-                    }, [])
-                    .map((item, idx) =>
-                      item === "..." ? (
-                        <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">…</span>
-                      ) : (
-                        <button
-                          key={item}
-                          onClick={() => fetchProducts(item as number)}
-                          disabled={item === page || loading}
-                          className={`w-8 h-8 rounded-full font-bold transition border ${item === page ? "bg-indigo-600 text-white shadow" : "bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 border-gray-300"}`}
-                        >
-                          {item}
-                        </button>
-                      ),
-                    )}
+                  <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
+                    Page {page} of {totalPages}
+                  </span>
                   <button
+                    className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
+                    disabled={page === totalPages || loading}
                     onClick={() => fetchProducts(page + 1)}
-                    disabled={page === totalPages || loading}
-                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
                   >
-                    ›
-                  </button>
-                  <button
-                    onClick={() => fetchProducts(totalPages)}
-                    disabled={page === totalPages || loading}
-                    className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
-                  >
-                    »
+                    Next ›
                   </button>
                 </div>
               </div>
