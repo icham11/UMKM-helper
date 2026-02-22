@@ -325,3 +325,20 @@ model BusinessHealthScores {
 
   @@unique([businessId, date])
 }
+
+// ==================== WEBHOOK IDEMPOTENCY ====================
+
+model WebhookEvent {
+  id              Int      @id @default(autoincrement())
+  eventId         String   @unique            // Unique key: e.g. "midtrans:{order_id}:{status}"
+  source          String                       // "midtrans" | "xendit" | etc.
+  status          String   @default("processing") // "processing" | "completed" | "failed"
+  payload         Json?                        // Raw webhook payload for debugging
+  processedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([source])
+  @@index([createdAt])
+}

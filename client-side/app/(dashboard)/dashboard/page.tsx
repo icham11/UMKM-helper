@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// import { useRouter } from "next/navigation"; // Removed unused import
 import RevenueChart from "../components/charts/RevenueChart";
 import { TrendingUp, AlertTriangle, Smile } from "lucide-react";
 

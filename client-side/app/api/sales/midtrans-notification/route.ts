@@ -10,6 +10,10 @@ import {
   updateProductMetrics,
   recomputeRecipeCost,
 } from "@/lib/services/saleHelpers";
+import {
+  withIdempotency,
+  buildMidtransEventId,
+} from "@/lib/webhook/idempotency";
 
 export const runtime = "nodejs";
 
@@ -17,6 +21,8 @@ export const runtime = "nodejs";
  * POST /api/sales/midtrans-notification
  *
  * Webhook endpoint for Midtrans payment notifications.
+ * Protected by idempotency guard — safe against duplicate/retry deliveries.
+ *
  * When payment is confirmed ("Paid"), this handler:
  *   1. Calculates FIFO-based cost per item
  *   2. Creates StockDocument + deducts inventory with full InventoryMovement trail
@@ -27,160 +33,191 @@ export async function POST(request: NextRequest) {
   try {
     const notification: MidtransNotification = await request.json();
 
-    console.log("Midtrans notification received:", notification);
+    console.log("📩 Midtrans notification received:", notification.order_id, notification.transaction_status);
 
     // 1. Verify signature
     if (!verifySignature(notification)) {
-      console.error("Invalid Midtrans signature");
+      console.error("❌ Invalid Midtrans signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
-    const { order_id, transaction_status, fraud_status } = notification;
+    const { order_id, transaction_status, fraud_status, transaction_id } = notification;
 
-    // 2. Find sale by transaction number
-    const sale = await prisma.sale.findUnique({
-      where: { transactionNumber: order_id },
-      include: {
-        saleItems: {
+    // 2. Build idempotency key and guard against duplicate processing
+    const eventId = buildMidtransEventId(order_id, transaction_status, transaction_id);
+
+    const result = await withIdempotency(
+      eventId,
+      "midtrans",
+      notification,
+      async () => {
+        // ── Begin actual webhook processing (runs at-most-once) ──
+
+        // 3. Find sale by transaction number
+        const sale = await prisma.sale.findUnique({
+          where: { transactionNumber: order_id },
           include: {
-            product: true,
-          },
-        },
-      },
-    });
-
-    if (!sale) {
-      console.error(`Sale not found for order_id: ${order_id}`);
-      return NextResponse.json({ error: "Sale not found" }, { status: 404 });
-    }
-
-    // 3. Map transaction status
-    const paymentStatus = mapTransactionStatus(transaction_status, fraud_status);
-
-    // 4. Update sale and process inventory if paid
-    await prisma.$transaction(async (tx) => {
-      if (paymentStatus === "Paid" && sale.paymentStatus !== "Paid") {
-        // ── Payment successful ──
-
-        // 4a. Create StockDocument for audit trail
-        const stockDocument = await tx.stockDocument.create({
-          data: {
-            businessId: sale.businessId,
-            type: "Sale",
-            notes: `Midtrans payment confirmed: ${order_id}`,
-          },
-        });
-
-        let totalCost = 0;
-        const saleItemDetails: Array<{
-          productId: number;
-          quantity: number;
-          priceAtSale: number;
-          costAtSale: number;
-        }> = [];
-
-        // 4b. Calculate cost + deduct inventory for each item
-        for (const item of sale.saleItems) {
-          const cost = await calculateProductCost(tx, item.productId, item.quantity);
-          totalCost += cost;
-
-          const unitCost = item.quantity > 0 ? cost / item.quantity : 0;
-
-          // Update sale item with actual cost
-          await tx.saleItem.update({
-            where: { id: item.id },
-            data: { costAtSale: unitCost },
-          });
-
-          // Deduct inventory with full InventoryMovement trail (FIFO)
-          await deductInventory(tx, item.productId, item.quantity, stockDocument.id);
-
-          saleItemDetails.push({
-            productId: item.productId,
-            quantity: item.quantity,
-            priceAtSale: Number(item.priceAtSale),
-            costAtSale: unitCost,
-          });
-        }
-
-        // 4c. Update sale with cost, status, and link to stock document
-        await tx.sale.update({
-          where: { id: sale.id },
-          data: {
-            totalCost,
-            paymentStatus: "Paid",
-            stockDocumentId: stockDocument.id,
-          },
-        });
-
-        // 4d. Update BusinessMetrics (margin_avg)
-        const totalRevenue = Number(sale.totalRevenue);
-        await updateBusinessMetrics(tx, sale.businessId, totalRevenue, totalCost);
-
-        // 4e. Update ProductMetrics per item
-        for (const detail of saleItemDetails) {
-          await updateProductMetrics(
-            tx,
-            detail.productId,
-            detail.quantity,
-            detail.priceAtSale * detail.quantity,
-            detail.costAtSale * detail.quantity,
-          );
-        }
-
-        // 4f. Recompute recipeCost on sold products
-        const soldProductIds = [...new Set(sale.saleItems.map((i) => i.productId))];
-        for (const pid of soldProductIds) {
-          await recomputeRecipeCost(tx, pid);
-        }
-
-        console.log(`✅ Payment successful for order ${order_id}: inventory deducted, metrics updated`);
-      } else {
-        // Just update status for other cases (pending, failed, etc.)
-        await tx.sale.update({
-          where: { id: sale.id },
-          data: { paymentStatus },
-        });
-
-        console.log(`Payment status updated to ${paymentStatus} for order ${order_id}`);
-      }
-    }, { timeout: 30000 });
-
-    // 5. Create Xendit invoice (non-critical, outside transaction)
-    if (paymentStatus === "Paid" && !sale.invoiceId) {
-      try {
-        if (sale.customerEmail) {
-          const invoice = await createXenditInvoice({
-            externalId: sale.transactionNumber,
-            amount: Number(sale.totalRevenue),
-            payerEmail: sale.customerEmail,
-            description: `Invoice for ${sale.transactionNumber}`,
-            customer: {
-              givenNames: sale.customerName || undefined,
-              email: sale.customerEmail || undefined,
-              mobileNumber: sale.customerPhone || undefined,
+            saleItems: {
+              include: {
+                product: true,
+              },
             },
-          });
+          },
+        });
 
-          if (invoice) {
-            await prisma.sale.update({
-              where: { id: sale.id },
+        if (!sale) {
+          throw new Error(`Sale not found for order_id: ${order_id}`);
+        }
+
+        // 4. Map transaction status
+        const paymentStatus = mapTransactionStatus(transaction_status, fraud_status);
+
+        // 5. Update sale and process inventory if paid
+        await prisma.$transaction(async (tx) => {
+          if (paymentStatus === "Paid" && sale.paymentStatus !== "Paid") {
+            // ── Payment successful ──
+
+            // 5a. Create StockDocument for audit trail
+            const stockDocument = await tx.stockDocument.create({
               data: {
-                invoiceId: invoice.id,
-                invoiceUrl: invoice.invoiceUrl,
-                invoiceStatus: invoice.status,
+                businessId: sale.businessId,
+                type: "Sale",
+                notes: `Midtrans payment confirmed: ${order_id}`,
               },
             });
+
+            let totalCost = 0;
+            const saleItemDetails: Array<{
+              productId: number;
+              quantity: number;
+              priceAtSale: number;
+              costAtSale: number;
+            }> = [];
+
+            // 5b. Calculate cost + deduct inventory for each item
+            for (const item of sale.saleItems) {
+              const cost = await calculateProductCost(tx, item.productId, item.quantity);
+              totalCost += cost;
+
+              const unitCost = item.quantity > 0 ? cost / item.quantity : 0;
+
+              await tx.saleItem.update({
+                where: { id: item.id },
+                data: { costAtSale: unitCost },
+              });
+
+              await deductInventory(tx, item.productId, item.quantity, stockDocument.id);
+
+              saleItemDetails.push({
+                productId: item.productId,
+                quantity: item.quantity,
+                priceAtSale: Number(item.priceAtSale),
+                costAtSale: unitCost,
+              });
+            }
+
+            // 5c. Update sale with cost, status, and link to stock document
+            await tx.sale.update({
+              where: { id: sale.id },
+              data: {
+                totalCost,
+                paymentStatus: "Paid",
+                stockDocumentId: stockDocument.id,
+              },
+            });
+
+            // 5d. Update BusinessMetrics (margin_avg)
+            const totalRevenue = Number(sale.totalRevenue);
+            await updateBusinessMetrics(tx, sale.businessId, totalRevenue, totalCost);
+
+            // 5e. Update ProductMetrics per item
+            for (const detail of saleItemDetails) {
+              await updateProductMetrics(
+                tx,
+                detail.productId,
+                detail.quantity,
+                detail.priceAtSale * detail.quantity,
+                detail.costAtSale * detail.quantity,
+              );
+            }
+
+            // 5f. Recompute recipeCost on sold products
+            const soldProductIds = [...new Set(sale.saleItems.map((i) => i.productId))];
+            for (const pid of soldProductIds) {
+              await recomputeRecipeCost(tx, pid);
+            }
+
+            console.log(`✅ Payment successful for order ${order_id}: inventory deducted, metrics updated`);
+          } else {
+            // Just update status for other cases (pending, etc.)
+            await tx.sale.update({
+              where: { id: sale.id },
+              data: { paymentStatus },
+            });
+
+            console.log(`Payment status updated to ${paymentStatus} for order ${order_id}`);
+          }
+        }, { timeout: 30000 });
+
+        // 6. Create Xendit invoice (non-critical, outside transaction)
+        if (paymentStatus === "Paid" && !sale.invoiceId) {
+          try {
+            if (sale.customerEmail) {
+              const invoice = await createXenditInvoice({
+                externalId: sale.transactionNumber,
+                amount: Number(sale.totalRevenue),
+                payerEmail: sale.customerEmail,
+                description: `Invoice for ${sale.transactionNumber}`,
+                customer: {
+                  givenNames: sale.customerName || undefined,
+                  email: sale.customerEmail || undefined,
+                  mobileNumber: sale.customerPhone || undefined,
+                },
+              });
+
+              if (invoice) {
+                await prisma.sale.update({
+                  where: { id: sale.id },
+                  data: {
+                    invoiceId: invoice.id,
+                    invoiceUrl: invoice.invoiceUrl,
+                    invoiceStatus: invoice.status,
+                  },
+                });
+              }
+            }
+          } catch (invoiceError) {
+            console.error("Xendit invoice error:", invoiceError);
+            // Non-critical — don't fail the webhook
           }
         }
-      } catch (invoiceError) {
-        console.error("Xendit invoice error:", invoiceError);
-      }
+
+        return { orderId: order_id, paymentStatus };
+      },
+    );
+
+    // Handle idempotency result
+    if (result.duplicate) {
+      console.log(`⏭️  Duplicate webhook ignored: ${eventId}`);
+      return NextResponse.json({
+        success: true,
+        message: "Duplicate notification — already processed",
+        duplicate: true,
+      });
+    }
+
+    if (result.error) {
+      console.error(`❌ Webhook processing failed: ${result.error}`);
+      return NextResponse.json(
+        { error: result.error },
+        { status: 500 },
+      );
     }
 
     return NextResponse.json({
       success: true,
       message: "Payment notification processed",
+      data: result.data,
     });
   } catch (error: unknown) {
     console.error("POST /api/sales/midtrans-notification error:", error);
