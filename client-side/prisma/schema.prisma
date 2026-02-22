@@ -69,6 +69,10 @@ model Business {
   chatMessages         ChatMessage[]
   chatSessions         ChatSession[]
   documents            BusinessDocument[]
+
+  // requireAuth: findFirst where userId, orderBy createdAt
+  // GET /api/businesses: findMany where userId
+  @@index([userId, createdAt])
 }
 
 // ==================== RAG VECTOR LAYER ====================
@@ -87,6 +91,8 @@ model BusinessDocument {
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
+  // RAG: findMany where businessId + sourceType; deleteMany where businessId
+  @@index([businessId, sourceType])
   @@index([businessId])
   @@index([sourceType])
 }
@@ -102,6 +108,9 @@ model ChatSession {
 
   business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
+
+  // getChatSessions: findMany where businessId, orderBy updatedAt DESC
+  @@index([businessId, updatedAt(sort: Desc)])
 }
 
 model ChatMessage {
@@ -116,6 +125,10 @@ model ChatMessage {
 
   business Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
   session  ChatSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // getChatHistory: where businessId+sessionId, orderBy createdAt
+  @@index([businessId, sessionId, createdAt])
+  @@index([sessionId, createdAt])
 }
 
 // ==================== PRODUCT LAYER ====================
@@ -129,6 +142,10 @@ model Category {
 
   business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   products Product[]
+
+  // GET /api/categories: findMany where businessId
+  // resolveCategory: case-insensitive lookup within business
+  @@index([businessId])
 }
 
 model Product {
@@ -148,6 +165,12 @@ model Product {
   saleItems      SaleItem[]
   productMetrics ProductMetrics[]
   productForecasts ProductForecast[]
+
+  // GET /api/products: findMany where businessId (+ isActive filter in POS)
+  // AI chat: findMany where businessId + isActive
+  @@index([businessId, isActive])
+  @@index([businessId, categoryId])
+  @@index([categoryId])
 }
 
 // ==================== INVENTORY LAYER ====================
@@ -165,6 +188,10 @@ model Ingredient {
   recipes            Recipe[]
   inventoryMovements InventoryMovement[]
   inventoryBatches   InventoryBatch[]
+
+  // GET /api/ingredients: findMany where businessId, orderBy createdAt
+  // AI: findMany where businessId (inventory alerts)
+  @@index([businessId, createdAt(sort: Desc)])
 }
 
 model Recipe {
@@ -179,6 +206,9 @@ model Recipe {
   ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
 
   @@unique([productId, ingredientId])
+  // calculateProductCost, deductInventory: findMany where productId
+  @@index([productId])
+  @@index([ingredientId])
 }
 
 model StockDocument {
@@ -192,6 +222,9 @@ model StockDocument {
   business           Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   inventoryMovements InventoryMovement[]
   sales              Sale[]
+
+  // Created during sales and restocks, queried by businessId
+  @@index([businessId, type])
 }
 
 model InventoryMovement {
@@ -205,6 +238,12 @@ model InventoryMovement {
 
   ingredient    Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
   stockDocument StockDocument @relation(fields: [stockDocumentId], references: [id], onDelete: Cascade)
+
+  // deductInventory: create with ingredientId + stockDocumentId
+  // waste analytics: aggregate by ingredientId + type
+  @@index([ingredientId, type])
+  @@index([stockDocumentId])
+  @@index([ingredientId, createdAt])
 }
 
 model InventoryBatch {
@@ -218,6 +257,11 @@ model InventoryBatch {
   updatedAt      DateTime  @updatedAt
 
   ingredient Ingredient @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+
+  // FIFO engine: findMany where ingredientId + remainingQty > 0, orderBy receivedAt ASC
+  // This is the most performance-critical query (runs inside sale transactions)
+  @@index([ingredientId, receivedAt])
+  @@index([ingredientId, remainingQty])
 }
 
 // ==================== SALES LAYER ====================
@@ -243,6 +287,14 @@ model Sale {
   business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   stockDocument StockDocument? @relation(fields: [stockDocumentId], references: [id], onDelete: SetNull)
   saleItems     SaleItem[]
+
+  // GET /api/sales: findMany where businessId, orderBy createdAt DESC (+ date range)
+  @@index([businessId, createdAt(sort: Desc)])
+  // Profile/Business stats: count/aggregate where businessId + paymentStatus
+  @@index([businessId, paymentStatus])
+  // Midtrans webhook: findUnique where transactionNumber (already @unique, but compound helps)
+  // Sales history filter: businessId + paymentMethod
+  @@index([businessId, paymentMethod])
 }
 
 model SaleItem {
@@ -256,6 +308,11 @@ model SaleItem {
 
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Include in sale queries: where saleId (join)
+  @@index([saleId])
+  // AI forecast, product analytics: where sale.businessId via productId
+  @@index([productId])
 }
 
 // ==================== ANALYTICS LAYER ====================
@@ -275,6 +332,8 @@ model BusinessMetrics {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, date])
+  // Analytics insight: findMany where businessId + date range, orderBy date DESC
+  @@index([businessId, date(sort: Desc)])
 }
 
 model ProductMetrics {
@@ -291,6 +350,8 @@ model ProductMetrics {
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, date])
+  // Top products analytics: aggregate by productId + date range
+  @@index([productId, date(sort: Desc)])
 }
 
 model ProductForecast {
@@ -324,6 +385,8 @@ model BusinessHealthScores {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([businessId, date])
+  // Health score trend: orderBy date DESC
+  @@index([businessId, date(sort: Desc)])
 }
 
 // ==================== WEBHOOK IDEMPOTENCY ====================
@@ -341,4 +404,6 @@ model WebhookEvent {
 
   @@index([source])
   @@index([createdAt])
+  // cleanupOldWebhookEvents: deleteMany where status IN (...) + createdAt < cutoff
+  @@index([status, createdAt])
 }
