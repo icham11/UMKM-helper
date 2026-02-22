@@ -4,6 +4,8 @@ import { cookies } from "next/headers";
 /**
  * POST /api/mock-business/create
  *
+ * ⚠️ DEV ONLY — Disabled in production.
+ *
  * Input (JSON):
  *   { "name": "Toko Sari", "location": "Bandung" }  // both required
  *
@@ -12,9 +14,14 @@ import { cookies } from "next/headers";
  *   + Sets cookie: mock_business={ "id": "biz_123", "name": "...", "location": "..." }
  *
  * Errors:
+ *   403 — { "error": "Mock routes are disabled in production" }
  *   400 — "Invalid data" (plain text)
  */
 export async function POST(req: Request) {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Mock routes are disabled in production" }, { status: 403 });
+  }
+
   const body = await req.json();
 
   if (!body.name || !body.location) {

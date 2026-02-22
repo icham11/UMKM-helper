@@ -1,5 +1,6 @@
 import { snap } from "./config";
 import type { MidtransParameter, MidtransSnapResponse } from "./types";
+import { logPayment } from "@/lib/logger";
 
 /**
  * Create Midtrans Snap transaction token
@@ -15,12 +16,12 @@ export async function createSnapTransaction(
     };
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("❌ Midtrans Snap error:", errorMsg);
+    logPayment.error("Midtrans Snap error", { error: errorMsg });
 
     // Extract error details if available
-    const errorDetails = (error as any)?.ApiResponse?.error_messages || [];
+    const errorDetails = (error as Record<string, unknown> & { ApiResponse?: { error_messages?: string[] } })?.ApiResponse?.error_messages || [];
     if (errorDetails.length > 0) {
-      console.error("Error details:", errorDetails);
+      logPayment.error("Midtrans validation details", { details: errorDetails });
       throw new Error(`Midtrans validation failed: ${errorDetails.join(", ")}`);
     }
 
@@ -37,7 +38,7 @@ export async function getTransactionStatus(orderId: string) {
   try {
     return await snap.transaction.status(orderId);
   } catch (error) {
-    console.error("Midtrans status check error:", error);
+    logPayment.error("Midtrans status check error", { orderId, error });
     throw new Error("Failed to check transaction status");
   }
 }

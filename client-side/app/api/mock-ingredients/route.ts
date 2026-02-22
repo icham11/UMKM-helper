@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 /**
  * GET /api/mock-ingredients
  *
+ * ⚠️ DEV ONLY — Disabled in production.
  * Returns hardcoded ingredient data. Requires mock_business cookie.
  *
  * Success (200):
@@ -13,9 +14,14 @@ import { cookies } from "next/headers";
  *   ]
  *
  * Errors:
+ *   403 — { "error": "Mock routes are disabled in production" }
  *   401 — "No business" (plain text)
  */
 export async function GET() {
+  if (process.env.NODE_ENV === "production") {
+    return NextResponse.json({ error: "Mock routes are disabled in production" }, { status: 403 });
+  }
+
   const business = (await cookies()).get("mock_business");
 
   if (!business) {

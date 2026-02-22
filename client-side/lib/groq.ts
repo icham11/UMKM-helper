@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
+import { logAI } from "@/lib/logger";
 
 if (!process.env.GROQ_API_KEY) {
   throw new Error("Missing GROQ_API_KEY environment variable");
@@ -70,8 +71,7 @@ export async function analyzeBusinessData(options: AnalyzeBusinessDataOptions): 
   }
 
   try {
-    console.log(`🤖 Using GROQ model: ${selectedModel} ${imageUrl ? "(vision)" : "(text)"}`);
-
+    logAI.debug("GROQ API call", { model: selectedModel, type: imageUrl ? "vision" : "text" });
     const completion = await groq.chat.completions.create({
       messages,
       model: selectedModel,
@@ -83,7 +83,7 @@ export async function analyzeBusinessData(options: AnalyzeBusinessDataOptions): 
   } catch (error: unknown) {
     // If primary model fails, try fallback within the same category
     if (!useFallback) {
-      console.warn(`⚠️ Primary model failed, trying fallback: ${modelConfig.fallback}`);
+      logAI.warn("Primary model failed, trying fallback", { fallback: modelConfig.fallback });
       return analyzeBusinessData({
         ...options,
         useFallback: true,
@@ -91,7 +91,7 @@ export async function analyzeBusinessData(options: AnalyzeBusinessDataOptions): 
     }
 
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("❌ GROQ API Error:", errorMessage);
+    logAI.error("GROQ API error", { error: errorMessage });
     throw new Error(`Failed to analyze with GROQ: ${errorMessage}`);
   }
 }

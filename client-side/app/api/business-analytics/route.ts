@@ -6,12 +6,15 @@ import {
   getBusinessHealthScore,
   analyzeRecipeCosts,
 } from "@/lib/groq";
+import { requireAuth, AuthError } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/business-analytics
+ *
+ * Auth: Required (JWT / NextAuth session)
  *
  * Input (JSON):
  *   {
@@ -31,6 +34,7 @@ export const dynamic = "force-dynamic";
  *   }
  *
  * Errors:
+ *   401 — { "error": "Unauthorized" }
  *   400 — { "error": "Missing type or data in request body" }
  *   400 — { "error": "Product performance analysis requires both products and sales data" }
  *   400 — { "error": "Recipe cost analysis requires both recipes and ingredients data" }
@@ -39,6 +43,9 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: NextRequest) {
   try {
+    // Auth guard
+    await requireAuth();
+
     const body = await request.json();
     const { type, data, imageUrl } = body;
 
@@ -92,6 +99,9 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     console.error("Business analytics error:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(

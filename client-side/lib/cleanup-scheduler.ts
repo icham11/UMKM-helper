@@ -3,6 +3,8 @@
  * Runs cleanup every 5 minutes to delete expired images
  */
 
+import { logCron } from "@/lib/logger";
+
 let cleanupInterval: NodeJS.Timeout | null = null;
 
 /**
@@ -21,7 +23,7 @@ export function startCleanupScheduler() {
     runCleanup();
   }, 5 * 60 * 1000);
 
-  console.log('Image cleanup scheduler started (runs every 5 minutes)');
+  logCron.info("Image cleanup scheduler started", { intervalMin: 5 });
 }
 
 /**
@@ -57,20 +59,20 @@ async function runCleanup() {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn(`[Cleanup] HTTP ${response.status}: ${response.statusText}`);
+      logCron.warn("Cleanup HTTP error", { status: response.status, statusText: response.statusText });
       return;
     }
 
     const result = await response.json();
     if (result.deleted > 0) {
-      console.log(`[Cleanup] Deleted ${result.deleted} expired files`);
+      logCron.info("Deleted expired files", { deleted: result.deleted });
     }
   } catch (error) {
     // Silently ignore abort/network errors — they're expected during build or cold start
     if (error instanceof Error && error.name === 'AbortError') {
-      console.warn('[Cleanup] Request timed out, will retry next cycle');
+      logCron.warn("Cleanup request timed out, will retry next cycle");
     } else {
-      console.warn('[Cleanup] Skipped:', error instanceof Error ? error.message : 'Unknown error');
+      logCron.warn("Cleanup skipped", { error: error instanceof Error ? error.message : "Unknown error" });
     }
   }
 }

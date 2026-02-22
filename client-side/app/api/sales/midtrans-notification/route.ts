@@ -14,6 +14,7 @@ import {
   withIdempotency,
   buildMidtransEventId,
 } from "@/lib/webhook/idempotency";
+import { logWebhook } from "@/lib/logger";
 
 export const runtime = "nodejs";
 
@@ -31,13 +32,15 @@ export const runtime = "nodejs";
  */
 export async function POST(request: NextRequest) {
   try {
+    const log = logWebhook.child({ source: "midtrans" });
+
     const notification: MidtransNotification = await request.json();
 
-    console.log("📩 Midtrans notification received:", notification.order_id, notification.transaction_status);
+    log.info("Notification received", { orderId: notification.order_id, status: notification.transaction_status });
 
     // 1. Verify signature
     if (!verifySignature(notification)) {
-      console.error("❌ Invalid Midtrans signature");
+      log.warn("Invalid signature", { orderId: notification.order_id });
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
 
@@ -147,7 +150,7 @@ export async function POST(request: NextRequest) {
               await recomputeRecipeCost(tx, pid);
             }
 
-            console.log(`✅ Payment successful for order ${order_id}: inventory deducted, metrics updated`);
+            log.info("Payment successful — inventory deducted, metrics updated", { orderId: order_id });
           } else {
             // Just update status for other cases (pending, etc.)
             await tx.sale.update({
@@ -155,7 +158,7 @@ export async function POST(request: NextRequest) {
               data: { paymentStatus },
             });
 
-            console.log(`Payment status updated to ${paymentStatus} for order ${order_id}`);
+            log.info("Payment status updated", { orderId: order_id, paymentStatus });
           }
         }, { timeout: 30000 });
 
@@ -187,7 +190,7 @@ export async function POST(request: NextRequest) {
               }
             }
           } catch (invoiceError) {
-            console.error("Xendit invoice error:", invoiceError);
+            log.warn("Xendit invoice creation failed (non-critical)", { error: invoiceError });
             // Non-critical — don't fail the webhook
           }
         }
@@ -198,7 +201,7 @@ export async function POST(request: NextRequest) {
 
     // Handle idempotency result
     if (result.duplicate) {
-      console.log(`⏭️  Duplicate webhook ignored: ${eventId}`);
+      log.info("Duplicate webhook ignored", { eventId });
       return NextResponse.json({
         success: true,
         message: "Duplicate notification — already processed",
@@ -207,7 +210,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.error) {
-      console.error(`❌ Webhook processing failed: ${result.error}`);
+      log.error("Webhook processing failed", { error: result.error });
       return NextResponse.json(
         { error: result.error },
         { status: 500 },
@@ -220,7 +223,7 @@ export async function POST(request: NextRequest) {
       data: result.data,
     });
   } catch (error: unknown) {
-    console.error("POST /api/sales/midtrans-notification error:", error);
+    logWebhook.error("POST /api/sales/midtrans-notification unhandled error", { error });
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to process payment" },
       { status: 500 },

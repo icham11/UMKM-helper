@@ -1,4 +1,7 @@
 import prisma from "@/lib/prisma";
+import { logWebhook } from "@/lib/logger";
+
+const log = logWebhook.child({ module: "idempotency" });
 
 /**
  * Webhook Idempotency Guard
@@ -169,20 +172,20 @@ export async function withIdempotency<T>(
   // 2. If event already exists, handle based on status
   if (!acquired) {
     if (existingStatus === "completed") {
-      console.log(`⏭️  [Idempotency] Skipping duplicate event: ${eventId} (already completed)`);
+      log.info("Skipping duplicate event (already completed)", { eventId });
       return { processed: false, duplicate: true };
     }
 
     if (existingStatus === "processing") {
       // Another instance is currently processing this event.
       // Return duplicate to avoid double processing — the other instance will finish.
-      console.log(`⏳ [Idempotency] Event currently being processed by another instance: ${eventId}`);
+      log.info("Event currently being processed by another instance", { eventId });
       return { processed: false, duplicate: true };
     }
 
     if (existingStatus === "failed") {
       // Previous attempt failed — allow retry by updating status back to processing
-      console.log(`🔄 [Idempotency] Retrying previously failed event: ${eventId}`);
+      log.info("Retrying previously failed event", { eventId });
       await prisma.webhookEvent.update({
         where: { eventId },
         data: { status: "processing", errorMessage: null, processedAt: null },
@@ -193,14 +196,14 @@ export async function withIdempotency<T>(
 
   // 3. Process the event
   try {
-    console.log(`🔒 [Idempotency] Processing event: ${eventId}`);
+    log.debug("Processing event", { eventId });
     const data = await handler();
     await markCompleted(eventId);
-    console.log(`✅ [Idempotency] Event completed: ${eventId}`);
+    log.info("Event completed", { eventId });
     return { processed: true, duplicate: false, data };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error(`❌ [Idempotency] Event failed: ${eventId}`, errorMessage);
+    log.error("Event failed", { eventId, error: errorMessage });
     await markFailed(eventId, errorMessage);
     return { processed: true, duplicate: false, error: errorMessage };
   }
@@ -224,7 +227,7 @@ export async function cleanupOldWebhookEvents(olderThanDays = 30): Promise<numbe
     },
   });
 
-  console.log(`🧹 [Idempotency] Cleaned up ${result.count} old webhook events (older than ${olderThanDays} days)`);
+  log.info("Cleaned up old webhook events", { deleted: result.count, olderThanDays });
   return result.count;
 }
 

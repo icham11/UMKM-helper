@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { uploadStockDocument } from "@/lib/imagekit";
 import { analyzeBusinessData } from "@/lib/groq";
+import { requireAuth, AuthError } from "@/lib/auth/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/analyze-image
+ *
+ * Auth: Required (JWT / NextAuth session)
  *
  * Input: FormData with:
  *   - file (required): image file
@@ -25,11 +28,14 @@ export const dynamic = "force-dynamic";
  *   }
  *
  * Errors:
+ *   401 — { "error": "Unauthorized" }
  *   400 — { "error": "No file provided" }
  *   500 — { "error": "...", "details": "..." }
  */
 export async function POST(request: NextRequest) {
   try {
+    // Auth guard
+    await requireAuth();
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const prompt = formData.get("prompt") as string;
@@ -106,6 +112,9 @@ ${prompt || ""}`;
       },
     });
   } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
     console.error("Image analysis error:", error);
     const errorMessage = error instanceof Error ? error.message : String(error);
     return NextResponse.json(

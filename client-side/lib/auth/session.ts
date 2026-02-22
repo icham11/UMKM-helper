@@ -15,9 +15,10 @@ export async function requireAuth() {
   const session = await getServerSession(authOptions)
   let userId: number | undefined = session?.user?.id
 
+  const cookieStore = await cookies()
+
   // 2️⃣ Try JWT from cookie
   if (!userId) {
-    const cookieStore = await cookies()
     const token = cookieStore.get("token")?.value
 
     if (token) {
@@ -49,10 +50,25 @@ export async function requireAuth() {
     throw new AuthError("Unauthorized")
   }
 
-  const business = await prisma.business.findFirst({
-    where: { userId: Number(userId) },
-    orderBy: { createdAt: "asc" },
-  })
+  // 4️⃣ Resolve active business — respect cookie preference for multi-business switch
+  const preferredId = cookieStore.get("active_business_id")?.value
+
+  let business = null
+
+  if (preferredId) {
+    // Try to find the preferred business — must belong to this user
+    business = await prisma.business.findFirst({
+      where: { id: Number(preferredId), userId: Number(userId) },
+    })
+  }
+
+  // Fallback: pick the first business for this user
+  if (!business) {
+    business = await prisma.business.findFirst({
+      where: { userId: Number(userId) },
+      orderBy: { createdAt: "asc" },
+    })
+  }
 
   if (!business) {
     throw new AuthError("Business not found for this user")

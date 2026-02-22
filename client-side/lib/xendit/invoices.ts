@@ -1,3 +1,5 @@
+import { logPayment } from "@/lib/logger";
+
 const XENDIT_INVOICE_URL = "https://api.xendit.co/v2/invoices";
 
 // Check if Xendit is properly configured
@@ -41,7 +43,7 @@ export async function createXenditInvoice(
 ): Promise<XenditInvoiceResponse | null> {
   // If Xendit is not enabled, return null instead of throwing error
   if (!XENDIT_ENABLED) {
-    console.warn("⚠️ Xendit is not configured. Invoice creation skipped.");
+    logPayment.warn("Xendit not configured — invoice creation skipped");
     return null;
   }
 
@@ -65,16 +67,16 @@ export async function createXenditInvoice(
 
     if (!response.ok) {
       const errorBody = await response.text();
-      console.error(`Xendit API Error (${response.status}):`, errorBody);
+      logPayment.error("Xendit API error", { status: response.status, body: errorBody });
 
       // If it's an auth error, return null instead of throwing
       if (response.status === 401) {
-        console.error("❌ Xendit authentication failed. Invalid API key.");
+        logPayment.error("Xendit authentication failed — invalid API key");
         return null;
       }
 
       // For other errors, log and return null
-      console.error("❌ Xendit API request failed");
+      logPayment.error("Xendit API request failed");
       return null;
     }
 
@@ -90,7 +92,7 @@ export async function createXenditInvoice(
       invoiceUrl: data.invoice_url,
     };
   } catch (error) {
-    console.error("❌ Xendit invoice creation failed:", error);
+    logPayment.error("Xendit invoice creation failed", { error });
     // Return null to allow app to continue without Xendit
     return null;
   }
