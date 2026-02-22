@@ -30,8 +30,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "UMKM Helper — Solusi Bisnis UMKM Indonesia",
-  description:
-    "POS kasir, manajemen inventori, analitik penjualan, dan AI assistant untuk UMKM Indonesia",
+  description: "POS kasir, manajemen inventori, analitik penjualan, dan AI assistant untuk UMKM Indonesia",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -44,20 +43,12 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head />
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <AppProviders>
-          {children}
-        </AppProviders>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <AppProviders>{children}</AppProviders>
 
         {/* PWA: Service Worker + Offline Detection + Install Prompt */}
         <PWAProvider />

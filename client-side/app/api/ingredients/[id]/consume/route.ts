@@ -5,10 +5,7 @@ import { StockDocumentType, InventoryMovementType } from "@prisma/client";
 
 export const runtime = "nodejs";
 
-export async function POST(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { businessId } = await requireAuth();
     const { id } = await context.params;
@@ -16,20 +13,14 @@ export async function POST(
     const ingredientId = Number(id);
 
     if (isNaN(ingredientId)) {
-      return NextResponse.json(
-        { error: "Invalid ingredient ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid ingredient ID" }, { status: 400 });
     }
 
     const body = await request.json();
     const { quantity, notes } = body;
 
     if (typeof quantity !== "number" || quantity <= 0) {
-      return NextResponse.json(
-        { error: "Quantity must be a positive number" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Quantity must be a positive number" }, { status: 400 });
     }
 
     const ingredient = await prisma.ingredient.findFirst({
@@ -37,10 +28,7 @@ export async function POST(
     });
 
     if (!ingredient) {
-      return NextResponse.json(
-        { error: "Ingredient not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
     }
 
     const result = await prisma.$transaction(async (tx) => {
@@ -54,10 +42,7 @@ export async function POST(
       });
 
       // 🔎 Hitung total stock dulu (prevent partial deduct)
-      const totalStock = batches.reduce(
-        (sum, b) => sum + Number(b.remainingQty),
-        0
-      );
+      const totalStock = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
 
       if (totalStock < quantity) {
         throw new Error("Insufficient stock");
@@ -96,6 +81,8 @@ export async function POST(
       await tx.inventoryMovement.create({
         data: {
           ingredientId,
+          ingredientNameSnapshot: ingredient.name,
+          ingredientUnitSnapshot: ingredient.unit,
           stockDocumentId: stockDoc.id,
           quantity,
           costPerUnit: totalCost / quantity,
@@ -107,23 +94,16 @@ export async function POST(
     });
 
     return NextResponse.json({ success: true, data: result });
-
   } catch (error: unknown) {
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to consume stock",
+        error: error instanceof Error ? error.message : "Failed to consume stock",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

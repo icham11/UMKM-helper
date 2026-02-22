@@ -20,9 +20,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
     }
 
-    // Ownership check
+    // Ownership check — also blocks patching soft-deleted products
     const existing = await prisma.product.findFirst({
-      where: { id, businessId },
+      where: { id, businessId, deletedAt: null },
       select: { id: true },
     });
     if (!existing) {
@@ -80,8 +80,8 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    // Recipe rows cascade via schema onDelete: Cascade
-    await prisma.product.delete({ where: { id } });
+    // Soft-delete: keeps SaleItem / ProductMetrics / ProductForecast intact
+    await prisma.product.update({ where: { id }, data: { deletedAt: new Date() } });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

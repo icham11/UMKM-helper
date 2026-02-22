@@ -197,6 +197,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       await tx.inventoryMovement.create({
         data: {
           ingredientId,
+          ingredientNameSnapshot: ingredient.name,
+          ingredientUnitSnapshot: ingredient.unit,
           stockDocumentId: stockDoc.id,
           quantity,
           costPerUnit,

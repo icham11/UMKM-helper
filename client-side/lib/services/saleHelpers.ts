@@ -6,7 +6,9 @@ export type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 /** Generate unique transaction number */
 export function generateTransactionNumber(): string {
   const timestamp = Date.now();
-  const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0");
+  const random = Math.floor(Math.random() * 1000)
+    .toString()
+    .padStart(3, "0");
   return `TRX-${timestamp}-${random}`;
 }
 
@@ -14,11 +16,7 @@ export function generateTransactionNumber(): string {
  * Calculate recipe cost for a product based on FIFO inventory batches.
  * Returns total cost for the given quantity.
  */
-export async function calculateProductCost(
-  tx: TxClient,
-  productId: number,
-  quantity: number,
-): Promise<number> {
+export async function calculateProductCost(tx: TxClient, productId: number, quantity: number): Promise<number> {
   const recipes = await tx.recipe.findMany({
     where: { productId },
     include: {
@@ -43,10 +41,7 @@ export async function calculateProductCost(
 
     // Calculate weighted average cost
     const totalQty = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-    const totalValue = batches.reduce(
-      (sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit),
-      0,
-    );
+    const totalValue = batches.reduce((sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit), 0);
     const avgCost = totalQty > 0 ? totalValue / totalQty : 0;
 
     // Cost for this recipe item
@@ -72,6 +67,8 @@ export async function deductInventory(
       ingredient: {
         select: {
           id: true,
+          name: true,
+          unit: true,
           inventoryBatches: {
             where: { remainingQty: { gt: 0 } },
             orderBy: { receivedAt: "asc" }, // FIFO
@@ -99,6 +96,8 @@ export async function deductInventory(
       await tx.inventoryMovement.create({
         data: {
           ingredientId: recipe.ingredient.id,
+          ingredientNameSnapshot: recipe.ingredient.name,
+          ingredientUnitSnapshot: recipe.ingredient.unit,
           stockDocumentId,
           quantity: deduction,
           costPerUnit: batch.costPerUnit,
@@ -119,12 +118,7 @@ export async function deductInventory(
 /**
  * Update (upsert) daily BusinessMetrics after a sale.
  */
-export async function updateBusinessMetrics(
-  tx: TxClient,
-  businessId: number,
-  revenue: number,
-  cost: number,
-) {
+export async function updateBusinessMetrics(tx: TxClient, businessId: number, revenue: number, cost: number) {
   const today = new Date();
   const dateOnly = new Date(today.toISOString().split("T")[0]);
 
@@ -240,10 +234,7 @@ export async function recomputeRecipeCost(tx: TxClient, productId: number): Prom
   for (const recipe of recipes) {
     const batches = recipe.ingredient.inventoryBatches;
     const totalQty = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-    const totalValue = batches.reduce(
-      (sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit),
-      0,
-    );
+    const totalValue = batches.reduce((sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit), 0);
     const avgCost = totalQty > 0 ? totalValue / totalQty : batches[0] ? Number(batches[0].costPerUnit) : 0;
     recipeCost += Number(recipe.quantity) * avgCost;
   }
@@ -256,4 +247,3 @@ export async function recomputeRecipeCost(tx: TxClient, productId: number): Prom
     productId,
   );
 }
-

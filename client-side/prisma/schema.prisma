@@ -156,6 +156,7 @@ model Product {
   sellingPrice Decimal  @db.Decimal(12, 2)
   recipeCost   Decimal  @default(0) @db.Decimal(12, 2)
   isActive     Boolean  @default(true)
+  deletedAt    DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -166,9 +167,10 @@ model Product {
   productMetrics ProductMetrics[]
   productForecasts ProductForecast[]
 
-  // GET /api/products: findMany where businessId (+ isActive filter in POS)
+  // GET /api/products: findMany where businessId + deletedAt: null
   // AI chat: findMany where businessId + isActive
   @@index([businessId, isActive])
+  @@index([businessId, deletedAt])
   @@index([businessId, categoryId])
   @@index([categoryId])
 }
@@ -229,14 +231,17 @@ model StockDocument {
 
 model InventoryMovement {
   id              Int                   @id @default(autoincrement())
-  ingredientId    Int
+  ingredientId    Int?
   stockDocumentId Int
   quantity        Decimal               @db.Decimal(10, 3)
   costPerUnit     Decimal               @db.Decimal(12, 2)
   type            InventoryMovementType
+  /// Preserved when the ingredient is later deleted
+  ingredientNameSnapshot String?
+  ingredientUnitSnapshot String?
   createdAt       DateTime              @default(now())
 
-  ingredient    Ingredient    @relation(fields: [ingredientId], references: [id], onDelete: Cascade)
+  ingredient    Ingredient?   @relation(fields: [ingredientId], references: [id], onDelete: SetNull)
   stockDocument StockDocument @relation(fields: [stockDocumentId], references: [id], onDelete: Cascade)
 
   // deductInventory: create with ingredientId + stockDocumentId

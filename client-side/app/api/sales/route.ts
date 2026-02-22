@@ -192,201 +192,187 @@ export async function POST(request: NextRequest) {
 
     const { items, paymentMethod, paymentStatus, customerName, customerEmail, customerPhone } = parsed.data;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate all products exist and belong to business
-      const productIds = [...new Set(items.map((i) => i.productId))];
-      const products = await tx.product.findMany({
-        where: { id: { in: productIds }, businessId },
-        select: { id: true, sellingPrice: true },
-      });
-
-      if (products.length !== productIds.length) {
-        const foundIds = new Set(products.map((p) => p.id));
-        const missing = productIds.filter((id) => !foundIds.has(id));
-        throw new Error(`Product with ID ${missing[0]} not found`);
-      }
-
-      const productPriceMap = new Map(products.map((p) => [p.id, Number(p.sellingPrice)]));
-
-      // 2. Check inventory availability for all items
-      for (const item of items) {
-        const recipes = await tx.recipe.findMany({
-          where: { productId: item.productId },
-          include: {
-            ingredient: {
-              select: {
-                id: true,
-                name: true,
-                inventoryBatches: {
-                  where: { remainingQty: { gt: 0 } },
-                  select: { remainingQty: true },
-                },
-              },
-            },
-          },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Validate all products exist and belong to business
+        const productIds = [...new Set(items.map((i) => i.productId))];
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds }, businessId, deletedAt: null },
+          select: { id: true, sellingPrice: true },
         });
 
-        for (const recipe of recipes) {
-          const requiredQty = Number(recipe.quantity) * item.quantity;
-          const availableQty = recipe.ingredient.inventoryBatches.reduce(
-            (sum, b) => sum + Number(b.remainingQty),
-            0,
-          );
-
-          if (availableQty < requiredQty) {
-            throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
-          }
-        }
-      }
-
-      // 3. Calculate costs and create sale
-      let totalRevenue = 0;
-      let totalCost = 0;
-
-      const saleItemsData = [];
-
-      const allIngredientBreakdowns = [];
-
-      for (const item of items) {
-        const price = productPriceMap.get(item.productId)!;
-
-        type CostResult =
-          | number
-          | {
-              cost: number;
-              ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[];
-            };
-
-        const costResult = await calculateProductCost(
-          tx,
-          item.productId,
-          item.quantity
-        ) as CostResult;
-
-        let cost: number;
-        let ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[] = [];
-
-        if (typeof costResult === "number") {
-          cost = costResult;
-        } else if (
-          costResult &&
-          typeof costResult === "object" &&
-          "cost" in costResult &&
-          "ingredientBreakdowns" in costResult
-        ) {
-          cost = costResult.cost;
-          ingredientBreakdowns = costResult.ingredientBreakdowns;
-        } else {
-          throw new Error("Unexpected return value from calculateProductCost");
+        if (products.length !== productIds.length) {
+          const foundIds = new Set(products.map((p) => p.id));
+          const missing = productIds.filter((id) => !foundIds.has(id));
+          throw new Error(`Product with ID ${missing[0]} not found`);
         }
 
-        totalRevenue += price * item.quantity;
-        totalCost += cost;
+        const productPriceMap = new Map(products.map((p) => [p.id, Number(p.sellingPrice)]));
 
-        saleItemsData.push({
-          productId: item.productId,
-          quantity: item.quantity,
-          priceAtSale: price,
-          costAtSale: cost / item.quantity,
-        });
-
-        allIngredientBreakdowns.push(...ingredientBreakdowns);
-      }
-
-      // 4. Create stock document for this sale
-      const stockDocument = await tx.stockDocument.create({
-        data: {
-          businessId,
-          type: "Sale",
-          notes: `Sale transaction`,
-        },
-      });
-
-      // 5. Create sale record
-      const sale = await tx.sale.create({
-        data: {
-          businessId,
-          stockDocumentId: stockDocument.id,
-          transactionNumber: generateTransactionNumber(),
-          totalRevenue,
-          totalCost,
-          paymentMethod,
-          paymentStatus,
-          customerName,
-          customerEmail,
-          customerPhone,
-        },
-      });
-
-      // 6. Create sale items
-      await tx.saleItem.createMany({
-        data: saleItemsData.map((item) => ({
-          saleId: sale.id,
-          ...item,
-        })),
-      });
-      
-      for (const ingredient of allIngredientBreakdowns) {
-        // Fetch costPerUnit for each batch in the breakdown
-        const batchIds = ingredient.breakdown.map(b => b.batchId);
-        const batches = await tx.inventoryBatch.findMany({
-          where: { id: { in: batchIds } },
-          select: { id: true, costPerUnit: true },
-        });
-        const batchCostMap = new Map(batches.map(b => [b.id, Number(b.costPerUnit)]));
-        const breakdownWithCost = ingredient.breakdown.map(b => ({
-          ...b,
-          costPerUnit: batchCostMap.get(b.batchId) ?? 0,
-        }));
-        await deductFIFO(
-          tx,
-          ingredient.ingredientId,
-          breakdownWithCost,
-          stockDocument.id
-        );
-      }
-
-      // 7. Recompute recipeCost on each sold product (keeps margin data fresh)
-      const soldProductIds = [...new Set(items.map((i) => i.productId))];
-      for (const pid of soldProductIds) {
-        await recomputeRecipeCost(tx, pid);
-      }
-
-      await updateBusinessMetrics(
-        tx,
-        businessId,
-        totalRevenue,
-        totalCost
-      );
-
-      for (const item of saleItemsData) {
-        await updateProductMetrics(
-          tx,
-          item.productId,
-          item.quantity,
-          item.priceAtSale * item.quantity,
-          item.costAtSale * item.quantity
-        );
-      }
-
-      // 8. Return full sale with items
-      return tx.sale.findUnique({
-        where: { id: sale.id },
-        include: {
-          saleItems: {
+        // 2. Check inventory availability for all items
+        for (const item of items) {
+          const recipes = await tx.recipe.findMany({
+            where: { productId: item.productId },
             include: {
-              product: {
+              ingredient: {
                 select: {
                   id: true,
                   name: true,
-                  categoryId: true,
+                  inventoryBatches: {
+                    where: { remainingQty: { gt: 0 } },
+                    select: { remainingQty: true },
+                  },
+                },
+              },
+            },
+          });
+
+          for (const recipe of recipes) {
+            const requiredQty = Number(recipe.quantity) * item.quantity;
+            const availableQty = recipe.ingredient.inventoryBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
+
+            if (availableQty < requiredQty) {
+              throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
+            }
+          }
+        }
+
+        // 3. Calculate costs and create sale
+        let totalRevenue = 0;
+        let totalCost = 0;
+
+        const saleItemsData = [];
+
+        const allIngredientBreakdowns = [];
+
+        for (const item of items) {
+          const price = productPriceMap.get(item.productId)!;
+
+          type CostResult =
+            | number
+            | {
+                cost: number;
+                ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[];
+              };
+
+          const costResult = (await calculateProductCost(tx, item.productId, item.quantity)) as CostResult;
+
+          let cost: number;
+          let ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[] = [];
+
+          if (typeof costResult === "number") {
+            cost = costResult;
+          } else if (
+            costResult &&
+            typeof costResult === "object" &&
+            "cost" in costResult &&
+            "ingredientBreakdowns" in costResult
+          ) {
+            cost = costResult.cost;
+            ingredientBreakdowns = costResult.ingredientBreakdowns;
+          } else {
+            throw new Error("Unexpected return value from calculateProductCost");
+          }
+
+          totalRevenue += price * item.quantity;
+          totalCost += cost;
+
+          saleItemsData.push({
+            productId: item.productId,
+            quantity: item.quantity,
+            priceAtSale: price,
+            costAtSale: cost / item.quantity,
+          });
+
+          allIngredientBreakdowns.push(...ingredientBreakdowns);
+        }
+
+        // 4. Create stock document for this sale
+        const stockDocument = await tx.stockDocument.create({
+          data: {
+            businessId,
+            type: "Sale",
+            notes: `Sale transaction`,
+          },
+        });
+
+        // 5. Create sale record
+        const sale = await tx.sale.create({
+          data: {
+            businessId,
+            stockDocumentId: stockDocument.id,
+            transactionNumber: generateTransactionNumber(),
+            totalRevenue,
+            totalCost,
+            paymentMethod,
+            paymentStatus,
+            customerName,
+            customerEmail,
+            customerPhone,
+          },
+        });
+
+        // 6. Create sale items
+        await tx.saleItem.createMany({
+          data: saleItemsData.map((item) => ({
+            saleId: sale.id,
+            ...item,
+          })),
+        });
+
+        for (const ingredient of allIngredientBreakdowns) {
+          // Fetch costPerUnit for each batch in the breakdown
+          const batchIds = ingredient.breakdown.map((b) => b.batchId);
+          const batches = await tx.inventoryBatch.findMany({
+            where: { id: { in: batchIds } },
+            select: { id: true, costPerUnit: true },
+          });
+          const batchCostMap = new Map(batches.map((b) => [b.id, Number(b.costPerUnit)]));
+          const breakdownWithCost = ingredient.breakdown.map((b) => ({
+            ...b,
+            costPerUnit: batchCostMap.get(b.batchId) ?? 0,
+          }));
+          await deductFIFO(tx, ingredient.ingredientId, breakdownWithCost, stockDocument.id);
+        }
+
+        // 7. Recompute recipeCost on each sold product (keeps margin data fresh)
+        const soldProductIds = [...new Set(items.map((i) => i.productId))];
+        for (const pid of soldProductIds) {
+          await recomputeRecipeCost(tx, pid);
+        }
+
+        await updateBusinessMetrics(tx, businessId, totalRevenue, totalCost);
+
+        for (const item of saleItemsData) {
+          await updateProductMetrics(
+            tx,
+            item.productId,
+            item.quantity,
+            item.priceAtSale * item.quantity,
+            item.costAtSale * item.quantity,
+          );
+        }
+
+        // 8. Return full sale with items
+        return tx.sale.findUnique({
+          where: { id: sale.id },
+          include: {
+            saleItems: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    categoryId: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
-    }, { timeout: 30000 });
+        });
+      },
+      { timeout: 30000 },
+    );
 
     if (result && result.paymentStatus === "Paid") {
       try {

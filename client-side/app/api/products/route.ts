@@ -62,6 +62,7 @@ async function checkDuplicateProducts(
     where: {
       businessId,
       name: { in: names, mode: "insensitive" },
+      deletedAt: null,
     },
     select: { name: true },
   });
@@ -108,12 +109,13 @@ export async function GET(request: NextRequest) {
 
     const where = {
       businessId,
+      deletedAt: null as null,
       ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
       ...(categoryId ? { categoryId: Number(categoryId) } : {}),
     };
 
     // Build raw WHERE fragments (reused for stats + margin sort query)
-    const whereParts: Prisma.Sql[] = [Prisma.sql`"businessId" = ${businessId}`];
+    const whereParts: Prisma.Sql[] = [Prisma.sql`"businessId" = ${businessId}`, Prisma.sql`"deletedAt" IS NULL`];
     if (search) whereParts.push(Prisma.sql`name ILIKE ${"%" + search + "%"}`);
     if (categoryId) whereParts.push(Prisma.sql`"categoryId" = ${Number(categoryId)}`);
     const whereRaw = Prisma.join(whereParts, " AND ");
@@ -486,7 +488,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Some products were not found" }, { status: 404 });
     }
 
-    await prisma.product.deleteMany({ where: { id: { in: ids }, businessId } });
+    // Soft-delete: SaleItem / ProductMetrics / ProductForecast rows are preserved
+    const now = new Date();
+    await prisma.product.updateMany({ where: { id: { in: ids }, businessId }, data: { deletedAt: now } });
 
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (error) {
