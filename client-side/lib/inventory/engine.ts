@@ -1,11 +1,11 @@
 import { Prisma } from "@prisma/client";
 
-type Tx = Prisma.TransactionClient;;
+type Tx = Prisma.TransactionClient;
 
 export async function simulateFIFOCost(
   tx: Tx,
   ingredientId: number,
-  requiredQty: number
+  requiredQty: number,
 ): Promise<{
   totalCost: number;
   breakdown: { batchId: number; quantity: number; costPerUnit: number }[];
@@ -55,8 +55,14 @@ export async function deductFIFO(
   tx: Tx,
   ingredientId: number,
   breakdown: { batchId: number; quantity: number; costPerUnit: number }[],
-  stockDocumentId: number
+  stockDocumentId: number,
 ) {
+  // Fetch name + unit once so we can store snapshots on every movement row
+  const ingredientMeta = await tx.ingredient.findUnique({
+    where: { id: ingredientId },
+    select: { name: true, unit: true },
+  });
+
   for (const item of breakdown) {
     const batch = await tx.inventoryBatch.findUnique({
       where: { id: item.batchId },
@@ -74,6 +80,8 @@ export async function deductFIFO(
     await tx.inventoryMovement.create({
       data: {
         ingredientId,
+        ingredientNameSnapshot: ingredientMeta?.name,
+        ingredientUnitSnapshot: ingredientMeta?.unit,
         stockDocumentId,
         quantity: item.quantity,
         costPerUnit: item.costPerUnit,

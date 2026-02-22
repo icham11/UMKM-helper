@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
         orderBy: { name: "asc" },
       }),
       prisma.product.findMany({
-        where: { businessId },
+        where: { businessId, deletedAt: null },
         select: { name: true },
       }),
     ]);

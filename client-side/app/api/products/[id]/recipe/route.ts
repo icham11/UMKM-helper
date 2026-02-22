@@ -19,7 +19,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     }
 
     const product = await prisma.product.findFirst({
-      where: { id: productId, businessId },
+      where: { id: productId, businessId, deletedAt: null },
       include: {
         recipes: {
           include: {
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     // Validate product belongs to business
     const product = await prisma.product.findFirst({
-      where: { id: productId, businessId },
+      where: { id: productId, businessId, deletedAt: null },
     });
 
     if (!product) {
