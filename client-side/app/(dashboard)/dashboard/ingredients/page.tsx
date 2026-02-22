@@ -1,86 +1,119 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import {
-  Plus,
-  PackageOpen,
-  X,
-  History,
-  RefreshCw,
-  AlertTriangle,
-} from "lucide-react"
+import { useEffect, useState } from "react";
+import { Plus, PackageOpen, X, History, RefreshCw, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import IngredientStatusBadge from "./components/IngredientStatusBadge";
-import { getIngredients, type Ingredient } from "@/lib/api/ingredients"
+import { getIngredients, deleteIngredient, bulkDeleteIngredients, type Ingredient } from "@/lib/api/ingredients";
 
-import { useBusiness } from "@/context/BusinessContext"
+import { useBusiness } from "@/context/BusinessContext";
 
 export default function IngredientsPage() {
-  const [ingredients, setIngredients] = useState<Ingredient[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   // Pagination
-  const [page, setPage] = useState(1)
+  const [page, setPage] = useState(1);
   const pageSize = 10;
   // Sort
-  const [sortBy, setSortBy] = useState<'name'|'currentStock'|'minStock'|'costPerUnit'>('name')
-  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
+  const [sortBy, setSortBy] = useState<"name" | "currentStock" | "minStock" | "costPerUnit">("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   // Filter
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'all'|'low'|'safe'>('all')
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "habis" | "perlu-restock" | "bahaya" | "aman">("all");
 
-  const [isAddOpen, setIsAddOpen] = useState(false)
-  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
-  const [isRestockOpen, setIsRestockOpen] = useState(false)
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null);
+  const [isRestockOpen, setIsRestockOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  const { business, loading: businessLoading } = useBusiness()
+  // Delete / bulk-delete state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleteTarget, setDeleteTarget] = useState<Ingredient | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const { business, loading: businessLoading } = useBusiness();
 
   const fetchData = async () => {
     try {
-      setLoading(true)
-      const data = await getIngredients()
-      setIngredients(data)
+      setLoading(true);
+      const data = await getIngredients();
+      setIngredients(data);
+      setSelectedIds(new Set()); // clear selection on refresh
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to fetch")
+      setError(err instanceof Error ? err.message : "Failed to fetch");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await deleteIngredient(deleteTarget.id);
+      setIngredients((prev) => prev.filter((i) => i.id !== deleteTarget.id));
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        n.delete(deleteTarget.id as string);
+        return n;
+      });
+      setDeleteTarget(null);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    setDeleteError(null);
+    try {
+      await bulkDeleteIngredients(Array.from(selectedIds));
+      setIngredients((prev) => prev.filter((i) => !selectedIds.has(i.id as string)));
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   useEffect(() => {
-    if (!business || businessLoading) return
-    fetchData()
-  }, [business, businessLoading])
+    if (!business || businessLoading) return;
+    fetchData();
+  }, [business, businessLoading]);
 
   const formatCurrency = (value: number | null) => {
-    if (!value) return "—"
+    if (!value) return "—";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(value)
-  }
+    }).format(value);
+  };
 
   if (businessLoading || loading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-500 animate-pulse">
         <PackageOpen size={48} />
-        <span className="mt-4 text-lg font-semibold">
-          Loading ingredients...
-        </span>
+        <span className="mt-4 text-lg font-semibold">Loading ingredients...</span>
       </div>
-    )
+    );
   }
 
   if (!business) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-400">
         <PackageOpen size={48} />
-        <span className="mt-4 text-lg font-semibold">
-          Anda belum memiliki bisnis.
-        </span>
+        <span className="mt-4 text-lg font-semibold">Anda belum memiliki bisnis.</span>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -89,40 +122,72 @@ export default function IngredientsPage() {
         <AlertTriangle size={48} />
         <span className="mt-4 text-lg font-semibold">{error}</span>
       </div>
-    )
+    );
   }
 
   // Filtering
-  const filtered = ingredients.filter(ing => {
-    const matchesSearch = ing.name.toLowerCase().includes(search.toLowerCase())
-    const isLow = ing.currentStock < ing.minStock
-    const matchesStatus = statusFilter === 'all' || (statusFilter === 'low' && isLow) || (statusFilter === 'safe' && !isLow)
-    return matchesSearch && matchesStatus
-  })
+  const filtered = ingredients.filter((ing) => {
+    const matchesSearch = ing.name.toLowerCase().includes(search.toLowerCase());
+    const s = ing.currentStock;
+    const m = ing.minStock;
+    let matchesStatus = true;
+    if (statusFilter === "habis") {
+      matchesStatus = s === 0;
+    } else if (statusFilter === "perlu-restock") {
+      matchesStatus = s > 0 && m >= 0 && s <= m;
+    } else if (statusFilter === "bahaya") {
+      matchesStatus = m >= 0 && s > m && s <= m * 2;
+    } else if (statusFilter === "aman") {
+      matchesStatus = s > 0 && (m < 0 || s > m * 2);
+    }
+    return matchesSearch && matchesStatus;
+  });
   // Sorting
   // NOTE: Default urutan dari backend adalah latest created (createdAt desc)
   // Jika sortBy bukan 'name', tetap lakukan sorting sesuai pilihan user
   let sorted = [...filtered];
-  if (sortBy !== 'name') {
+  if (sortBy !== "name") {
     sorted = sorted.sort((a, b) => {
       const cmp = (a[sortBy] ?? 0) - (b[sortBy] ?? 0);
-      return sortDir === 'asc' ? cmp : -cmp;
+      return sortDir === "asc" ? cmp : -cmp;
     });
   }
   // Pagination
-  const totalPages = Math.ceil(sorted.length / pageSize)
-  const paged = sorted.slice((page-1)*pageSize, page*pageSize)
+  const totalPages = Math.ceil(sorted.length / pageSize);
+  const paged = sorted.slice((page - 1) * pageSize, page * pageSize);
+
+  // Selection helpers
+  const allSelected = paged.length > 0 && paged.every((i) => selectedIds.has(i.id as string));
+  const someSelected = paged.some((i) => selectedIds.has(i.id as string)) && !allSelected;
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  const toggleSelectAll = () => {
+    if (allSelected)
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        paged.forEach((i) => n.delete(i.id as string));
+        return n;
+      });
+    else
+      setSelectedIds((prev) => {
+        const n = new Set(prev);
+        paged.forEach((i) => n.add(i.id as string));
+        return n;
+      });
+  };
 
   return (
     <div className="space-y-10">
-
       {/* HEADER */}
       <div className="flex justify-between items-center bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
         <div>
           <h1 className="text-3xl font-bold text-white">Ingredients</h1>
-          <p className="text-indigo-100">
-            Kelola stok bahan baku dengan visual & batch tracking.
-          </p>
+          <p className="text-indigo-100">Kelola stok bahan baku dengan visual & batch tracking.</p>
         </div>
 
         <button
@@ -142,16 +207,24 @@ export default function IngredientsPage() {
             placeholder="Cari nama bahan..."
             className="px-3 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
             value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
           <select
             className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
             value={statusFilter}
-            onChange={e => { setStatusFilter(e.target.value as 'all' | 'low' | 'safe'); setPage(1); }}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as "all" | "habis" | "perlu-restock" | "bahaya" | "aman");
+              setPage(1);
+            }}
           >
             <option value="all">Semua Status</option>
-            <option value="low">Stok Rendah</option>
-            <option value="safe">Aman</option>
+            <option value="habis">Habis</option>
+            <option value="perlu-restock">Perlu Restock</option>
+            <option value="bahaya">Bahaya</option>
+            <option value="aman">Aman</option>
           </select>
         </div>
         <div className="flex gap-2 items-center">
@@ -159,7 +232,10 @@ export default function IngredientsPage() {
           <select
             className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
             value={sortBy}
-            onChange={e => { setSortBy(e.target.value as 'name' | 'currentStock' | 'minStock' | 'costPerUnit'); setPage(1); }}
+            onChange={(e) => {
+              setSortBy(e.target.value as "name" | "currentStock" | "minStock" | "costPerUnit");
+              setPage(1);
+            }}
           >
             <option value="name">Nama</option>
             <option value="currentStock">Stok</option>
@@ -168,18 +244,56 @@ export default function IngredientsPage() {
           </select>
           <button
             className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
-            onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+            onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
             title="Urutan"
           >
-            {sortDir === 'asc' ? '⬆️' : '⬇️'}
+            {sortDir === "asc" ? "⬆️" : "⬇️"}
           </button>
         </div>
       </div>
+      {/* BULK ACTION BAR */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3">
+          <span className="text-sm font-semibold text-indigo-700">
+            {selectedIds.size} ingredient{selectedIds.size !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-white border border-gray-200 transition"
+            >
+              Deselect all
+            </button>
+            <button
+              onClick={() => {
+                setDeleteError(null);
+                setBulkDeleteOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition"
+            >
+              <Trash2 size={13} />
+              Delete selected
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* TABLE */}
       <div className="bg-white rounded-3xl shadow-xl overflow-x-auto custom-scroll">
         <table className="w-full min-w-150 text-base">
           <thead className="bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
             <tr>
+              <th className="pl-5 pr-2 py-4 w-10">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someSelected;
+                  }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                />
+              </th>
               <th className="px-6 py-4 text-left font-bold">Nama</th>
               <th className="px-6 py-4 text-left font-bold">Stok</th>
               <th className="px-6 py-4 text-left font-bold">Min</th>
@@ -190,42 +304,47 @@ export default function IngredientsPage() {
           </thead>
           <tbody>
             {paged.map((ingredient) => {
-              const isLow = ingredient.currentStock < ingredient.minStock;
+              const isSelected = selectedIds.has(ingredient.id as string);
               return (
                 <tr
                   key={ingredient.id}
-                  className="border-t bg-white hover:bg-indigo-50 transition-all"
+                  className={`border-t transition-all ${isSelected ? "bg-indigo-50" : "bg-white hover:bg-indigo-50"}`}
                 >
-                  <td className="px-4 py-3 font-bold text-slate-800 group-hover:text-indigo-700">
-                    {ingredient.name}
+                  <td className="pl-5 pr-2 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelect(ingredient.id as string)}
+                      className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
+                    />
                   </td>
+                  <td className="px-4 py-3 font-bold text-slate-800 group-hover:text-indigo-700">{ingredient.name}</td>
                   <td className="px-4 py-3 text-slate-700">
-                    {ingredient.currentStock === 0 ? (
+                    {ingredient.currentStock === -1 ? (
                       <span className="text-gray-400 italic">Belum di-set</span>
                     ) : (
                       <>
-                        <span className="font-semibold">{ingredient.currentStock}</span> <span className="text-xs text-slate-500">{ingredient.unit}</span>
+                        <span className="font-semibold">{ingredient.currentStock}</span>{" "}
+                        <span className="text-xs text-slate-500">{ingredient.unit}</span>
                       </>
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-700 font-semibold">
                     {ingredient.minStock === -1 ? (
-                      <span className="text-gray-400 italic">Belum di-set</span>
+                      <span className="text-gray-400 italic">Tidak di-set</span>
                     ) : (
                       ingredient.minStock
                     )}
                   </td>
-                  <td className="px-4 py-3 text-indigo-700 font-bold">
-                    {formatCurrency(ingredient.costPerUnit)}
-                  </td>
+                  <td className="px-4 py-3 text-indigo-700 font-bold">{formatCurrency(ingredient.costPerUnit)}</td>
                   <td className="px-4 py-3">
                     <IngredientStatusBadge stock={ingredient.currentStock} minStock={ingredient.minStock} />
                   </td>
                   <td className="px-4 py-3 flex gap-2">
                     <button
                       onClick={() => {
-                        setSelectedIngredient(ingredient)
-                        setIsRestockOpen(true)
+                        setSelectedIngredient(ingredient);
+                        setIsRestockOpen(true);
                       }}
                       className="text-indigo-600 hover:text-indigo-800 p-1 rounded-full transition"
                       title="Restock"
@@ -234,17 +353,27 @@ export default function IngredientsPage() {
                     </button>
                     <button
                       onClick={() => {
-                        setSelectedIngredient(ingredient)
-                        setIsHistoryOpen(true)
+                        setSelectedIngredient(ingredient);
+                        setIsHistoryOpen(true);
                       }}
                       className="text-violet-600 hover:text-violet-900 p-1 rounded-full transition"
                       title="History"
                     >
                       <History size={18} />
                     </button>
+                    <button
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(ingredient);
+                      }}
+                      className="text-red-400 hover:text-red-600 p-1 rounded-full transition"
+                      title="Delete"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </td>
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
@@ -278,8 +407,8 @@ export default function IngredientsPage() {
         <AddIngredientModal
           onClose={() => setIsAddOpen(false)}
           onSuccess={() => {
-            setIsAddOpen(false)
-            fetchData()
+            setIsAddOpen(false);
+            fetchData();
           }}
         />
       )}
@@ -288,43 +417,133 @@ export default function IngredientsPage() {
           ingredient={selectedIngredient}
           onClose={() => setIsRestockOpen(false)}
           onSuccess={() => {
-            setIsRestockOpen(false)
-            fetchData()
+            setIsRestockOpen(false);
+            fetchData();
           }}
         />
       )}
       {isHistoryOpen && selectedIngredient && (
-        <BatchHistoryModal
-          ingredient={selectedIngredient}
-          onClose={() => setIsHistoryOpen(false)}
-        />
+        <BatchHistoryModal ingredient={selectedIngredient} onClose={() => setIsHistoryOpen(false)} />
+      )}
+
+      {/* Single delete confirm */}
+      {deleteTarget && (
+        <ModalWrapper
+          onClose={() => {
+            if (!deleting) setDeleteTarget(null);
+          }}
+          title=""
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
+                <Trash2 size={18} />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-slate-800">Delete Ingredient?</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  <span className="font-semibold text-slate-700">{deleteTarget.name}</span> and all its inventory
+                  batches will be permanently deleted.
+                </p>
+              </div>
+            </div>
+            {deleteError && (
+              <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                {deleteError}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirmed}
+                disabled={deleting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Delete
+              </button>
+            </div>
+          </div>
+        </ModalWrapper>
+      )}
+
+      {/* Bulk delete confirm */}
+      {bulkDeleteOpen && (
+        <ModalWrapper
+          onClose={() => {
+            if (!bulkDeleting) setBulkDeleteOpen(false);
+          }}
+          title=""
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
+                <Trash2 size={18} />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-slate-800">
+                  Delete {selectedIds.size} Ingredient{selectedIds.size !== 1 ? "s" : ""}?
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  All selected ingredients and their batches will be permanently deleted.
+                </p>
+              </div>
+            </div>
+            {deleteError && (
+              <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs">
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                {deleteError}
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBulkDeleteOpen(false)}
+                disabled={bulkDeleting}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+              >
+                {bulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                Delete {selectedIds.size}
+              </button>
+            </div>
+          </div>
+        </ModalWrapper>
       )}
     </div>
-  )
+  );
 }
 
 /* =======================
    RESTOCK MODAL
-======================= */ 
+======================= */
 
 interface RestockModalProps {
-  ingredient: Ingredient
-  onClose: () => void
-  onSuccess: () => void
+  ingredient: Ingredient;
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
-function RestockModal({
-  ingredient,
-  onClose,
-  onSuccess,
-}: RestockModalProps) {
-  const [quantity, setQuantity] = useState(0)
-  const [cost, setCost] = useState(0)
-  const [date, setDate] = useState("")
-  const [loading, setLoading] = useState(false)
+function RestockModal({ ingredient, onClose, onSuccess }: RestockModalProps) {
+  const [quantity, setQuantity] = useState(0);
+  const [cost, setCost] = useState(0);
+  const [date, setDate] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleRestock = async () => {
-    setLoading(true)
+    setLoading(true);
 
     await fetch(`/api/ingredients/${ingredient.id}/restock`, {
       method: "POST",
@@ -334,15 +553,24 @@ function RestockModal({
         costPerUnit: cost,
         expirationDate: date ? new Date(date).toISOString() : undefined,
       }),
-    })
+    });
 
-    setLoading(false)
-    onSuccess()
-  }
+    setLoading(false);
+    onSuccess();
+  };
 
   return (
-    <ModalWrapper onClose={onClose} title={<span className="text-indigo-700 font-bold text-lg">Restock {ingredient.name}</span>}>
-      <form className="space-y-5 px-1 py-2" onSubmit={e => { e.preventDefault(); handleRestock(); }}>
+    <ModalWrapper
+      onClose={onClose}
+      title={<span className="text-indigo-700 font-bold text-lg">Restock {ingredient.name}</span>}
+    >
+      <form
+        className="space-y-5 px-1 py-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleRestock();
+        }}
+      >
         <div className="space-y-2">
           <label className="block text-sm font-semibold text-indigo-700">Quantity</label>
           <input
@@ -382,7 +610,7 @@ function RestockModal({
         </button>
       </form>
     </ModalWrapper>
-  )
+  );
 }
 
 /* =======================
@@ -390,30 +618,30 @@ function RestockModal({
 ======================= */
 
 interface Batch {
-  expirationDate: string | number | Date
-  id: string
-  remainingQty: number
-  costPerUnit: number
+  expirationDate: string | number | Date;
+  id: string;
+  remainingQty: number;
+  costPerUnit: number;
   // Add other fields as needed
 }
 
 interface BatchHistoryModalProps {
-  ingredient: Ingredient
-  onClose: () => void
+  ingredient: Ingredient;
+  onClose: () => void;
 }
 
 function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
-  const [batches, setBatches] = useState<Batch[]>([])
+  const [batches, setBatches] = useState<Batch[]>([]);
 
   useEffect(() => {
     const fetchHistory = async () => {
-      const res = await fetch(`/api/ingredients?withBatches=true`)
-      const data = await res.json()
-      const item = data.data.find((i: Ingredient) => i.id === ingredient.id)
-      setBatches(item?.inventoryBatches || [])
-    }
-    fetchHistory()
-  }, [ingredient.id])
+      const res = await fetch(`/api/ingredients?withBatches=true`);
+      const data = await res.json();
+      const item = data.data.find((i: Ingredient) => i.id === ingredient.id);
+      setBatches(item?.inventoryBatches || []);
+    };
+    fetchHistory();
+  }, [ingredient.id]);
 
   return (
     <ModalWrapper onClose={onClose} title={<span className="text-indigo-700 font-bold text-lg">Batch History</span>}>
@@ -431,8 +659,12 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
                 <span className="text-xs text-slate-500">ID: {batch.id}</span>
               </div>
               <div className="flex flex-wrap gap-4 text-sm mt-2 md:mt-0">
-                <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">Qty: {batch.remainingQty}</span>
-                <span className="inline-block bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-semibold">Cost: Rp {batch.costPerUnit?.toLocaleString("id-ID")}</span>
+                <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">
+                  Qty: {batch.remainingQty}
+                </span>
+                <span className="inline-block bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-semibold">
+                  Cost: Rp {batch.costPerUnit?.toLocaleString("id-ID")}
+                </span>
                 {batch.expirationDate && (
                   <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
                     Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID")}
@@ -444,7 +676,7 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
         )}
       </div>
     </ModalWrapper>
-  )
+  );
 }
 
 /* =======================
@@ -452,16 +684,13 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
 ======================= */
 
 interface AddIngredientModalProps {
-  onClose: () => void
-  onSuccess: () => void
+  onClose: () => void;
+  onSuccess: () => void;
 }
 
-function AddIngredientModal({
-  onClose,
-  onSuccess,
-}: AddIngredientModalProps) {
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+function AddIngredientModal({ onClose, onSuccess }: AddIngredientModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -470,21 +699,19 @@ function AddIngredientModal({
     quantity: -1,
     costPerUnit: 0,
     expirationDate: "",
-  })
+  });
 
   const handleSubmit = async () => {
     if (!form.name || !form.unit) {
-      setError("Nama dan satuan wajib diisi")
-      return
+      setError("Nama dan satuan wajib diisi");
+      return;
     }
 
     try {
-      setLoading(true)
-      setError("")
+      setLoading(true);
+      setError("");
 
-      const expirationDateISO = form.expirationDate
-        ? new Date(form.expirationDate).toISOString()
-        : undefined
+      const expirationDateISO = form.expirationDate ? new Date(form.expirationDate).toISOString() : undefined;
 
       const res = await fetch("/api/ingredients", {
         method: "POST",
@@ -502,35 +729,32 @@ function AddIngredientModal({
                 }
               : undefined,
         }),
-      })
+      });
 
-      const data = await res.json()
+      const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Failed to create ingredient")
+        throw new Error(data.error || "Failed to create ingredient");
       }
 
-      onSuccess()
+      onSuccess();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan")
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <ModalWrapper onClose={onClose} title="Tambah Bahan Baku">
       <form
         onSubmit={(e) => {
-          e.preventDefault()
-          handleSubmit()
+          e.preventDefault();
+          handleSubmit();
         }}
         className="space-y-4"
       >
-        {error && (
-          <div className="text-red-600 text-sm">{error}</div>
-        )}
-
+        {error && <div className="text-red-600 text-sm">{error}</div>}
 
         <div>
           <label className="block text-sm font-semibold text-indigo-700 mb-1">Nama</label>
@@ -607,7 +831,7 @@ function AddIngredientModal({
         </div>
       </form>
     </ModalWrapper>
-  )
+  );
 }
 
 /* =======================
@@ -615,25 +839,15 @@ function AddIngredientModal({
 ======================= */
 
 interface ModalWrapperProps {
-  children: React.ReactNode
-  onClose: () => void
-  title: React.ReactNode
+  children: React.ReactNode;
+  onClose: () => void;
+  title: React.ReactNode;
 }
 
-function ModalWrapper({
-  children,
-  onClose,
-  title,
-}: ModalWrapperProps) {
+function ModalWrapper({ children, onClose, title }: ModalWrapperProps) {
   return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-2xl w-full max-w-md p-6"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between mb-4">
           <h2 className="font-bold text-lg">{title}</h2>
           <button onClick={onClose}>
@@ -643,5 +857,5 @@ function ModalWrapper({
         {children}
       </div>
     </div>
-  )
+  );
 }

@@ -1,18 +1,176 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, Image as ImageIcon, Plus, Loader2, CheckCircle2, Sparkles } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronDown,
+  ChevronUp,
+  Image as ImageIcon,
+  Plus,
+  Loader2,
+  CheckCircle2,
+  Sparkles,
+  AlertTriangle,
+  Trash2,
+} from "lucide-react";
 import { useBusiness } from "@/context/BusinessContext";
 import PhotoUploadModal from "./components/PhotoUploadModal";
 import ProductForm from "./components/ProductForm";
 import ProductDraftCard from "./components/ProductDraftCard";
-import { createBulkProducts, getIngredientOptions } from "@/lib/api/products";
+import { createBulkProducts, getIngredientOptions, deleteIngredient, patchIngredient } from "@/lib/api/products";
 import type { IngredientOption } from "@/lib/api/products";
-import type { ProductDraft } from "@/types/product";
+import type { ProductDraft, DraftRecipeRow } from "@/types/product";
 
 type Mode = "idle" | "bulk-drafts" | "manual";
+
+// ── Tracks a new ingredient in the local bulk-edit buffer ──────────────────
+type LocalNewIng = DraftRecipeRow & {
+  _originalName: string;
+  /** Optional initial stock to set on the placeholder batch when confirmed */
+  initialStock?: number;
+  /** Optional ISO date string (YYYY-MM-DD) for the batch expiration */
+  expirationDate?: string;
+};
+
+// ── Single row inside the bulk new-ingredients editor ─────────────────────
+function NewIngredientEditRow({
+  ingredient,
+  touched,
+  confirmed,
+  onChange,
+  onDelete,
+}: {
+  ingredient: LocalNewIng;
+  touched: boolean;
+  confirmed: boolean;
+  onChange: (patch: Partial<LocalNewIng>) => void;
+  onDelete: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const nameErr = touched && !ingredient.ingredientName.trim();
+  const unitErr = touched && !ingredient.unit?.trim();
+  const costErr = touched && ingredient.costPerUnit == null;
+  const hasError = nameErr || unitErr || costErr;
+
+  return (
+    <div
+      className={`rounded-xl border transition ${
+        confirmed
+          ? "bg-green-50 border-green-200"
+          : hasError
+            ? "bg-red-50/40 border-red-200"
+            : "bg-white border-amber-100"
+      }`}
+    >
+      {/* ── Main row: Name / Unit / Cost / status+toggle ── */}
+      <div className="grid grid-cols-12 gap-2 items-start px-3 py-2.5">
+        {/* Name */}
+        <div className="col-span-5">
+          <input
+            value={ingredient.ingredientName}
+            onChange={(e) => onChange({ ingredientName: e.target.value })}
+            placeholder="Nama bahan"
+            className={`w-full border rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 focus:ring-2 outline-none bg-white ${
+              nameErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
+            }`}
+          />
+          {nameErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+        </div>
+
+        {/* Unit */}
+        <div className="col-span-3">
+          <input
+            value={ingredient.unit ?? ""}
+            onChange={(e) => onChange({ unit: e.target.value })}
+            placeholder="e.g. kg"
+            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+              unitErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
+            }`}
+          />
+          {unitErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+        </div>
+
+        {/* Cost / unit */}
+        <div className="col-span-3">
+          <input
+            type="number"
+            min={0}
+            value={ingredient.costPerUnit ?? ""}
+            onChange={(e) => onChange({ costPerUnit: e.target.value === "" ? null : Number(e.target.value) })}
+            placeholder="0"
+            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+              costErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
+            }`}
+          />
+          {costErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+        </div>
+
+        {/* Status indicator + expand toggle + delete */}
+        <div className="col-span-1 flex flex-col items-center justify-start pt-1 gap-1">
+          {confirmed ? (
+            <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+          ) : touched && hasError ? (
+            <AlertTriangle size={14} className="text-red-400 shrink-0" />
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            title={expanded ? "Sembunyikan" : "Stok awal & kadaluarsa"}
+            className="p-0.5 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50 transition"
+          >
+            {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            title="Hapus bahan ini"
+            className="p-0.5 rounded text-red-300 hover:text-red-600 hover:bg-red-50 transition"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Expandable: Initial stock & Expiry date ── */}
+      {expanded && (
+        <div className="grid grid-cols-2 gap-3 px-3 pb-3 pt-0">
+          {/* Qty on-hand */}
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Stok Awal</label>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                min={0}
+                step="any"
+                value={ingredient.initialStock ?? ""}
+                onChange={(e) => onChange({ initialStock: e.target.value === "" ? undefined : Number(e.target.value) })}
+                placeholder={`0${ingredient.unit ? ` ${ingredient.unit}` : ""}`}
+                className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+              />
+              {ingredient.unit && <span className="text-xs text-gray-400 shrink-0">{ingredient.unit}</span>}
+            </div>
+          </div>
+
+          {/* Expiry date */}
+          <div>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+              Tgl Kadaluarsa
+            </label>
+            <input
+              type="date"
+              value={ingredient.expirationDate ?? ""}
+              onChange={(e) => onChange({ expirationDate: e.target.value || undefined })}
+              className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white text-slate-700"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function CreateProductsPage() {
   const router = useRouter();
@@ -32,6 +190,65 @@ export default function CreateProductsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // ── New-ingredient bulk-edit buffer ──────────────────────────────────
+  const [localNewIngredients, setLocalNewIngredients] = useState<LocalNewIng[]>([]);
+  const [newIngredientsConfirmed, setNewIngredientsConfirmed] = useState(false);
+  const [newIngredientsTouched, setNewIngredientsTouched] = useState(false);
+  const [confirmingIngredients, setConfirmingIngredients] = useState(false);
+
+  // ── New-ingredient aggregation (isNew + AI-created rows across all drafts) ──────────
+  const newIngredients = useMemo(() => {
+    if (mode !== "bulk-drafts") return [];
+    const seen = new Map<string, DraftRecipeRow>();
+    drafts.forEach((draft) => {
+      draft.recipe.forEach((row) => {
+        // Only AI-created new ingredients have a positive ingredientId (saved in DB).
+        // Manually-added rows use negative IDs and are handled per-row with the "Done" button.
+        if (row.isNew && row.ingredientId > 0) {
+          const key = row.ingredientName.trim().toLowerCase();
+          if (!seen.has(key)) seen.set(key, { ...row });
+        }
+      });
+    });
+    return Array.from(seen.values());
+  }, [drafts, mode]);
+
+  // Sync newly detected isNew rows (from AI) into the local buffer without overwriting existing edits
+  useEffect(() => {
+    if (mode !== "bulk-drafts") {
+      setLocalNewIngredients([]);
+      setNewIngredientsConfirmed(false);
+      setNewIngredientsTouched(false);
+      return;
+    }
+    setLocalNewIngredients((prev) => {
+      const prevKeys = new Set(prev.map((r) => r._originalName.trim().toLowerCase()));
+      const toAdd: LocalNewIng[] = newIngredients
+        .filter((ing) => !prevKeys.has(ing.ingredientName.trim().toLowerCase()))
+        .map((ing) => ({ ...ing, _originalName: ing.ingredientName }));
+      if (toAdd.length === 0) return prev;
+      setNewIngredientsConfirmed(false); // new entries appeared → must re-confirm
+
+      // Also inject AI-created ingredients into the dropdown so draft cards can select them
+      setIngredientOptions((prevOpts) => {
+        const existingIds = new Set(prevOpts.map((o) => o.id));
+        const newOpts = toAdd
+          .filter((ing) => ing.ingredientId > 0 && !existingIds.has(ing.ingredientId))
+          .map((ing) => ({
+            id: ing.ingredientId,
+            name: ing.ingredientName,
+            unit: ing.unit ?? "",
+            costPerUnit: ing.costPerUnit ?? null,
+            currentStock: -1,
+          }));
+        return newOpts.length > 0 ? [...prevOpts, ...newOpts] : prevOpts;
+      });
+
+      return [...prev, ...toAdd];
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newIngredients, mode]);
 
   // ── Bulk submit (from photo-generated drafts) ──────────────────────────
   const handleBulkConfirm = async () => {
@@ -55,7 +272,9 @@ export default function CreateProductsPage() {
       setError(msg);
       // Tampilkan toast error berbeda jika ada kata 'duplicate' atau 'sebagian'
       if (msg.toLowerCase().includes("semua")) {
-        toast.error("Semua produk yang diupload sudah ada di database (duplikat semua). Tidak ada produk baru yang disimpan.");
+        toast.error(
+          "Semua produk yang diupload sudah ada di database (duplikat semua). Tidak ada produk baru yang disimpan.",
+        );
       } else if (msg.toLowerCase().includes("sebagian")) {
         toast.error("Beberapa produk sudah ada di database (duplikat sebagian). Produk lain tetap disimpan.");
       } else {
@@ -64,6 +283,123 @@ export default function CreateProductsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // ── Discard drafts + delete AI-created ingredients from DB ───────────
+  const [discarding, setDiscarding] = useState(false);
+  const discardDrafts = async () => {
+    // Collect unique ingredient IDs that are isNew and already persisted (positive id)
+    const idsToDelete = Array.from(
+      new Set(
+        drafts
+          .flatMap((d) => d.recipe)
+          .filter((r) => r.isNew && r.ingredientId > 0)
+          .map((r) => r.ingredientId),
+      ),
+    );
+    if (idsToDelete.length > 0) {
+      setDiscarding(true);
+      await Promise.allSettled(idsToDelete.map((id) => deleteIngredient(id)));
+      setDiscarding(false);
+    }
+    setDrafts([]);
+    setLocalNewIngredients([]);
+    setNewIngredientsConfirmed(false);
+    setNewIngredientsTouched(false);
+    setMode("idle");
+  };
+
+  // Delete a single new ingredient: remove from local buffer, strip from all draft recipes, delete from DB
+  const handleDeleteNewIngredient = async (idx: number) => {
+    const ing = localNewIngredients[idx];
+    if (!ing) return;
+
+    // Delete from DB if it was already persisted by AI
+    if (ing.ingredientId > 0) {
+      try {
+        await deleteIngredient(ing.ingredientId);
+      } catch {
+        // Non-critical: still remove from UI
+      }
+    }
+
+    // Remove from all draft recipes
+    const originalKey = ing._originalName.trim().toLowerCase();
+    setDrafts((prev) =>
+      prev.map((draft) => ({
+        ...draft,
+        recipe: draft.recipe.filter((row) => !(row.isNew && row.ingredientName.trim().toLowerCase() === originalKey)),
+      })),
+    );
+
+    // Remove from local buffer
+    setLocalNewIngredients((prev) => prev.filter((_, i) => i !== idx));
+    setNewIngredientsConfirmed(false);
+  };
+
+  // Propagate confirmed local-buffer values back into every matching draft row
+  const applyNewIngredientsToDrafts = (local: LocalNewIng[]) => {
+    setDrafts((prev) =>
+      prev.map((draft) => ({
+        ...draft,
+        recipe: draft.recipe.map((row) => {
+          if (!row.isNew) return row;
+          const match = local.find(
+            (l) => l._originalName.trim().toLowerCase() === row.ingredientName.trim().toLowerCase(),
+          );
+          return match
+            ? { ...row, ingredientName: match.ingredientName, unit: match.unit, costPerUnit: match.costPerUnit }
+            : row;
+        }),
+      })),
+    );
+  };
+
+  // Confirm bulk-edit: validate then propagate and persist to DB
+  const handleConfirmNewIngredients = async () => {
+    setNewIngredientsTouched(true);
+    const invalid = localNewIngredients.some(
+      (ing) => !ing.ingredientName.trim() || !ing.unit?.trim() || ing.costPerUnit == null,
+    );
+    if (invalid) return;
+
+    setConfirmingIngredients(true);
+    try {
+      // Persist name, unit, costPerUnit, initialStock, expirationDate to DB
+      await Promise.allSettled(
+        localNewIngredients
+          .filter((ing) => ing.ingredientId > 0)
+          .map((ing) =>
+            patchIngredient(ing.ingredientId, {
+              name: ing.ingredientName.trim(),
+              unit: ing.unit ?? "",
+              costPerUnit: ing.costPerUnit ?? 0,
+              ...(ing.initialStock !== undefined ? { initialStock: ing.initialStock } : {}),
+              ...(ing.expirationDate ? { expirationDate: ing.expirationDate } : {}),
+            }),
+          ),
+      );
+    } finally {
+      setConfirmingIngredients(false);
+    }
+
+    applyNewIngredientsToDrafts(localNewIngredients);
+
+    // Sync confirmed name / unit / cost back into the ingredient options dropdown
+    setIngredientOptions((prev) =>
+      prev.map((opt) => {
+        const match = localNewIngredients.find((l) => l.ingredientId === opt.id);
+        if (!match) return opt;
+        return {
+          ...opt,
+          name: match.ingredientName.trim(),
+          unit: match.unit ?? opt.unit,
+          costPerUnit: match.costPerUnit ?? opt.costPerUnit,
+        };
+      }),
+    );
+
+    setNewIngredientsConfirmed(true);
   };
 
   // ── Handle draft updates ────────────────────────────────────────────────
@@ -181,15 +517,122 @@ export default function CreateProductsPage() {
               <p className="text-sm text-gray-400">Review and edit each product before saving.</p>
             </div>
             <button
-              onClick={() => {
-                setMode("idle");
-                setDrafts([]);
-              }}
-              className="text-sm text-gray-400 hover:text-gray-600 underline"
+              onClick={discardDrafts}
+              disabled={discarding}
+              className="text-sm text-gray-400 hover:text-gray-600 underline disabled:opacity-50"
             >
-              Start over
+              {discarding ? "Cleaning up…" : "Start over"}
             </button>
           </div>
+
+          {/* ── NEW INGREDIENTS SECTION ──────────────────────────────── */}
+          {localNewIngredients.length > 0 && (
+            <div
+              className={`border rounded-2xl p-5 space-y-4 transition ${
+                newIngredientsConfirmed ? "bg-green-50 border-green-300" : "bg-amber-50 border-amber-200"
+              }`}
+            >
+              {/* Header */}
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  {newIngredientsConfirmed ? (
+                    <CheckCircle2 size={15} className="text-green-500" />
+                  ) : (
+                    <Sparkles size={15} className="text-amber-500" />
+                  )}
+                  <h3
+                    className={`text-sm font-extrabold uppercase tracking-wide ${
+                      newIngredientsConfirmed ? "text-green-800" : "text-amber-800"
+                    }`}
+                  >
+                    New Ingredients
+                  </h3>
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      newIngredientsConfirmed ? "bg-green-200 text-green-700" : "bg-amber-200 text-amber-700"
+                    }`}
+                  >
+                    {localNewIngredients.length}
+                  </span>
+                  {newIngredientsConfirmed && (
+                    <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
+                      Confirmed
+                    </span>
+                  )}
+                </div>
+                <p className={`text-xs ${newIngredientsConfirmed ? "text-green-600" : "text-amber-600"}`}>
+                  {newIngredientsConfirmed
+                    ? "All new ingredients are set. You can still edit and re-confirm."
+                    : "Fill in the unit & cost for each new ingredient, then confirm before saving."}
+                </p>
+              </div>
+
+              {/* Column headers */}
+              <div className="grid grid-cols-12 gap-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                <div className="col-span-5">Nama</div>
+                <div className="col-span-3">Satuan</div>
+                <div className="col-span-3">Biaya / Satuan (Rp)</div>
+                <div className="col-span-1" />
+              </div>
+
+              <div className="space-y-2">
+                {localNewIngredients.map((ing, idx) => (
+                  <NewIngredientEditRow
+                    key={ing._originalName}
+                    ingredient={ing}
+                    touched={newIngredientsTouched}
+                    confirmed={newIngredientsConfirmed}
+                    onChange={(patch) => {
+                      setLocalNewIngredients((prev) => prev.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
+                      setNewIngredientsConfirmed(false); // any edit un-confirms
+                    }}
+                    onDelete={() => handleDeleteNewIngredient(idx)}
+                  />
+                ))}
+              </div>
+
+              {/* Inline validation summary when touched but invalid */}
+              {newIngredientsTouched &&
+                !newIngredientsConfirmed &&
+                !confirmingIngredients &&
+                localNewIngredients.some(
+                  (ing) => !ing.ingredientName.trim() || !ing.unit?.trim() || ing.costPerUnit == null,
+                ) && (
+                  <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+                    <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                    <p className="text-xs font-semibold text-red-600">
+                      Some ingredients are missing required fields. Fix them, then click &ldquo;Confirm All&rdquo;.
+                    </p>
+                  </div>
+                )}
+
+              {/* Confirm button */}
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={handleConfirmNewIngredients}
+                  disabled={confirmingIngredients}
+                  className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold transition disabled:opacity-60 disabled:cursor-not-allowed ${
+                    newIngredientsConfirmed
+                      ? "bg-green-100 text-green-700 hover:bg-green-200 border border-green-300"
+                      : "bg-amber-500 text-white hover:bg-amber-600 shadow"
+                  }`}
+                >
+                  {confirmingIngredients ? (
+                    <>
+                      <Loader2 size={15} className="animate-spin" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={15} />
+                      {newIngredientsConfirmed ? "Re-confirm" : "Confirm All"}
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="space-y-3">
             {drafts.map((draft, i) => (
@@ -200,6 +643,9 @@ export default function CreateProductsPage() {
                 ingredientOptions={ingredientOptions}
                 onChange={(updated) => updateDraft(i, updated)}
                 onRemove={() => removeDraft(i)}
+                onIngredientCreated={(newOpt) =>
+                  setIngredientOptions((prev) => (prev.some((o) => o.id === newOpt.id) ? prev : [...prev, newOpt]))
+                }
               />
             ))}
           </div>
@@ -218,19 +664,32 @@ export default function CreateProductsPage() {
             </div>
           )}
 
+          {/* Warn if new ingredients haven't been confirmed */}
+          {localNewIngredients.length > 0 && !newIngredientsConfirmed && (
+            <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
+              <AlertTriangle size={15} className="text-amber-500 shrink-0" />
+              <p className="text-xs font-semibold text-amber-700">
+                Please confirm the new ingredients above before saving products.
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <button
-              onClick={() => {
-                setMode("idle");
-                setDrafts([]);
-              }}
-              className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition"
+              onClick={discardDrafts}
+              disabled={discarding}
+              className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition disabled:opacity-50"
             >
-              Cancel
+              {discarding ? "Cleaning up…" : "Cancel"}
             </button>
             <button
               onClick={handleBulkConfirm}
-              disabled={submitting || drafts.length === 0}
+              disabled={
+                submitting ||
+                confirmingIngredients ||
+                drafts.length === 0 ||
+                (localNewIngredients.length > 0 && !newIngredientsConfirmed)
+              }
               className="flex items-center gap-2 px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow"
             >
               {submitting ? (

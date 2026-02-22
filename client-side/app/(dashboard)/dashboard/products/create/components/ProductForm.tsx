@@ -10,6 +10,7 @@ import {
   getCategoryOptions,
   createProduct,
   deleteIngredient,
+  patchIngredient,
   type IngredientOption,
 } from "@/lib/api/products";
 import type { DraftRecipeRow } from "@/types/product";
@@ -190,9 +191,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
   const rowNeedsUnit = (r: DraftRecipeRow) =>
     (r.isNew === true || r.ingredientId < 0) && !!r.ingredientName?.trim() && !r.unit?.trim();
   const rowNeedsCost = (r: DraftRecipeRow) =>
-    (r.isNew === true || r.ingredientId < 0) &&
-    !!r.ingredientName?.trim() &&
-    (r.costPerUnit == null || r.costPerUnit <= 0);
+    (r.isNew === true || r.ingredientId < 0) && !!r.ingredientName?.trim() && r.costPerUnit == null;
 
   const validate = () => {
     if (!name.trim()) return "Product name is required.";
@@ -217,6 +216,21 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
     setSubmitting(true);
     setError(null);
     try {
+      // PATCH any AI-created new ingredients that have optional stock/expiry set
+      const newWithExtras = recipe.filter(
+        (r) => r.isNew && r.ingredientId > 0 && (r.initialStock !== undefined || r.expirationDate),
+      );
+      if (newWithExtras.length > 0) {
+        await Promise.allSettled(
+          newWithExtras.map((r) =>
+            patchIngredient(r.ingredientId, {
+              ...(r.initialStock !== undefined ? { initialStock: r.initialStock } : {}),
+              ...(r.expirationDate ? { expirationDate: r.expirationDate } : {}),
+            }),
+          ),
+        );
+      }
+
       // Build recipe payload — skip rows with empty or negative (new-but-unresolved) ids
       const recipePayload = recipe
         .filter((r) => r.ingredientId > 0 && r.ingredientName.trim())

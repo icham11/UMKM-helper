@@ -26,6 +26,7 @@ import {
   deleteProduct,
   bulkDeleteProducts,
 } from "@/lib/api/products";
+import type { GetProductsParams } from "@/lib/api/products";
 import { useBusiness } from "@/context/BusinessContext";
 import type { Product } from "@/types/product";
 
@@ -97,15 +98,15 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
         {/* Recipe list */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {product.recipes.length === 0 ? (
-            <p className="text-center text-gray-400 italic py-8">No ingredients in this recipe.</p>
+            <p className="text-center text-gray-400 italic py-8">Tidak ada bahan dalam resep ini.</p>
           ) : (
             <div className="space-y-2">
               {/* Column headers */}
               <div className="grid grid-cols-12 gap-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
-                <div className="col-span-5">Ingredient</div>
-                <div className="col-span-2 text-right">Qty</div>
-                <div className="col-span-2">Unit</div>
-                <div className="col-span-3 text-right">Cost</div>
+                <div className="col-span-5">Bahan</div>
+                <div className="col-span-2 text-right">Jml</div>
+                <div className="col-span-2">Satuan</div>
+                <div className="col-span-3 text-right">Biaya</div>
               </div>
               {product.recipes.map((r) => {
                 const costPerUnit = Number(r.ingredient.costPerUnit ?? 0);
@@ -128,7 +129,7 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
               {/* Total */}
               {recipeCost > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t border-gray-100 px-3">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Recipe Cost</span>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Biaya Resep</span>
                   <span className="text-sm font-extrabold text-indigo-700">{formatCurrency(recipeCost)}</span>
                 </div>
               )}
@@ -161,7 +162,7 @@ function EditPriceModal({
 
   const handleSave = async () => {
     if (!price || price <= 0) {
-      setError("Selling price must be greater than 0.");
+      setError("Harga jual harus lebih dari 0.");
       return;
     }
     setSaving(true);
@@ -170,7 +171,7 @@ function EditPriceModal({
       const updated = await updateProductPrice(product.id, price);
       onSaved({ ...product, sellingPrice: Number(updated.sellingPrice) });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update price");
+      setError(err instanceof Error ? err.message : "Gagal memperbarui harga");
     } finally {
       setSaving(false);
     }
@@ -186,7 +187,7 @@ function EditPriceModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
           <div>
-            <h2 className="text-base font-extrabold text-indigo-700">Edit Selling Price</h2>
+            <h2 className="text-base font-extrabold text-indigo-700">Edit Harga Jual</h2>
             <p className="text-xs text-gray-500 mt-0.5 truncate max-w-55">{product.name}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
@@ -203,7 +204,7 @@ function EditPriceModal({
           )}
 
           <div>
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Selling Price (Rp)</label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Harga Jual (Rp)</label>
             <input
               type="number"
               min={1}
@@ -218,7 +219,7 @@ function EditPriceModal({
             />
             {recipeCost > 0 && (
               <p className="text-xs text-gray-400 mt-1.5">
-                Recipe cost: {formatCurrency(recipeCost)}
+                Biaya resep: {formatCurrency(recipeCost)}
                 {margin !== null && (
                   <>
                     {" — "}
@@ -244,7 +245,7 @@ function EditPriceModal({
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
             >
-              Cancel
+              Batal
             </button>
             <button
               onClick={handleSave}
@@ -252,7 +253,7 @@ function EditPriceModal({
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
             >
               {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              Save
+              Simpan
             </button>
           </div>
         </div>
@@ -283,7 +284,7 @@ function DeleteConfirmModal({
       await deleteProduct(product.id);
       onDeleted();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete product");
+      setError(err instanceof Error ? err.message : "Gagal menghapus produk");
       setDeleting(false);
     }
   };
@@ -301,10 +302,10 @@ function DeleteConfirmModal({
               <Trash2 size={18} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-800">Delete Product?</h2>
+              <h2 className="text-base font-extrabold text-slate-800">Hapus Produk?</h2>
               <p className="text-sm text-gray-500 mt-1">
-                <span className="font-semibold text-slate-700">{product.name}</span> and its entire recipe will be
-                permanently deleted. This cannot be undone.
+                <span className="font-semibold text-slate-700">{product.name}</span> dan seluruh resepnya akan dihapus
+                permanen. Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
           </div>
@@ -321,7 +322,7 @@ function DeleteConfirmModal({
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
             >
-              Cancel
+              Batal
             </button>
             <button
               onClick={handleDelete}
@@ -329,7 +330,7 @@ function DeleteConfirmModal({
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
             >
               {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-              Delete
+              Hapus
             </button>
           </div>
         </div>
@@ -367,11 +368,9 @@ function BulkDeleteConfirmModal({
               <Trash2 size={18} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-800">
-                Delete {count} Product{count !== 1 ? "s" : ""}?
-              </h2>
+              <h2 className="text-base font-extrabold text-slate-800">Hapus {count} Produk?</h2>
               <p className="text-sm text-gray-500 mt-1">
-                All selected products and their recipes will be permanently deleted. This cannot be undone.
+                Semua produk yang dipilih dan resepnya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
           </div>
@@ -388,7 +387,7 @@ function BulkDeleteConfirmModal({
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
             >
-              Cancel
+              Batal
             </button>
             <button
               onClick={onConfirm}
@@ -396,7 +395,7 @@ function BulkDeleteConfirmModal({
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
             >
               {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-              Delete {count}
+              Hapus {count}
             </button>
           </div>
         </div>
@@ -404,6 +403,10 @@ function BulkDeleteConfirmModal({
     </div>
   );
 }
+
+// Sort types
+type SortByField = "name" | "sellingPrice" | "recipeCost" | "createdAt" | "margin";
+type SortOrderType = "asc" | "desc";
 
 // Main page
 
@@ -420,8 +423,8 @@ export default function ProductsPage() {
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [categories, setCategories] = useState<{ id: number; name: string }[]>([]);
   // Default sort: latest created
-  const [sortBy, setSortBy] = useState<"createdAt">("createdAt");
-  const [sortOrder, setSortOrder] = useState<"desc">("desc");
+  const [sortBy, setSortBy] = useState<SortByField>("createdAt");
+  const [sortOrder, setSortOrder] = useState<SortOrderType>("desc");
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -446,16 +449,12 @@ export default function ProductsPage() {
       setLoading(true);
       setError(null);
       // recipeCost is a stored DB column; margin uses raw SQL on the server
-      const apiSortBy =
-        sortBy === "name" || sortBy === "sellingPrice" || sortBy === "recipeCost" || sortBy === "createdAt"
-          ? sortBy
-          : undefined;
-      const apiSortArg = sortBy === "margin" ? "margin" : apiSortBy;
       const { data, meta } = await getProducts({
         search,
         categoryId: categoryFilter ?? undefined,
-        sortBy: apiSortArg as "name" | "sellingPrice" | "createdAt" | undefined,
+        sortBy: sortBy as GetProductsParams["sortBy"],
         sortOrder,
+
         page: pageNum,
         limit: 10,
       });
@@ -489,15 +488,15 @@ export default function ProductsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, categoryFilter, sortBy, sortOrder, business]);
 
-  const handleSortClick = (col: typeof sortBy) => {
-    if (sortBy === col) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+  const handleSortClick = (col: SortByField) => {
+    if (sortBy === col) setSortOrder((o: SortOrderType): SortOrderType => (o === "asc" ? "desc" : "asc"));
     else {
       setSortBy(col);
       setSortOrder("asc");
     }
   };
 
-  const SortIcon = ({ col }: { col: typeof sortBy }) =>
+  const SortIcon = ({ col }: { col: SortByField }) =>
     sortBy !== col ? (
       <ChevronUp size={12} className="ml-1 text-gray-300" />
     ) : sortOrder === "asc" ? (
@@ -527,9 +526,9 @@ export default function ProductsPage() {
     setBulkDeleteError(null);
     try {
       await bulkDeleteProducts(Array.from(selectedIds));
-      setProducts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
       setSelectedIds(new Set());
       setBulkDeleteOpen(false);
+      await fetchProducts(page);
     } catch (err) {
       setBulkDeleteError(err instanceof Error ? err.message : "Failed to delete products");
     } finally {
@@ -541,7 +540,7 @@ export default function ProductsPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] text-indigo-500 animate-pulse">
         <ShoppingBag size={48} />
-        <span className="mt-4 text-lg font-semibold">Loading...</span>
+        <span className="mt-4 text-lg font-semibold">Memuat...</span>
       </div>
     );
   }
@@ -561,7 +560,7 @@ export default function ProductsPage() {
         {/* HEADER */}
         <div className="flex justify-between items-center bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
           <div>
-            <h1 className="text-3xl font-bold text-white">Products</h1>
+            <h1 className="text-3xl font-bold text-white">Produk</h1>
             <p className="text-indigo-100">Kelola produk dan resep bisnis Anda.</p>
           </div>
           <button
@@ -569,7 +568,7 @@ export default function ProductsPage() {
             className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 font-semibold rounded-xl shadow hover:bg-indigo-50 transition"
           >
             <Plus size={20} />
-            Add Product
+            Tambah Produk
           </button>
         </div>
 
@@ -581,33 +580,44 @@ export default function ProductsPage() {
               placeholder="Cari nama produk..."
               className="px-3 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
               value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
             {categories.length > 0 && (
               <select
                 className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
                 value={categoryFilter ?? ""}
-                onChange={e => { setCategoryFilter(e.target.value === "" ? null : Number(e.target.value)); setPage(1); }}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value === "" ? null : Number(e.target.value));
+                  setPage(1);
+                }}
               >
                 <option value="">Semua Kategori</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
                 ))}
               </select>
             )}
           </div>
           <div className="flex gap-2 items-center">
-            <label className="text-xs text-gray-500">Sort:</label>
+            <label className="text-xs text-gray-500">Urutkan:</label>
             <select
               className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
               value={sortBy}
-              onChange={e => { setSortBy(e.target.value as "createdAt"); setPage(1); }}
+              onChange={(e) => {
+                setSortBy(e.target.value as SortByField);
+                setPage(1);
+              }}
             >
               <option value="createdAt">Terbaru</option>
             </select>
             <button
               className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
-              onClick={() => setSortOrder(d => d === "asc" ? "desc" : "asc")}
+              onClick={() => setSortOrder((d: SortOrderType): SortOrderType => (d === "asc" ? "desc" : "asc"))}
               title="Urutan"
             >
               {sortOrder === "asc" ? "⬆️" : "⬇️"}
@@ -618,15 +628,13 @@ export default function ProductsPage() {
         {/* BULK ACTION BAR */}
         {selectedIds.size > 0 && (
           <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3">
-            <span className="text-sm font-semibold text-indigo-700">
-              {selectedIds.size} product{selectedIds.size !== 1 ? "s" : ""} selected
-            </span>
+            <span className="text-sm font-semibold text-indigo-700">{selectedIds.size} produk terpilih</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedIds(new Set())}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-white border border-gray-200 transition"
               >
-                Deselect all
+                Batalkan semua
               </button>
               <button
                 onClick={() => {
@@ -636,7 +644,7 @@ export default function ProductsPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white text-xs font-bold rounded-lg hover:bg-red-700 transition"
               >
                 <Trash2 size={13} />
-                Delete selected
+                Hapus terpilih
               </button>
             </div>
           </div>
@@ -645,17 +653,17 @@ export default function ProductsPage() {
         {/* STATS ROW */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl p-4 shadow border border-indigo-50">
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Products</p>
+            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Produk</p>
             <p className="text-3xl font-extrabold text-indigo-700 mt-1">{totalCount}</p>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow border border-violet-50">
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Avg Selling Price</p>
+            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Rata-rata Harga Jual</p>
             <p className="text-2xl font-extrabold text-violet-700 mt-1">
               {totalCount > 0 ? formatCurrency(avgSellingPrice) : "—"}
             </p>
           </div>
           <div className="bg-white rounded-2xl p-4 shadow border border-green-50">
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Avg Margin</p>
+            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Rata-rata Margin</p>
             <p className="text-2xl font-extrabold text-green-700 mt-1">{totalCount > 0 ? `${avgMargin}%` : "—"}</p>
           </div>
         </div>
@@ -664,7 +672,7 @@ export default function ProductsPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl shadow">
             <Loader2 size={40} className="animate-spin text-indigo-400" />
-            <p className="mt-4 text-sm font-semibold text-gray-400">Loading products...</p>
+            <p className="mt-4 text-sm font-semibold text-gray-400">Memuat produk...</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl shadow text-red-500">
@@ -674,22 +682,22 @@ export default function ProductsPage() {
               onClick={() => fetchProducts()}
               className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg font-medium hover:bg-red-200 transition"
             >
-              Try again
+              Coba lagi
             </button>
           </div>
         ) : products.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-gray-400 bg-white rounded-3xl shadow">
             <ChefHat size={56} className="mb-4 text-indigo-200" />
-            <p className="text-lg font-semibold">No products yet.</p>
+            <p className="text-lg font-semibold">Belum ada produk.</p>
             <p className="text-sm mt-1">
-              Click{" "}
+              Klik{" "}
               <button
                 onClick={() => router.push("/dashboard/products/create")}
                 className="text-indigo-600 font-semibold hover:underline"
               >
-                Add Product
+                Tambah Produk
               </button>{" "}
-              to get started.
+              untuk mulai.
             </p>
           </div>
         ) : (
@@ -715,16 +723,16 @@ export default function ProductsPage() {
                       onClick={() => handleSortClick("name")}
                     >
                       <span className="inline-flex items-center">
-                        Product <SortIcon col="name" />
+                        Produk <SortIcon col="name" />
                       </span>
                     </th>
-                    <th className="px-6 py-4 text-left font-bold">Category</th>
+                    <th className="px-6 py-4 text-left font-bold">Kategori</th>
                     <th
                       className="px-6 py-4 text-right font-bold cursor-pointer select-none"
                       onClick={() => handleSortClick("sellingPrice")}
                     >
                       <span className="inline-flex items-center justify-end w-full">
-                        Selling Price <SortIcon col="sellingPrice" />
+                        Harga Jual <SortIcon col="sellingPrice" />
                       </span>
                     </th>
                     <th
@@ -732,7 +740,7 @@ export default function ProductsPage() {
                       onClick={() => handleSortClick("recipeCost")}
                     >
                       <span className="inline-flex items-center justify-end w-full">
-                        Cost <SortIcon col="recipeCost" />
+                        Biaya <SortIcon col="recipeCost" />
                       </span>
                     </th>
                     <th
@@ -748,11 +756,11 @@ export default function ProductsPage() {
                       onClick={() => handleSortClick("createdAt")}
                     >
                       <span className="inline-flex items-center">
-                        Added <SortIcon col="createdAt" />
+                        Ditambahkan <SortIcon col="createdAt" />
                       </span>
                     </th>
-                    <th className="px-6 py-4 text-center font-bold">Recipe</th>
-                    <th className="px-6 py-4 text-center font-bold">Actions</th>
+                    <th className="px-6 py-4 text-center font-bold">Resep</th>
+                    <th className="px-6 py-4 text-center font-bold">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -792,7 +800,7 @@ export default function ProductsPage() {
                         <td className="px-6 py-4 text-right">
                           <button
                             onClick={() => setEditModal(product)}
-                            title="Edit selling price"
+                            title="Edit harga jual"
                             className="group inline-flex items-center gap-1.5 justify-end w-full font-bold text-indigo-700 hover:text-indigo-900 transition"
                           >
                             <span>{formatCurrency(sp)}</span>
@@ -831,11 +839,11 @@ export default function ProductsPage() {
                           {product.recipes.length > 0 ? (
                             <button
                               onClick={() => setRecipeModal(product)}
-                              title="View recipe"
+                              title="Lihat resep"
                               className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1 rounded-full hover:bg-violet-200 transition"
                             >
                               <ChefHat size={12} />
-                              {product.recipes.length} items
+                              {product.recipes.length} bahan
                             </button>
                           ) : (
                             <span className="text-gray-300 text-sm">—</span>
@@ -845,14 +853,14 @@ export default function ProductsPage() {
                           <div className="flex items-center justify-center gap-1">
                             <button
                               onClick={() => setRecipeModal(product)}
-                              title="View recipe"
+                              title="Lihat resep"
                               className="p-2 rounded-full hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 transition"
                             >
                               <Eye size={16} />
                             </button>
                             <button
                               onClick={() => setDeleteModal(product)}
-                              title="Delete product"
+                              title="Hapus produk"
                               className="p-2 rounded-full hover:bg-red-50 text-red-300 hover:text-red-600 transition"
                             >
                               <Trash2 size={16} />
@@ -875,17 +883,17 @@ export default function ProductsPage() {
                     disabled={page === 1 || loading}
                     onClick={() => fetchProducts(page - 1)}
                   >
-                    ‹ Previous
+                    ‹ Sebelumnya
                   </button>
                   <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
-                    Page {page} of {totalPages}
+                    Halaman {page} dari {totalPages}
                   </span>
                   <button
                     className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
                     disabled={page === totalPages || loading}
                     onClick={() => fetchProducts(page + 1)}
                   >
-                    Next ›
+                    Selanjutnya ›
                   </button>
                 </div>
               </div>
@@ -915,8 +923,8 @@ export default function ProductsPage() {
           product={deleteModal}
           onClose={() => setDeleteModal(null)}
           onDeleted={() => {
-            setProducts((prev) => prev.filter((p) => p.id !== deleteModal.id));
             setDeleteModal(null);
+            fetchProducts(page);
           }}
         />
       )}
