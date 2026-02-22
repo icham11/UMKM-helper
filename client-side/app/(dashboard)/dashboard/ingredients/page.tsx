@@ -209,7 +209,7 @@ export default function IngredientsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-slate-700 font-semibold">
-                    {ingredient.minStock === 0 ? (
+                    {ingredient.minStock === -1 ? (
                       <span className="text-gray-400 italic">Belum di-set</span>
                     ) : (
                       ingredient.minStock

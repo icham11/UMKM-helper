@@ -40,8 +40,8 @@ export default function SalesHistoryPage() {
 
   // Pagination
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10); // default 10 per page
-  const totalPages = Math.ceil(filteredSales.length / pageSize);
+  const PAGE_SIZE = 10;
+  const totalPages = Math.max(1, Math.ceil(filteredSales.length / PAGE_SIZE));
 
   useEffect(() => {
     fetchSales();
@@ -339,7 +339,7 @@ export default function SalesHistoryPage() {
                   </tr>
                 ) : (
                   filteredSales
-                    .slice((page - 1) * pageSize, page * pageSize)
+                    .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
                     .map((sale, idx) => (
                       <tr
                         key={sale.id}
@@ -418,62 +418,27 @@ export default function SalesHistoryPage() {
               </tbody>
             </table>
           </div>
-          {/* Pagination Controls */}
+          {/* Pagination Controls (match products page style) */}
           {totalPages > 1 && (
-            <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
-              <div className="text-sm text-gray-500">
-                Page <span className="font-semibold text-indigo-700">{page}</span> of <span className="font-semibold text-indigo-700">{totalPages}</span>
-              </div>
-              <div className="flex flex-wrap gap-1">
+            <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t rounded-b-3xl">
+              <div className="flex items-center gap-6">
                 <button
-                  className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
-                  disabled={page === 1}
+                  className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
+                  disabled={page === 1 || loading}
                   onClick={() => setPage(page - 1)}
                 >
-                  ‹
+                  ‹ Previous
                 </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
-                  .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                    if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((item, idx) =>
-                    item === "..." ? (
-                      <span key={`ellipsis-${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">…</span>
-                    ) : (
-                      <button
-                        key={item}
-                        className={`w-8 h-8 rounded-full font-bold transition border ${item === page ? "bg-indigo-600 text-white shadow" : "bg-white text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 border-gray-300"}`}
-                        onClick={() => setPage(item as number)}
-                        disabled={item === page}
-                      >
-                        {item}
-                      </button>
-                    )
-                  )}
+                <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
+                  Page {page} of {totalPages}
+                </span>
                 <button
-                  className="w-8 h-8 rounded-full border border-gray-300 bg-white text-gray-700 font-bold transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40"
-                  disabled={page === totalPages}
+                  className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
+                  disabled={page === totalPages || loading}
                   onClick={() => setPage(page + 1)}
                 >
-                  ›
+                  Next ›
                 </button>
-              </div>
-              <div>
-                <select
-                  className="px-2 py-1 rounded-xl border border-gray-300 text-sm bg-white transition focus:ring-2 focus:ring-indigo-400"
-                  value={pageSize}
-                  onChange={e => {
-                    setPageSize(Number(e.target.value));
-                    setPage(1);
-                  }}
-                >
-                  {[10, 20, 50].map(size => (
-                    <option key={size} value={size}>{size} per page</option>
-                  ))}
-                </select>
               </div>
             </div>
           )}
