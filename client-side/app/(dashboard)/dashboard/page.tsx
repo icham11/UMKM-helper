@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [range, setRange] =
+  const [range, setRange]  =
     useState<"today" | "7d" | "30d" | "all">("today");
 
   // Move totalAlertCount up so it's defined before alertPulse

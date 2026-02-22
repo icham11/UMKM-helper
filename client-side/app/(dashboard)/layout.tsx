@@ -18,6 +18,7 @@ import {
   Package,
   Building2,
   User,
+  FileDown,
 } from "lucide-react";
 import Link from "next/link";
 import DashboardClientLayout from "./DashboardClientLayout";
@@ -136,6 +137,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
                     className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
                   >
                     <History className="w-4 h-4" /> Sales History
+                  </Link>
+                  <Link
+                    href="/dashboard/export"
+                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-green-50 transition"
+                  >
+                    <FileDown className="w-4 h-4" /> Export Data
                   </Link>
                 </div>
                 {/* Section: Inventory */}
