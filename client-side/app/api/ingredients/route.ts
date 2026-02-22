@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
           ? { name: { contains: search, mode: "insensitive" as const } }
           : {}),
       },
-      orderBy: { name: "asc" },
+      orderBy: { createdAt: "desc" },
       include: {
         inventoryBatches: {
           where: { remainingQty: { gt: 0 } },
@@ -159,13 +159,15 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          // Jika minStock -1 dari AI, set ke 0
+          const minStockValue = item.minStock === -1 ? 0 : (item.minStock ?? 0);
           if (!ingredient) {
             ingredient = await tx.ingredient.create({
               data: {
                 businessId,
                 name: item.name,
                 unit: item.unit,
-                minStock: item.minStock ?? 0,
+                minStock: minStockValue,
               },
             });
           }
@@ -204,6 +206,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, unit, minStock, initialBatch } = parsed.data;
+    // Jika minStock -1 dari AI, set ke 0
+    const minStockValue = minStock === -1 ? 0 : (minStock ?? 0);
 
     // Check for existing ingredient with same name
     const existing = await prisma.ingredient.findFirst({
@@ -234,7 +238,7 @@ export async function POST(request: NextRequest) {
           businessId,
           name,
           unit,
-          minStock: minStock ?? 0,
+          minStock: minStockValue,
         },
       });
 
