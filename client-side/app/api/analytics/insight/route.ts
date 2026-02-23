@@ -20,7 +20,13 @@ export async function GET() {
       }),
       prisma.sale.findMany({
         where: { businessId, createdAt: { gte: firstDay, lte: lastDay } },
-        include: { saleItems: { include: { product: { select: { name: true, sellingPrice: true, id: true, category: { select: { name: true } } } } } } },
+        include: {
+          saleItems: {
+            include: {
+              product: { select: { name: true, sellingPrice: true, id: true, category: { select: { name: true } } } },
+            },
+          },
+        },
         orderBy: { createdAt: "desc" },
         take: 50,
       }),
@@ -65,7 +71,10 @@ export async function GET() {
         categorySales[category] = (categorySales[category] || 0) + item.quantity;
       }
     }
-    const topCategories = Object.entries(categorySales).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([name, qty]) => `${name}: ${qty} pcs`);
+    const topCategories = Object.entries(categorySales)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([name, qty]) => `${name}: ${qty} pcs`);
 
     // Low stock
     const lowStock = ingredients
@@ -172,25 +181,67 @@ Berikan 5-7 insights yang beragam dan spesifik berdasarkan data. Jangan generic.
       const insights = [];
 
       if (totalRevenue > 500_000) {
-        insights.push({ category: "revenue", severity: "success", title: "Revenue bulan ini baik", description: `Revenue sudah mencapai Rp ${totalRevenue.toLocaleString("id-ID")}. Pertahankan strategi saat ini.`, metric: `Rp ${formatShort(totalRevenue)}` });
+        insights.push({
+          category: "revenue",
+          severity: "success",
+          title: "Revenue bulan ini baik",
+          description: `Revenue sudah mencapai Rp ${totalRevenue.toLocaleString("id-ID")}. Pertahankan strategi saat ini.`,
+          metric: `Rp ${formatShort(totalRevenue)}`,
+        });
       } else {
-        insights.push({ category: "revenue", severity: "warning", title: "Revenue perlu ditingkatkan", description: "Coba tingkatkan volume penjualan dengan promo atau bundling produk.", metric: `Rp ${formatShort(totalRevenue)}` });
+        insights.push({
+          category: "revenue",
+          severity: "warning",
+          title: "Revenue perlu ditingkatkan",
+          description: "Coba tingkatkan volume penjualan dengan promo atau bundling produk.",
+          metric: `Rp ${formatShort(totalRevenue)}`,
+        });
       }
 
       if (margin > 40) {
-        insights.push({ category: "profit", severity: "success", title: "Margin profit sangat sehat", description: `Margin ${margin.toFixed(1)}% menunjukkan pricing yang baik.`, metric: `${margin.toFixed(1)}%` });
+        insights.push({
+          category: "profit",
+          severity: "success",
+          title: "Margin profit sangat sehat",
+          description: `Margin ${margin.toFixed(1)}% menunjukkan pricing yang baik.`,
+          metric: `${margin.toFixed(1)}%`,
+        });
       } else {
-        insights.push({ category: "profit", severity: "danger", title: "Margin profit perlu perhatian", description: "Evaluasi cost bahan baku dan harga jual untuk meningkatkan margin.", metric: `${margin.toFixed(1)}%` });
+        insights.push({
+          category: "profit",
+          severity: "danger",
+          title: "Margin profit perlu perhatian",
+          description: "Evaluasi cost bahan baku dan harga jual untuk meningkatkan margin.",
+          metric: `${margin.toFixed(1)}%`,
+        });
       }
 
       if (lowStock.length > 0) {
-        insights.push({ category: "inventory", severity: "danger", title: `${lowStock.length} bahan stok rendah`, description: `Segera restock: ${lowStock.map((i) => i.name).join(", ")}.`, metric: `${lowStock.length} item` });
+        insights.push({
+          category: "inventory",
+          severity: "danger",
+          title: `${lowStock.length} bahan stok rendah`,
+          description: `Segera restock: ${lowStock.map((i) => i.name).join(", ")}.`,
+          metric: `${lowStock.length} item`,
+        });
       } else {
-        insights.push({ category: "inventory", severity: "success", title: "Stok bahan baku aman", description: "Semua bahan dalam level stok yang cukup.", metric: "OK" });
+        insights.push({
+          category: "inventory",
+          severity: "success",
+          title: "Stok bahan baku aman",
+          description: "Semua bahan dalam level stok yang cukup.",
+          metric: "OK",
+        });
       }
 
       if (txCount < 10) {
-        insights.push({ category: "growth", severity: "warning", title: "Volume transaksi masih rendah", description: "Tingkatkan traffic dengan promosi sosial media atau program loyalitas.", metric: `${txCount} transaksi` }); // Changed from "danger" to "warning"
+        insights.push({
+          category: "growth",
+          severity: "warning",
+          title: "Volume transaksi masih rendah",
+          description: "Tingkatkan traffic dengan promosi sosial media atau program loyalitas.",
+          metric: `${txCount} transaksi`,
+        }); // Changed from "danger" to "warning"
       }
 
       aiInsights = {
@@ -216,10 +267,7 @@ Berikan 5-7 insights yang beragam dan spesifik berdasarkan data. Jangan generic.
     }
 
     console.error("Insight API error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate insights" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate insights" }, { status: 500 });
   }
 }
 
@@ -229,3 +277,64 @@ function formatShort(val: number) {
   return val.toLocaleString("id-ID");
 }
 
+// ─── POST: Per-chart AI explanation ──────────────────────────────────
+const SECTION_PROMPTS: Record<string, string> = {
+  revenue: `Analisis tren pendapatan harian UMKM ini. Jelaskan pola yang terlihat, hari-hari puncak penjualan, rata-rata harian, dan berikan saran bagaimana meningkatkan pendapatan.`,
+  growth: `Analisis pertumbuhan bisnis UMKM ini dari bulan ke bulan. Jelaskan apakah bisnis tumbuh, stagnasi, atau menurun. Bandingkan pendapatan dan laba antar periode. Berikan saran strategis.`,
+  products: `Analisis performa produk UMKM ini. Jelaskan produk mana yang paling laris, paling menguntungkan, dan mana yang perlu ditingkatkan. Berikan saran strategi produk.`,
+  health: `Analisis kesehatan keuangan UMKM ini. Periksa rasio margin, arus kas, dan indikator keuangan. Berikan saran bagaimana memperbaiki kesehatan keuangan bisnis.`,
+  waste: `Analisis data limbah/waste produk pada UMKM ini. Jelaskan produk mana yang paling banyak terbuang dan berikan rekomendasi pengelolaan stok yang lebih baik.`,
+  kasbon: `Analisis data kasbon (piutang) UMKM ini. Jelaskan status utang pelanggan dan berikan saran pengelolaan piutang yang lebih baik.`,
+  forecast: `Analisis data prediksi penjualan UMKM ini. Jelaskan tren yang diprediksi dan berikan saran strategi berdasarkan hasil prediksi.`,
+};
+
+export async function POST(req: Request) {
+  try {
+    await requireAuth();
+    const body = await req.json();
+    const { section, data } = body as { section: string; data: unknown };
+
+    if (!section || !data) {
+      return NextResponse.json({ error: "section and data required" }, { status: 400 });
+    }
+
+    const sectionPrompt = SECTION_PROMPTS[section] || SECTION_PROMPTS.revenue;
+    const dataStr = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+
+    const prompt = `${sectionPrompt}
+
+Berikut data yang perlu dianalisis:
+${dataStr}
+
+PENTING:
+- Jawab SELURUHNYA dalam Bahasa Indonesia
+- Gunakan format yang ringkas (maksimal 3-4 paragraf)
+- Sertakan angka-angka penting
+- Akhiri dengan 2-3 saran konkret
+- Gunakan format Rp untuk mata uang (contoh: Rp 500.000)`;
+
+    const completion = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content:
+            "Kamu adalah konsultan bisnis AI khusus UMKM Indonesia. Berikan analisis singkat dan actionable dalam Bahasa Indonesia.",
+        },
+        { role: "user", content: prompt },
+      ],
+      model: GROQ_MODELS.text.primary,
+      temperature: 0.5,
+      max_tokens: 800,
+    });
+
+    const insight = completion.choices[0]?.message?.content || "Tidak dapat menghasilkan analisis saat ini.";
+
+    return NextResponse.json({ success: true, insight });
+  } catch (error) {
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("[AI Chart Insight] Error:", error);
+    return NextResponse.json({ error: "Gagal menghasilkan analisis", details: String(error) }, { status: 500 });
+  }
+}

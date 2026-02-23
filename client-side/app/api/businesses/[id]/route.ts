@@ -7,10 +7,7 @@ export const runtime = "nodejs";
 /**
  * GET /api/businesses/[id] — Get single business details + stats
  */
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await requireAuth();
     const { id } = await params;
@@ -39,28 +36,31 @@ export async function GET(
     }
 
     // Revenue + metrics
-    const [revenueAgg, paidSalesCount, metricsLatest] = await Promise.all([
+    // marginAvg is derived directly from all-time totals — NOT from BusinessMetrics.marginAvg,
+    // which only stores the value for a single day and would show the wrong figure.
+    const [revenueAgg, paidSalesCount] = await Promise.all([
       prisma.sale.aggregate({
         where: { businessId, paymentStatus: "Paid" },
         _sum: { totalRevenue: true, totalCost: true },
       }),
       prisma.sale.count({ where: { businessId, paymentStatus: "Paid" } }),
-      prisma.businessMetrics.findFirst({
-        where: { businessId },
-        orderBy: { date: "desc" },
-      }),
     ]);
+
+    const totalRevenue = Number(revenueAgg._sum.totalRevenue ?? 0);
+    const totalCost = Number(revenueAgg._sum.totalCost ?? 0);
+    const totalProfit = totalRevenue - totalCost;
+    const marginAvg = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : null;
 
     return NextResponse.json({
       success: true,
       data: {
         ...business,
         stats: {
-          totalRevenue: Number(revenueAgg._sum.totalRevenue ?? 0),
-          totalCost: Number(revenueAgg._sum.totalCost ?? 0),
-          totalProfit: Number(revenueAgg._sum.totalRevenue ?? 0) - Number(revenueAgg._sum.totalCost ?? 0),
+          totalRevenue,
+          totalCost,
+          totalProfit,
           paidSalesCount,
-          marginAvg: metricsLatest?.marginAvg ? Number(metricsLatest.marginAvg) : null,
+          marginAvg,
         },
       },
     });
@@ -76,10 +76,7 @@ export async function GET(
  * PATCH /api/businesses/[id] — Update business name/location
  * Body: { name?: string, location?: string }
  */
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await requireAuth();
     const { id } = await params;
@@ -133,10 +130,7 @@ export async function PATCH(
 /**
  * DELETE /api/businesses/[id] — Delete a business (only if user has more than one)
  */
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { userId } = await requireAuth();
     const { id } = await params;
@@ -168,4 +162,3 @@ export async function DELETE(
     return NextResponse.json({ error: "Failed to delete business" }, { status: 500 });
   }
 }
-

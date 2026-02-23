@@ -37,13 +37,47 @@ const formatCurrency = (value: number) =>
     minimumFractionDigits: 0,
   }).format(value);
 
+/**
+ * Renders a margin value with color + contextual badge.
+ * < -100%  → red + "Cek Data" badge (likely a unit/cost entry mistake)
+ * < 0%     → red + "Rugi" badge
+ * < 20%    → red
+ * < 50%    → yellow
+ * ≥ 50%    → green
+ */
+function MarginBadge({ margin }: { margin: number }) {
+  if (margin < -100) {
+    return (
+      <span className="text-red-700 font-semibold">
+        {margin}%{" "}
+        <span className="inline-flex items-center gap-0.5 bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          ⚠ Cek Data
+        </span>
+      </span>
+    );
+  }
+  if (margin < 0) {
+    return (
+      <span className="text-red-600 font-semibold">
+        {margin}%{" "}
+        <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          Rugi
+        </span>
+      </span>
+    );
+  }
+  const color = margin >= 50 ? "text-green-600" : margin >= 20 ? "text-yellow-600" : "text-red-600";
+  return <span className={`${color} font-semibold`}>{margin}%</span>;
+}
+
 // Recipe modal
 
 function RecipeModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const recipeCost = Number(product.recipeCost);
   const sellingPrice = Number(product.sellingPrice);
-  const margin = sellingPrice > 0 ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100) : 0;
+  const margin =
+    sellingPrice > 0 && recipeCost > 0 ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100) : null;
 
   return (
     <div
@@ -85,13 +119,7 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
           </div>
           <div className="px-4 py-3">
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Margin</p>
-            <p
-              className={`text-sm font-extrabold mt-0.5 ${
-                margin >= 50 ? "text-green-600" : margin >= 20 ? "text-yellow-600" : "text-red-600"
-              }`}
-            >
-              {sellingPrice > 0 ? `${margin}%` : "—"}
-            </p>
+            <p className="text-sm font-extrabold mt-0.5">{margin !== null ? <MarginBadge margin={margin} /> : "—"}</p>
           </div>
         </div>
 
@@ -223,17 +251,7 @@ function EditPriceModal({
                 {margin !== null && (
                   <>
                     {" — "}
-                    <span
-                      className={
-                        margin >= 50
-                          ? "text-green-600 font-semibold"
-                          : margin >= 20
-                            ? "text-yellow-600 font-semibold"
-                            : "text-red-600 font-semibold"
-                      }
-                    >
-                      {margin}% margin
-                    </span>
+                    <MarginBadge margin={margin} />
                   </>
                 )}
               </p>
@@ -664,7 +682,13 @@ export default function ProductsPage() {
           </div>
           <div className="bg-white rounded-2xl p-4 shadow border border-green-50">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Rata-rata Margin</p>
-            <p className="text-2xl font-extrabold text-green-700 mt-1">{totalCount > 0 ? `${avgMargin}%` : "—"}</p>
+            <p
+              className={`text-2xl font-extrabold mt-1 ${
+                avgMargin < 0 ? "text-red-600" : avgMargin < 20 ? "text-yellow-600" : "text-green-700"
+              }`}
+            >
+              {totalCount > 0 ? `${avgMargin}%` : "—"}
+            </p>
           </div>
         </div>
 

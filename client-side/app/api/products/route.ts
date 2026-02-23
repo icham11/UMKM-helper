@@ -124,12 +124,15 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit) || 1;
 
     // Global stats — computed over ALL matching products, not just the current page
+    // avgMargin: excludes products with no recipe (recipeCost=0) and clamps outliers to [-200, 100]
+    // so a single mis-entered product with -1000% margin doesn't destroy the stat.
     const statsRows = await prisma.$queryRaw<{ avg_price: string | null; avg_margin: string | null }[]>`
       SELECT
         AVG("sellingPrice")::text                                                     AS avg_price,
         AVG(
-          CASE WHEN "sellingPrice" > 0
-               THEN ("sellingPrice" - "recipeCost") / "sellingPrice" * 100
+          CASE WHEN "sellingPrice" > 0 AND "recipeCost" > 0
+               THEN GREATEST(-200, LEAST(100,
+                    ("sellingPrice" - "recipeCost") / "sellingPrice" * 100))
                ELSE NULL
           END
         )::text                                                                       AS avg_margin

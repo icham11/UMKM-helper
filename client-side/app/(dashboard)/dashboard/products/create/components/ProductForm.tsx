@@ -386,20 +386,37 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
           </div>
           {priceHint && <p className="text-xs text-violet-600 mt-1">{priceHint}</p>}
           {sellingPrice > 0 && recipeCost > 0 && (
-            <p className="text-xs text-gray-400">
-              Biaya: {formatCurrency(recipeCost)} — Margin:{" "}
-              <span
-                className={
-                  margin >= 50
-                    ? "text-green-600 font-semibold"
-                    : margin >= 20
-                      ? "text-yellow-600 font-semibold"
-                      : "text-red-600 font-semibold"
-                }
-              >
-                {margin}%
-              </span>
-            </p>
+            <>
+              <p className="text-xs text-gray-400">
+                Biaya: {formatCurrency(recipeCost)} — Margin:{" "}
+                <span
+                  className={
+                    margin < 0
+                      ? "text-red-700 font-semibold"
+                      : margin >= 50
+                        ? "text-green-600 font-semibold"
+                        : margin >= 20
+                          ? "text-yellow-600 font-semibold"
+                          : "text-red-600 font-semibold"
+                  }
+                >
+                  {margin}%
+                </span>
+              </p>
+              {margin < -100 && (
+                <div className="flex items-start gap-1.5 bg-orange-50 text-orange-700 rounded-lg px-3 py-2 mt-1 text-xs font-semibold">
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                  Margin sangat negatif (&lt;−100%). Cek ulang satuan atau biaya bahan — kemungkinan ada kesalahan
+                  input.
+                </div>
+              )}
+              {margin >= -100 && margin < 0 && (
+                <div className="flex items-start gap-1.5 bg-red-50 text-red-700 rounded-lg px-3 py-2 mt-1 text-xs font-semibold">
+                  <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                  Biaya resep melebihi harga jual — produk ini akan dijual rugi.
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
