@@ -15,7 +15,18 @@ type SortOrderType = "asc" | "desc";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [categories] = useState<ProductCategory[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
+    // Fetch categories from backend
+    useEffect(() => {
+      fetch("/api/categories")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.data)) {
+            setCategories(data.data);
+          }
+        })
+        .catch(() => {});
+    }, []);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortByField>("createdAt");
