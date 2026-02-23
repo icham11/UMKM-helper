@@ -104,6 +104,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                 quantity: number;
                 costPerUnit: number | null;
                 isNew?: boolean;
+                expirationDate?: string;
               }) => ({
                 ingredientId: r.ingredientId,
                 ingredientName: r.ingredientName,
@@ -111,6 +112,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                 quantity: r.quantity,
                 costPerUnit: r.costPerUnit,
                 isNew: r.isNew ?? false,
+                ...(r.expirationDate ? { expirationDate: r.expirationDate } : {}),
               }),
             ),
           );
@@ -121,7 +123,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
           .catch(() => {});
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "AI generation failed");
+      setError(err instanceof Error ? err.message : "Gagal generate produk dengan AI");
     } finally {
       setAiNameLoading(false);
     }
@@ -141,7 +143,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
       setSellingPrice(result.recommendedPrice);
       setPriceHint(`${result.reasoning} (margin ~${result.margin.toFixed(0)}%)`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Price recommendation failed");
+      setError(err instanceof Error ? err.message : "Gagal mendapatkan rekomendasi harga");
     } finally {
       setAiPriceLoading(false);
     }
@@ -194,13 +196,13 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
     (r.isNew === true || r.ingredientId < 0) && !!r.ingredientName?.trim() && r.costPerUnit == null;
 
   const validate = () => {
-    if (!name.trim()) return "Product name is required.";
-    if (!categoryName.trim()) return "Category is required.";
-    if (!sellingPrice || sellingPrice <= 0) return "Selling price must be greater than 0.";
+    if (!name.trim()) return "Nama produk wajib diisi.";
+    if (!categoryName.trim()) return "Kategori wajib diisi.";
+    if (!sellingPrice || sellingPrice <= 0) return "Harga jual harus lebih dari 0.";
     const hasInvalid = recipe.some((r) => !r.ingredientName.trim() || r.quantity <= 0);
-    if (recipe.length > 0 && hasInvalid) return "Each recipe row needs an ingredient name and a positive quantity.";
-    if (recipe.some(rowNeedsUnit)) return "Some new ingredients are missing a unit.";
-    if (recipe.some(rowNeedsCost)) return "Some new ingredients are missing a cost per unit.";
+    if (recipe.length > 0 && hasInvalid) return "Setiap bahan membutuhkan nama dan jumlah yang valid.";
+    if (recipe.some(rowNeedsUnit)) return "Beberapa bahan baru belum memiliki satuan.";
+    if (recipe.some(rowNeedsCost)) return "Beberapa bahan baru belum memiliki biaya per satuan.";
     return null;
   };
 
@@ -250,7 +252,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
         setTimeout(() => router.push("/dashboard/products"), 1200);
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create product");
+      setError(err instanceof Error ? err.message : "Gagal membuat produk");
     } finally {
       setSubmitting(false);
     }
@@ -260,8 +262,8 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
     return (
       <div className="flex flex-col items-center justify-center py-16 gap-4 text-green-600">
         <CheckCircle2 size={56} />
-        <p className="text-xl font-bold">Product saved!</p>
-        <p className="text-sm text-gray-500">Redirecting to products list…</p>
+        <p className="text-xl font-bold">Produk tersimpan!</p>
+        <p className="text-sm text-gray-500">Mengalihkan ke daftar produk…</p>
       </div>
     );
   }
@@ -279,28 +281,28 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
 
       {/* ── Product name ─ */}
       <div className="bg-white rounded-2xl shadow border border-gray-100 p-6 space-y-2">
-        <label className="text-sm font-bold text-gray-700">Product Name</label>
+        <label className="text-sm font-bold text-gray-700">Nama Produk</label>
         <div className="flex gap-2">
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Es Kopi Susu"
-            className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-base focus:ring-2 focus:ring-indigo-400 outline-none"
+            placeholder="cth. Es Kopi Susu"
+            className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-base text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
           />
           <button
             type="button"
             onClick={handleGenerateFromName}
             disabled={!name.trim() || aiNameLoading}
-            title="Auto-generate category, price & recipe from name"
+            title="Isi otomatis kategori, harga & resep berdasarkan nama produk"
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {aiNameLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-            AI Fill
+            Isi Otomatis
           </button>
         </div>
         <p className="text-xs text-gray-400">
-          Click &quot;AI Fill&quot; to auto-populate category, price and recipe using AI.
+          Klik &quot;Isi Otomatis&quot; untuk mengisi kategori, harga, dan resep secara otomatis.
         </p>
       </div>
 
@@ -308,7 +310,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Category */}
         <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 space-y-2 relative">
-          <label className="text-sm font-bold text-gray-700">Category</label>
+          <label className="text-sm font-bold text-gray-700">Kategori</label>
           <div className="flex gap-2">
             <input
               value={categoryName}
@@ -318,8 +320,8 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
               }}
               onFocus={() => setCategoryOpen(true)}
               onBlur={() => setTimeout(() => setCategoryOpen(false), 150)}
-              placeholder="e.g. Minuman"
-              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+              placeholder="cth. Minuman"
+              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             <button
               type="button"
@@ -354,7 +356,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
 
         {/* Selling price */}
         <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 space-y-2">
-          <label className="text-sm font-bold text-gray-700">Selling Price (Rp)</label>
+          <label className="text-sm font-bold text-gray-700">Harga Jual (Rp)</label>
           <div className="flex gap-2">
             <input
               type="number"
@@ -365,23 +367,27 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                 setPriceHint(null);
               }}
               placeholder="0"
-              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             <button
               type="button"
               onClick={handleRecommendPrice}
-              disabled={aiPriceLoading}
-              title="Get AI price recommendation based on recipe cost"
+              disabled={aiPriceLoading || recipeCost === 0}
+              title={
+                recipeCost === 0
+                  ? "Tambahkan bahan ke resep terlebih dahulu"
+                  : "Sarankan harga jual berdasarkan total biaya resep"
+              }
               className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {aiPriceLoading ? <Loader2 size={14} className="animate-spin" /> : <DollarSign size={14} />}
-              AI Price
+              Sarankan Harga
             </button>
           </div>
           {priceHint && <p className="text-xs text-violet-600 mt-1">{priceHint}</p>}
           {sellingPrice > 0 && recipeCost > 0 && (
             <p className="text-xs text-gray-400">
-              Cost: {formatCurrency(recipeCost)} — Margin:{" "}
+              Biaya: {formatCurrency(recipeCost)} — Margin:{" "}
               <span
                 className={
                   margin >= 50
@@ -402,8 +408,10 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
       <div className="bg-white rounded-2xl shadow border border-gray-100">
         <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50 rounded-t-2xl">
           <div>
-            <h3 className="font-bold text-indigo-700">Recipe / Ingredients</h3>
-            {recipeCost > 0 && <p className="text-xs text-gray-500 mt-0.5">Total cost: {formatCurrency(recipeCost)}</p>}
+            <h3 className="font-bold text-indigo-700">Resep / Bahan</h3>
+            {recipeCost > 0 && (
+              <p className="text-xs text-gray-500 mt-0.5">Total biaya: {formatCurrency(recipeCost)}</p>
+            )}
           </div>
           <button
             type="button"
@@ -411,17 +419,16 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
             className="flex items-center gap-1.5 px-3 py-2 border border-indigo-300 text-indigo-600 text-xs font-semibold rounded-xl hover:bg-indigo-50 transition"
           >
             <Camera size={14} />
-            From Photo
+            Dari Foto
           </button>
         </div>
 
         {/* Column headers */}
         <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide bg-gray-50/60 border-b border-gray-100">
-          <div className="col-span-4">Ingredient</div>
+          <div className="col-span-4">Bahan</div>
           <div className="col-span-2">Qty</div>
-          <div className="col-span-2">Unit</div>
-          <div className="col-span-2">Cost / unit</div>
-          <div className="col-span-2">Subtotal</div>
+          <div className="col-span-2">Satuan</div>
+          <div className="col-span-2">Biaya / satuan</div>
         </div>
 
         <div className="divide-y divide-gray-50 px-3 py-2 space-y-1">
@@ -449,7 +456,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
             className="flex items-center gap-2 text-indigo-600 text-sm font-semibold hover:text-indigo-800 transition"
           >
             <Plus size={16} />
-            Add Ingredient
+            Tambah Bahan
           </button>
         </div>
       </div>
@@ -464,10 +471,10 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
           {submitting ? (
             <>
               <Loader2 size={18} className="animate-spin" />
-              Saving…
+              Menyimpan…
             </>
           ) : (
-            "Confirm & Save"
+            "Konfirmasi & Simpan"
           )}
         </button>
       </div>

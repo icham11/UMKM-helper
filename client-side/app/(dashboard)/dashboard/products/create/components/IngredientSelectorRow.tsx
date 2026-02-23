@@ -80,7 +80,7 @@ export default function IngredientSelectorRow({
   // Tracks whether the user has clicked Done at least once (drives inline errors)
   const [rowTouched, setRowTouched] = useState(false);
   // Controls the optional initial-stock / expiry-date panel
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   // Name-search state — only used during "naming" phase
   const [query, setQuery] = useState(row.ingredientName ?? "");
@@ -197,11 +197,11 @@ export default function IngredientSelectorRow({
                   setQuery(e.target.value);
                   onChange({ ...row, ingredientName: e.target.value });
                 }}
-                placeholder="Ingredient name"
-                className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                placeholder="Nama bahan"
+                className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
               />
               <span className="inline-flex items-center mt-1 text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold leading-none">
-                NEW
+                New
               </span>
             </>
           ) : (
@@ -217,8 +217,8 @@ export default function IngredientSelectorRow({
                   }}
                   onFocus={() => setOpen(true)}
                   onBlur={handleNameBlur}
-                  placeholder="Ingredient name"
-                  className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                  placeholder="Nama bahan"
+                  className="w-full border border-amber-300 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
                 />
                 <button
                   type="button"
@@ -233,18 +233,20 @@ export default function IngredientSelectorRow({
               </div>
               {duplicateWarning ? (
                 <span className="inline-flex items-center mt-1 text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold leading-none">
-                  Already in recipe
+                  Sudah ada dalam resep
                 </span>
               ) : (
                 <span className="inline-flex items-center mt-1 text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold leading-none">
-                  NEW
+                  New
                 </span>
               )}
 
               {open && (
                 <ul className="absolute z-30 top-full mt-1 w-full bg-white border border-amber-100 rounded-xl shadow-xl max-h-48 overflow-y-auto text-sm">
                   {filtered.length === 0 ? (
-                    <li className="px-3 py-2 text-gray-400 italic">&quot;{query}&quot; — will be created as new</li>
+                    <li className="px-3 py-2 text-gray-400 italic">
+                      &quot;{query}&quot; — akan dibuat sebagai bahan baru
+                    </li>
                   ) : (
                     filtered.map((opt) => (
                       <li
@@ -272,7 +274,7 @@ export default function IngredientSelectorRow({
             value={row.quantity}
             onChange={(e) => onChange({ ...row, quantity: Number(e.target.value) })}
             placeholder="Qty"
-            className="w-full border border-indigo-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+            className="w-full border border-indigo-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
           />
         </div>
 
@@ -283,15 +285,15 @@ export default function IngredientSelectorRow({
               <input
                 value={row.unit}
                 onChange={(e) => onChange({ ...row, unit: e.target.value })}
-                placeholder="Unit"
+                placeholder="Satuan"
                 className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
                   (rowTouched || unitError) && !row.unit?.trim()
                     ? "border-red-400 focus:ring-red-300"
                     : "border-amber-300 focus:ring-amber-400"
-                }`}
+                } text-slate-700`}
               />
               {(rowTouched || unitError) && !row.unit?.trim() && (
-                <p className="text-[10px] text-red-500 font-semibold mt-0.5">Required</p>
+                <p className="text-[10px] text-red-500 font-semibold mt-0.5">Wajib diisi</p>
               )}
             </>
           ) : (
@@ -315,15 +317,15 @@ export default function IngredientSelectorRow({
                     costPerUnit: e.target.value === "" ? null : Number(e.target.value),
                   })
                 }
-                placeholder="Cost/unit"
+                placeholder="Biaya/satuan"
                 className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
                   (rowTouched || costError) && row.costPerUnit == null
                     ? "border-red-400 focus:ring-red-300"
                     : "border-amber-300 focus:ring-amber-400"
-                }`}
+                } text-slate-700`}
               />
               {(rowTouched || costError) && row.costPerUnit == null && (
-                <p className="text-[10px] text-red-500 font-semibold mt-0.5">Required</p>
+                <p className="text-[10px] text-red-500 font-semibold mt-0.5">Wajib diisi</p>
               )}
             </>
           ) : (
@@ -343,16 +345,16 @@ export default function IngredientSelectorRow({
               <button
                 type="button"
                 onClick={handleConfirm}
-                title="Confirm unit & cost"
+                title="Konfirmasi satuan & biaya"
                 className="flex items-center gap-1 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition"
               >
                 <Check size={12} />
-                Done
+                Selesai
               </button>
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                title={expanded ? "Hide optional fields" : "Set initial stock & expiry"}
+                title={expanded ? "Sembunyikan field opsional" : "Atur stok awal & kadaluarsa"}
                 className="p-1 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition"
               >
                 {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
@@ -366,7 +368,7 @@ export default function IngredientSelectorRow({
           <button
             type="button"
             onClick={onRemove}
-            title={willDeleteFromDB ? "Delete this AI-created ingredient from the database" : "Remove from recipe"}
+            title={willDeleteFromDB ? "Hapus bahan AI ini dari database" : "Hapus dari resep"}
             className={`p-1.5 rounded-full transition shrink-0 ${
               willDeleteFromDB
                 ? "hover:bg-red-100 text-red-400 hover:text-red-600"
@@ -397,7 +399,7 @@ export default function IngredientSelectorRow({
                   })
                 }
                 placeholder={`0${row.unit ? ` ${row.unit}` : ""}`}
-                className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
               />
               {row.unit && <span className="text-xs text-gray-400 shrink-0">{row.unit}</span>}
             </div>

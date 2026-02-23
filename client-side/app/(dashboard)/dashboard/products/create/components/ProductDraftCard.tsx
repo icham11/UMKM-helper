@@ -158,7 +158,7 @@ export default function ProductDraftCard({
                 value={draft.categoryName}
                 onChange={(e) => onChange({ ...draft, categoryName: e.target.value })}
                 placeholder="e.g. Minuman"
-                className="mt-1 w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="mt-1 w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
               />
             </div>
             <div>
@@ -168,7 +168,7 @@ export default function ProductDraftCard({
                 min={0}
                 value={draft.sellingPrice}
                 onChange={(e) => onChange({ ...draft, sellingPrice: Number(e.target.value) })}
-                className="mt-1 w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                className="mt-1 w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
               />
             </div>
           </div>

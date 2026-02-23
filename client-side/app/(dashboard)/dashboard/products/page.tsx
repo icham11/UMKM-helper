@@ -215,7 +215,7 @@ function EditPriceModal({
                 setError(null);
               }}
               onKeyDown={(e) => e.key === "Enter" && handleSave()}
-              className="mt-1.5 w-full border border-indigo-200 rounded-xl px-4 py-2.5 text-base font-semibold focus:ring-2 focus:ring-indigo-400 outline-none"
+              className="mt-1.5 w-full border border-indigo-200 rounded-xl px-4 py-2.5 text-base font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             {recipeCost > 0 && (
               <p className="text-xs text-gray-400 mt-1.5">
