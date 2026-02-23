@@ -43,8 +43,8 @@ export default function SidebarUserInfo({ jwtUserName, jwtUserEmail }: Props) {
       {/* Avatar/Icon */}
       <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 shadow-lg mx-auto ${
         isCashier
-          ? "bg-gradient-to-br from-amber-200 via-yellow-100 to-white"
-          : "bg-gradient-to-br from-indigo-200 via-blue-100 to-white"
+          ? "bg-linear-to-br from-amber-200 via-yellow-100 to-white"
+          : "bg-linear-to-br from-indigo-200 via-blue-100 to-white"
       }`}>
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" className="mx-auto">
           <circle cx="12" cy="12" r="12" fill={isCashier ? "#fef3c7" : "#e0e7ff"} />

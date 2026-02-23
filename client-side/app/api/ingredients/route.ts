@@ -193,8 +193,8 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          // Jika minStock -1 dari AI, set ke 0
-          const minStockValue = item.minStock === -1 ? 0 : (item.minStock ?? 0);
+          // Biarkan minStock tetap -1 jika dari AI -1
+          const minStockValue = item.minStock ?? -1;
           if (!ingredient) {
             ingredient = await tx.ingredient.create({
               data: {

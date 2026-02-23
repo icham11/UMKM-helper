@@ -82,7 +82,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   <span className="bg-indigo-100 p-3 rounded-xl text-2xl text-indigo-600">
                     <ShoppingCart className="w-7 h-7" />
                   </span>
-                  <span className="font-bold text-lg text-indigo-700 tracking-wide">Code</span>
+                  <span className="font-bold text-lg text-indigo-700 tracking-wide">{jwtUserName || "User"}</span>
                 </div>
               {/* ...existing sidebar sections — now RBAC-aware... */}
                 <SidebarNav />

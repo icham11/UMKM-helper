@@ -39,7 +39,7 @@ export default function SidebarNav() {
     <>
       {/* Kasir Mode Banner */}
       {isCashier && (
-        <div className="mb-6 p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
+        <div className="mb-6 p-3 bg-linear-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl">
           <div className="flex items-center gap-2 mb-1">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
@@ -48,7 +48,7 @@ export default function SidebarNav() {
             <span className="text-xs font-bold text-amber-800">MODE KASIR</span>
           </div>
           {userName && (
-            <p className="text-[11px] text-amber-700 font-medium truncate pl-[18px]">
+            <p className="text-[11px] text-amber-700 font-medium truncate pl-4.5">
               👤 {userName}
             </p>
           )}

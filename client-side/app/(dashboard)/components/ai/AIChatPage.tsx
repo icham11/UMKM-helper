@@ -573,7 +573,7 @@ export default function AIChatPage() {
               onKeyDown={handleKeyDown}
               placeholder="Tanyakan tentang bisnis Anda..."
               rows={1}
-              className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 max-h-28"
+              className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 max-h-28 text-black placeholder-gray-400"
               disabled={isLoading}
             />
             <button

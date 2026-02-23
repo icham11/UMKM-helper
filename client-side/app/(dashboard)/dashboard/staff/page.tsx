@@ -297,7 +297,7 @@ export default function StaffPage() {
       <select
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none appearance-none cursor-pointer"
+        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none appearance-none cursor-pointer text-black disabled:text-black placeholder-gray-400"
       >
         {businesses.map((b) => (
           <option key={b.id} value={b.id}>
@@ -480,7 +480,7 @@ export default function StaffPage() {
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Nama Kasir</label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type="text" value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Contoh: Siti Aisyah" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none" />
+                      <input type="text" value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Contoh: Siti Aisyah" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
                     </div>
                   </div>
                   {/* Email */}
@@ -488,7 +488,7 @@ export default function StaffPage() {
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Email Kasir</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="Contoh: siti@gmail.com" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none" />
+                      <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="Contoh: siti@gmail.com" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
                     </div>
                   </div>
                   {/* Password */}
@@ -496,7 +496,7 @@ export default function StaffPage() {
                     <label className="text-xs font-semibold text-gray-600 mb-1 block">Password Kasir</label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type={showPassword ? "text" : "password"} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="Minimal 6 karakter" className="w-full pl-9 pr-20 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none" />
+                      <input type={showPassword ? "text" : "password"} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="Minimal 6 karakter" className="w-full pl-9 pr-20 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer">
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -533,7 +533,7 @@ export default function StaffPage() {
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleInvite()} placeholder="email@kasir.com" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none" />
+                  <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleInvite()} placeholder="email@kasir.com" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
                 </div>
                 <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || !inviteBusinessId} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-2">
                   {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}

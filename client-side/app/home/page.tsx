@@ -1,7 +1,6 @@
-
 "use client";
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   ReceiptText,
   Box,
@@ -23,7 +22,8 @@ import { useBusiness } from "@/context/BusinessContext";
 function HomePage() {
   const router = useRouter();
   const { business, loading } = useBusiness();
-  const [roleChecked, setRoleChecked] = useState(false);
+  // null = not checked yet, true = checked and not cashier, false = checked and cashier
+  const [roleChecked, setRoleChecked] = useState<null | boolean>(null);
 
   // Kasir guard — middleware handles this, but this is a fallback
   useEffect(() => {
@@ -47,8 +47,8 @@ function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
-  // Show nothing until role is confirmed as non-Cashier
-  if (!roleChecked) {
+  // Show loading until role is checked
+  if (roleChecked === null) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-100 via-indigo-100 to-blue-200">
         <div className="flex flex-col items-center gap-3">

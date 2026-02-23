@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
   ShoppingCart,
   Search,
@@ -452,7 +452,7 @@ export default function POSPage() {
                 placeholder="Cari menu atau produk... (F4)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black placeholder-gray-400"
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -581,7 +581,7 @@ export default function POSPage() {
         </div>
 
         {/* ─── RIGHT: Cart ─── */}
-        <div className="w-[380px] bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden">
+        <div className="w-95 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden">
           {/* Cart header */}
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
@@ -662,7 +662,7 @@ export default function POSPage() {
                         setShowCustomerForm(true);
                       }
                     }}
-                    className={`flex-1 min-w-[55px] py-2 text-[11px] font-medium rounded-lg transition cursor-pointer ${
+                    className={`flex-1 min-w-13.75 py-2 text-[11px] font-medium rounded-lg transition cursor-pointer ${
                       paymentMethod === method
                         ? method === "Kasbon"
                           ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-300"
@@ -678,7 +678,7 @@ export default function POSPage() {
             </div>
 
             {/* Conditional forms — scrollable if needed */}
-            <div className="px-5 pb-2 overflow-y-auto max-h-[180px]">
+            <div className="px-5 pb-2 overflow-y-auto max-h-45">
               {/* KASBON MODE */}
               {paymentMethod === "Kasbon" && (
                 <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-2">
@@ -693,7 +693,7 @@ export default function POSPage() {
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Nama pelanggan (wajib) *"
-                      className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none ${
+                      className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-black placeholder-gray-400 ${
                         !customerName.trim() ? "border-2 border-red-300" : "border border-amber-200"
                       }`}
                     />
@@ -705,7 +705,7 @@ export default function POSPage() {
                       value={customerPhone}
                       onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="No. HP (untuk reminder WA)"
-                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none text-black placeholder-gray-400"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -715,14 +715,14 @@ export default function POSPage() {
                       onChange={(e) => setKasbonDueDate(e.target.value)}
                       min={currentTime ? currentTime.toISOString().split("T")[0] : undefined}
                       title="Jatuh tempo"
-                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none text-black placeholder-gray-400"
                     />
                     <input
                       type="text"
                       value={kasbonNotes}
                       onChange={(e) => setKasbonNotes(e.target.value)}
                       placeholder="Catatan (opsional)"
-                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none text-black placeholder-gray-400"
                     />
                   </div>
                 </div>
@@ -750,7 +750,7 @@ export default function POSPage() {
                           value={customerName}
                           onChange={(e) => setCustomerName(e.target.value)}
                           placeholder="Nama customer"
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-black placeholder-gray-400"
                         />
                       </div>
                       <div className="relative">
@@ -760,7 +760,7 @@ export default function POSPage() {
                           value={customerEmail}
                           onChange={(e) => setCustomerEmail(e.target.value)}
                           placeholder="Email customer"
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-black placeholder-gray-400"
                         />
                       </div>
                       <div className="relative">
@@ -770,7 +770,7 @@ export default function POSPage() {
                           value={customerPhone}
                           onChange={(e) => setCustomerPhone(e.target.value)}
                           placeholder="No. HP (opsional)"
-                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-black placeholder-gray-400"
                         />
                       </div>
                     </div>
