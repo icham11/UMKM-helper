@@ -68,7 +68,7 @@ ATURAN:
 6. Selalu sertakan angka dan persentase jika data tersedia
 7. Jika data tidak cukup, katakan secara jujur lalu berikan saran umum
 8. Jangan mengarang data yang tidak ada dalam konteks
-9. Gunakan emoji secukupnya untuk membuat respons lebih engaging`;
+9. Gunakan emoji secukupnya, lebih baik gunakan format list dan tabel`;
 
 // ===================== FETCH BUSINESS DATA =====================
 
@@ -525,6 +525,15 @@ async function persistMessages(
       },
     ],
   });
+
+  // Auto-title the session from first user message
+  if (sessionId) {
+    try {
+      await autoTitleSession(sessionId, businessId, userMsg.content);
+    } catch {
+      // Non-critical — don't fail the main flow
+    }
+  }
 }
 
 // ===================== CHAT HISTORY =====================
@@ -549,6 +558,20 @@ export async function getChatHistory(businessId: number, sessionId?: number, lim
 }
 
 export async function getChatSessions(businessId: number) {
+  // Auto-cleanup: delete empty sessions older than 5 minutes
+  try {
+    const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000);
+    await prisma.chatSession.deleteMany({
+      where: {
+        businessId,
+        createdAt: { lt: fiveMinAgo },
+        messages: { none: {} },
+      },
+    });
+  } catch {
+    // Non-critical
+  }
+
   return prisma.chatSession.findMany({
     where: { businessId },
     orderBy: { updatedAt: "desc" },
@@ -567,7 +590,7 @@ export async function createChatSession(businessId: number, title?: string) {
   return prisma.chatSession.create({
     data: {
       businessId,
-      title: title || "New Chat",
+      title: title || "Percakapan Baru",
     },
   });
 }
@@ -576,6 +599,72 @@ export async function deleteChatSession(sessionId: number, businessId: number) {
   return prisma.chatSession.delete({
     where: { id: sessionId, businessId },
   });
+}
+
+/**
+ * Update session title.
+ * Truncates to 50 chars max.
+ */
+export async function updateSessionTitle(sessionId: number, businessId: number, title: string) {
+  const truncated = title.length > 50 ? title.slice(0, 47) + "..." : title;
+  return prisma.chatSession.update({
+    where: { id: sessionId, businessId },
+    data: { title: truncated },
+  });
+}
+
+/**
+ * Generate a short, readable title from a user message.
+ * Strips filler words and produces a clean summary ≤ 40 chars.
+ */
+function generateTitleFromMessage(message: string): string {
+  // Remove common filler/prefix words in Indonesian & English
+  const fillers = [
+    "tolong", "coba", "bisa", "boleh", "mohon", "minta", "berikan", "kasih",
+    "jelaskan", "bantu", "saya", "aku", "kami", "kita", "ingin", "mau", "dong",
+    "ya", "please", "can", "you", "could", "help", "me", "i", "want", "to",
+    "the", "a", "an", "give", "show", "tell", "explain",
+    "bagaimana", "gimana", "apa", "apakah", "kenapa", "mengapa",
+  ];
+
+  const cleaned = message
+    .replace(/[?!.,;:'"` ]/g, " ")  // strip punctuation
+    .trim();
+
+  // Remove filler words from the start
+  const words = cleaned.split(/\s+/);
+  let startIdx = 0;
+  while (startIdx < words.length && fillers.includes(words[startIdx].toLowerCase())) {
+    startIdx++;
+  }
+  const meaningful = words.slice(startIdx);
+
+  if (meaningful.length === 0) {
+    // All filler — use original but capitalize first letter
+    const fallback = message.trim().slice(0, 40);
+    return fallback.charAt(0).toUpperCase() + fallback.slice(1);
+  }
+
+  // Take first ~6 meaningful words, capitalize
+  const title = meaningful.slice(0, 6).join(" ");
+  const capitalized = title.charAt(0).toUpperCase() + title.slice(1);
+
+  return capitalized.length > 40 ? capitalized.slice(0, 37) + "..." : capitalized;
+}
+
+/**
+ * Auto-set session title from the first user message if it's still a default title.
+ */
+export async function autoTitleSession(sessionId: number, businessId: number, firstMessage: string) {
+  const session = await prisma.chatSession.findUnique({
+    where: { id: sessionId },
+    select: { title: true },
+  });
+  const defaultTitles = ["New Chat", "Chat Baru", "Percakapan Baru"];
+  if (session && defaultTitles.includes(session.title || "")) {
+    const title = generateTitleFromMessage(firstMessage);
+    await updateSessionTitle(sessionId, businessId, title);
+  }
 }
 
 

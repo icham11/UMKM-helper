@@ -2,6 +2,28 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  MessageCircle,
+  Send,
+  Trash2,
+  Plus,
+  Bot,
+  User,
+  Menu,
+  X,
+  RefreshCw,
+  Database,
+  BarChart3,
+  Package,
+  TrendingUp,
+  Target,
+  Utensils,
+  AlertTriangle,
+  DollarSign,
+  Paperclip,
+  FileText,
+  Brain,
+} from "lucide-react";
 import MarkdownRenderer from "./MarkdownRenderer";
 
 interface SourceRef {
@@ -33,23 +55,29 @@ interface RAGStatus {
 }
 
 const SUGGESTION_PROMPTS = [
-  { icon: "📊", title: "Analisis Penjualan", prompt: "Tolong analisis detail penjualan 30 hari terakhir. Apa tren yang terlihat?" },
-  { icon: "🥕", title: "Status Inventori", prompt: "Bagaimana status stok bahan baku? Mana yang perlu segera dibeli?" },
-  { icon: "💰", title: "Optimasi Profit", prompt: "Berikan saran konkret untuk meningkatkan profit margin bisnis saya" },
-  { icon: "🏆", title: "Produk Terlaris", prompt: "Analisis produk terlaris dan berikan strategi untuk memaksimalkan penjualannya" },
-  { icon: "📈", title: "Prediksi Demand", prompt: "Prediksi demand produk untuk minggu depan berdasarkan data penjualan" },
-  { icon: "🍽️", title: "Rekomendasi Menu", prompt: "Berikan rekomendasi menu baru yang potensial berdasarkan bahan yang tersedia" },
-  { icon: "⚠️", title: "Analisis Risiko", prompt: "Identifikasi risiko bisnis saat ini dan berikan strategi mitigasinya" },
-  { icon: "🎯", title: "Strategi Harga", prompt: "Evaluasi strategi harga produk saya dan berikan saran penyesuaian" },
+  { icon: BarChart3, title: "Analisis Penjualan", prompt: "Tolong analisis detail penjualan 30 hari terakhir. Apa tren yang terlihat?" },
+  { icon: Package, title: "Status Inventori", prompt: "Bagaimana status stok bahan baku? Mana yang perlu segera dibeli?" },
+  { icon: DollarSign, title: "Optimasi Profit", prompt: "Berikan saran konkret untuk meningkatkan profit margin bisnis saya" },
+  { icon: TrendingUp, title: "Produk Terlaris", prompt: "Analisis produk terlaris dan berikan strategi untuk memaksimalkan penjualannya" },
+  { icon: Target, title: "Prediksi Demand", prompt: "Prediksi demand produk untuk minggu depan berdasarkan data penjualan" },
+  { icon: Utensils, title: "Rekomendasi Menu", prompt: "Berikan rekomendasi menu baru yang potensial berdasarkan bahan yang tersedia" },
+  { icon: AlertTriangle, title: "Analisis Risiko", prompt: "Identifikasi risiko bisnis saat ini dan berikan strategi mitigasinya" },
+  { icon: DollarSign, title: "Strategi Harga", prompt: "Evaluasi strategi harga produk saya dan berikan saran penyesuaian" },
 ];
 
-const SOURCE_LABELS: Record<string, { emoji: string; label: string; color: string }> = {
-  product: { emoji: "📦", label: "Produk", color: "bg-blue-100 text-blue-700" },
-  ingredient: { emoji: "🧂", label: "Bahan", color: "bg-green-100 text-green-700" },
-  sale: { emoji: "💰", label: "Penjualan", color: "bg-yellow-100 text-yellow-700" },
-  recipe: { emoji: "📋", label: "Resep", color: "bg-purple-100 text-purple-700" },
-  metric: { emoji: "📊", label: "Metrik", color: "bg-indigo-100 text-indigo-700" },
-  health: { emoji: "🏥", label: "Kesehatan", color: "bg-red-100 text-red-700" },
+const SOURCE_ICONS: Record<string, { icon: typeof Package; label: string; color: string }> = {
+  product: { icon: Package, label: "Produk", color: "bg-blue-50 text-blue-600 border-blue-200" },
+  ingredient: { icon: Package, label: "Bahan", color: "bg-green-50 text-green-600 border-green-200" },
+  sale: { icon: DollarSign, label: "Penjualan", color: "bg-amber-50 text-amber-600 border-amber-200" },
+  sale_detail: { icon: FileText, label: "Detail Penjualan", color: "bg-amber-50 text-amber-600 border-amber-200" },
+  recipe: { icon: Utensils, label: "Resep", color: "bg-purple-50 text-purple-600 border-purple-200" },
+  metric: { icon: BarChart3, label: "Metrik", color: "bg-indigo-50 text-indigo-600 border-indigo-200" },
+  health: { icon: AlertTriangle, label: "Kesehatan", color: "bg-red-50 text-red-600 border-red-200" },
+  inventory_batch: { icon: Package, label: "Stok Batch", color: "bg-teal-50 text-teal-600 border-teal-200" },
+  inventory_movement: { icon: TrendingUp, label: "Pergerakan Stok", color: "bg-cyan-50 text-cyan-600 border-cyan-200" },
+  debt: { icon: FileText, label: "Kasbon", color: "bg-orange-50 text-orange-600 border-orange-200" },
+  category: { icon: FileText, label: "Kategori", color: "bg-gray-50 text-gray-600 border-gray-200" },
+  business: { icon: BarChart3, label: "Bisnis", color: "bg-slate-50 text-slate-600 border-slate-200" },
 };
 
 export default function AIChatPage() {
@@ -134,24 +162,12 @@ export default function AIChatPage() {
     } catch { /* ignore */ }
   };
 
-  const createNewChat = async () => {
+  const createNewChat = () => {
     setMessages([]);
     setCurrentSession(null);
     setStreamingContent("");
     setStreamingSources([]);
     setShowSidebar(false);
-    try {
-      const res = await fetch("/api/ai/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: "New Chat" }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCurrentSession(data.session.id);
-        fetchSessions();
-      }
-    } catch { /* ignore */ }
   };
 
   const deleteSession = async (sessionId: number) => {
@@ -182,6 +198,23 @@ export default function AIChatPage() {
     setStreamingContent("");
     setStreamingSources([]);
 
+    // Auto-create session if needed
+    let sessionId = currentSession;
+    if (!sessionId) {
+      try {
+        const res = await fetch("/api/ai/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: "Percakapan Baru" }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          sessionId = data.session.id;
+          setCurrentSession(sessionId);
+        }
+      } catch { /* ignore */ }
+    }
+
     try {
       const allMessages = [...messages, userMessage].map((m) => ({
         role: m.role,
@@ -193,7 +226,7 @@ export default function AIChatPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: allMessages,
-          sessionId: currentSession,
+          sessionId,
           stream: true,
         }),
       });
@@ -244,6 +277,7 @@ export default function AIChatPage() {
       ]);
       setStreamingContent("");
       setStreamingSources([]);
+      fetchSessions(); // Refresh to get auto-updated title
     } catch {
       try {
         const allMessages = [...messages, userMessage].map((m) => ({
@@ -253,7 +287,7 @@ export default function AIChatPage() {
         const response = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: allMessages, sessionId: currentSession }),
+          body: JSON.stringify({ messages: allMessages, sessionId }),
         });
         const data = await response.json();
         if (data.success) {
@@ -271,7 +305,7 @@ export default function AIChatPage() {
       } catch {
         setMessages((prev) => [
           ...prev,
-          { id: (Date.now() + 1).toString(), role: "assistant", content: "❌ Terjadi kesalahan. Coba lagi.", timestamp: new Date() },
+          { id: (Date.now() + 1).toString(), role: "assistant", content: "Terjadi kesalahan. Silakan coba lagi.", timestamp: new Date() },
         ]);
       }
     } finally {
@@ -291,19 +325,22 @@ export default function AIChatPage() {
     if (!sources || sources.length === 0) return null;
     const uniqueTypes = [...new Set(sources.map((s) => s.sourceType))];
     return (
-      <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-2 border-t border-gray-100">
-        <span className="text-[10px] text-gray-400">📎 Sumber:</span>
+      <div className="flex flex-wrap items-center gap-1.5 mt-3 pt-2.5 border-t border-gray-100">
+        <Paperclip className="w-3 h-3 text-gray-400" />
+        <span className="text-[10px] text-gray-400 mr-0.5">Sumber:</span>
         {uniqueTypes.map((type) => {
-          const info = SOURCE_LABELS[type] || { emoji: "📄", label: type, color: "bg-gray-100 text-gray-700" };
+          const info = SOURCE_ICONS[type] || { icon: FileText, label: type, color: "bg-gray-50 text-gray-600 border-gray-200" };
+          const IconComp = info.icon;
           const count = sources.filter((s) => s.sourceType === type).length;
           const bestSim = Math.max(...sources.filter((s) => s.sourceType === type).map((s) => s.similarity));
           return (
             <span
               key={type}
-              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${info.color}`}
+              className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium border ${info.color}`}
               title={`${count} dokumen, relevansi ${(bestSim * 100).toFixed(0)}%`}
             >
-              {info.emoji} {info.label} ({count})
+              <IconComp className="w-3 h-3" />
+              {info.label} ({count})
             </span>
           );
         })}
@@ -311,13 +348,23 @@ export default function AIChatPage() {
     );
   };
 
+  const formatRelativeTime = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Baru saja";
+    if (mins < 60) return `${mins}m lalu`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}j lalu`;
+    const days = Math.floor(hours / 24);
+    return `${days}h lalu`;
+  };
+
   return (
-    <div className="relative flex flex-col md:flex-row min-h-125 md:min-h-150 max-h-[90vh] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden justify-center">
-      {/* ═══ Sidebar Overlay ═══ */}
+    <div className="relative flex flex-col md:flex-row min-h-[500px] md:min-h-[600px] max-h-[85vh] bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+      {/* Sidebar Overlay */}
       <AnimatePresence>
         {showSidebar && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -325,7 +372,6 @@ export default function AIChatPage() {
               className="absolute inset-0 bg-black/20 z-10"
               onClick={() => setShowSidebar(false)}
             />
-            {/* Sidebar */}
             <motion.div
               initial={{ x: -280 }}
               animate={{ x: 0 }}
@@ -333,14 +379,16 @@ export default function AIChatPage() {
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="absolute left-0 top-0 bottom-0 w-72 bg-white z-20 shadow-2xl flex flex-col border-r border-gray-200"
             >
-              {/* Sidebar Header */}
-              <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                <h3 className="text-sm font-bold text-gray-800">💬 Chat Sessions</h3>
+              <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/80">
+                <div className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4 text-gray-600" />
+                  <h3 className="text-sm font-semibold text-gray-800">Riwayat Chat</h3>
+                </div>
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="text-gray-400 hover:text-gray-600 transition p-1"
+                  className="text-gray-400 hover:text-gray-600 transition p-1 rounded-md hover:bg-gray-100"
                 >
-                  ✕
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
@@ -349,13 +397,13 @@ export default function AIChatPage() {
                   onClick={createNewChat}
                   className="w-full bg-indigo-600 text-white py-2.5 px-4 rounded-xl hover:bg-indigo-700 transition font-medium text-sm flex items-center justify-center gap-2"
                 >
-                  ➕ New Chat
+                  <Plus className="w-4 h-4" />
+                  Percakapan Baru
                 </button>
               </div>
 
-              {/* Session List */}
               <div className="flex-1 overflow-y-auto px-3 space-y-1">
-                {sessions.map((session) => (
+                {sessions.filter((s) => s._count.messages > 0).map((session) => (
                   <div
                     key={session.id}
                     className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition ${
@@ -365,15 +413,18 @@ export default function AIChatPage() {
                     }`}
                     onClick={() => loadSession(session.id)}
                   >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{session.title}</p>
-                      <p className="text-xs text-gray-400">{session._count.messages} pesan</p>
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <MessageCircle className={`w-3.5 h-3.5 shrink-0 ${currentSession === session.id ? "text-indigo-600" : "text-gray-400"}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{session.title}</p>
+                        <p className="text-[11px] text-gray-400">{session._count.messages} pesan · {formatRelativeTime(session.updatedAt)}</p>
+                      </div>
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 text-xs"
+                      className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1"
                     >
-                      🗑️
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
@@ -382,21 +433,24 @@ export default function AIChatPage() {
                 )}
               </div>
 
-              {/* RAG Status */}
-              <div className="p-3 border-t border-gray-100 bg-gray-50">
+              <div className="p-3 border-t border-gray-100 bg-gray-50/80">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <div className={`w-2 h-2 rounded-full ${ragStatus?.indexed ? "bg-green-500" : "bg-red-400"}`} />
-                    <span className="text-[10px] font-medium text-gray-600">
-                      {ragStatus?.indexed ? `🧠 ${ragStatus.documentCount} vektor` : "Belum diindeks"}
-                    </span>
+                    <div className="flex items-center gap-1">
+                      <Database className="w-3 h-3 text-gray-500" />
+                      <span className="text-[10px] font-medium text-gray-600">
+                        {ragStatus?.indexed ? `${ragStatus.documentCount} data tersinkronisasi` : "Data belum tersinkronisasi"}
+                      </span>
+                    </div>
                   </div>
                   <button
                     onClick={handleSyncData}
                     disabled={indexing}
-                    className="text-[10px] px-2.5 py-1 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 font-medium text-gray-600 transition"
+                    className="text-[10px] px-2.5 py-1 bg-white border border-gray-200 rounded-lg hover:bg-gray-100 disabled:opacity-50 font-medium text-gray-600 transition flex items-center gap-1"
                   >
-                    {indexing ? "⏳" : "🔄"} Sync
+                    <RefreshCw className={`w-3 h-3 ${indexing ? "animate-spin" : ""}`} />
+                    Sync
                   </button>
                 </div>
               </div>
@@ -405,50 +459,50 @@ export default function AIChatPage() {
         )}
       </AnimatePresence>
 
-      {/* ═══ Main Chat Area ═══ */}
+      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 justify-between">
-        {/* Chat Header */}
-        <div className="bg-linear-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center gap-3 shrink-0">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-4 py-3 flex items-center gap-3 shrink-0">
           <button
             onClick={() => setShowSidebar(!showSidebar)}
             className="text-white/80 hover:text-white transition p-1.5 rounded-lg hover:bg-white/10"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
+            <Menu className="w-[18px] h-[18px]" />
           </button>
-          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center text-base shrink-0">
-            🤖
+          <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center shrink-0">
+            <Bot className="w-4 h-4 text-white" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <h2 className="text-white font-bold text-sm truncate">AI Business Assistant</h2>
+              <h2 className="text-white font-semibold text-sm truncate">AI Business Assistant</h2>
               {ragStatus?.indexed && (
-                <span className="text-[9px] bg-white/20 text-white/90 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap shrink-0">
-                  🧠 RAG
+                <span className="text-[9px] bg-white/20 text-white/90 px-1.5 py-0.5 rounded-full font-medium whitespace-nowrap shrink-0 flex items-center gap-1">
+                  <Brain className="w-3 h-3" />
+                  Terhubung
                 </span>
               )}
             </div>
             <p className="text-indigo-200 text-[11px] truncate">
-              GROQ + Gemini • {ragStatus?.documentCount || 0} vektor aktif
+              {ragStatus?.indexed
+                ? `Data bisnis tersinkronisasi · ${ragStatus.documentCount} data terintegrasi`
+                : "AI siap membantu bisnis Anda"}
             </p>
           </div>
           <button
             onClick={handleSyncData}
             disabled={indexing}
-            className="text-white/60 hover:text-white text-xs px-2 py-1 rounded-lg hover:bg-white/10 transition shrink-0 hidden sm:block"
+            className="text-white/60 hover:text-white text-xs px-2 py-1 rounded-lg hover:bg-white/10 transition shrink-0 hidden sm:flex items-center gap-1"
             title="Sync data bisnis"
           >
-            {indexing ? "⏳" : "🔄"}
+            <RefreshCw className={`w-3.5 h-3.5 ${indexing ? "animate-spin" : ""}`} />
           </button>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-linear-to-b from-gray-50/80 to-white" style={{ minHeight: '350px', paddingBottom: '60px' }}>
-          {/* Empty State */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gradient-to-b from-gray-50/80 to-white" style={{ minHeight: "350px", paddingBottom: "60px" }}>
           {messages.length === 0 && !streamingContent && (
             <div className="text-center py-6">
-              <div className="text-5xl mb-3">🤖</div>
+              <div className="w-14 h-14 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Bot className="w-7 h-7 text-indigo-600" />
+              </div>
               <h3 className="text-lg font-bold text-gray-800 mb-1">AI Business Assistant</h3>
               <p className="text-gray-500 text-sm mb-3 max-w-sm mx-auto">
                 Tanyakan apa saja tentang bisnis Anda.
@@ -457,19 +511,22 @@ export default function AIChatPage() {
               {ragStatus?.indexed ? (
                 <div className="inline-flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-1.5 rounded-full mb-5">
                   <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                  🧠 RAG aktif — {ragStatus.documentCount} dokumen
+                  <Brain className="w-3 h-3" />
+                  Data bisnis terhubung — {ragStatus.documentCount} data siap dianalisis
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 mb-5">
-                  <span className="text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-full">
-                    ⚠️ Data belum diindeks
+                  <span className="text-xs text-yellow-600 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                    <AlertTriangle className="w-3 h-3" />
+                    Data bisnis belum tersinkronisasi
                   </span>
                   <button
                     onClick={handleSyncData}
                     disabled={indexing}
-                    className="text-xs bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition"
+                    className="text-xs bg-indigo-600 text-white px-4 py-1.5 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition flex items-center gap-1.5"
                   >
-                    {indexing ? "⏳ Mengindeks..." : "🔄 Index Data Sekarang"}
+                    <RefreshCw className={`w-3 h-3 ${indexing ? "animate-spin" : ""}`} />
+                    {indexing ? "Menyinkronkan..." : "Sinkronkan Data Sekarang"}
                   </button>
                 </div>
               )}
@@ -481,7 +538,7 @@ export default function AIChatPage() {
                     onClick={() => sendMessage(sp.prompt)}
                     className="flex flex-col items-center gap-1.5 p-3 bg-white rounded-xl border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow transition text-center group"
                   >
-                    <span className="text-xl group-hover:scale-110 transition-transform">{sp.icon}</span>
+                    <sp.icon className="w-5 h-5 text-gray-400 group-hover:text-indigo-500 transition" />
                     <span className="text-[11px] font-medium text-gray-600 leading-tight">{sp.title}</span>
                   </button>
                 ))}
@@ -489,13 +546,12 @@ export default function AIChatPage() {
             </div>
           )}
 
-          {/* Message List */}
           {messages.map((msg) => (
             <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div className={`flex items-start gap-2.5 ${msg.role === "user" ? "max-w-[85%]" : "max-w-[90%]"}`}>
                 {msg.role === "assistant" && (
-                  <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5">
-                    🤖
+                  <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="w-4 h-4 text-indigo-600" />
                   </div>
                 )}
                 <div
@@ -515,20 +571,19 @@ export default function AIChatPage() {
                   )}
                 </div>
                 {msg.role === "user" && (
-                  <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-sm text-white shrink-0 mt-0.5">
-                    👤
+                  <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                    <User className="w-4 h-4 text-white" />
                   </div>
                 )}
               </div>
             </div>
           ))}
 
-          {/* Streaming */}
           {streamingContent && (
             <div className="flex justify-start">
               <div className="flex items-start gap-2.5 max-w-[90%]">
-                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-sm shrink-0 mt-0.5">
-                  🤖
+                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
+                  <Bot className="w-4 h-4 text-indigo-600" />
                 </div>
                 <div className="rounded-2xl px-4 py-2.5 text-sm leading-relaxed bg-white text-gray-700 border border-gray-200 rounded-bl-sm shadow-sm overflow-hidden">
                   <MarkdownRenderer content={streamingContent} />
@@ -539,12 +594,11 @@ export default function AIChatPage() {
             </div>
           )}
 
-          {/* Loading */}
           {isLoading && !streamingContent && (
             <div className="flex justify-start">
               <div className="flex items-start gap-2.5">
-                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center text-sm shrink-0">
-                  🤖
+                <div className="w-7 h-7 bg-indigo-100 rounded-full flex items-center justify-center shrink-0">
+                  <Bot className="w-4 h-4 text-indigo-600" />
                 </div>
                 <div className="bg-white rounded-2xl px-4 py-3 border border-gray-200 shadow-sm">
                   <div className="flex items-center gap-2">
@@ -553,7 +607,7 @@ export default function AIChatPage() {
                       <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                       <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
-                    <span className="text-[11px] text-gray-400">Mencari data relevan...</span>
+                    <span className="text-[11px] text-gray-400">Sedang menganalisis...</span>
                   </div>
                 </div>
               </div>
@@ -563,8 +617,7 @@ export default function AIChatPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <div className="p-3 border-t border-gray-100 bg-white shrink-0" style={{ position: 'sticky', bottom: 0, zIndex: 10 }}>
+        <div className="p-3 border-t border-gray-100 bg-white shrink-0" style={{ position: "sticky", bottom: 0, zIndex: 10 }}>
           <div className="flex gap-2 items-end">
             <textarea
               ref={inputRef}
@@ -581,14 +634,15 @@ export default function AIChatPage() {
               disabled={!input.trim() || isLoading}
               className="bg-indigo-600 text-white p-2.5 rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition shrink-0"
             >
-              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-              </svg>
+              <Send className="w-[18px] h-[18px]" />
             </button>
           </div>
-          <p className="text-[9px] text-gray-400 mt-1.5 text-center">
-            🔒 Aman • 🧠 RAG Search • GROQ + Gemini
-          </p>
+          <div className="flex items-center justify-center gap-2 mt-1.5">
+            <Database className="w-3 h-3 text-gray-300" />
+            <p className="text-[9px] text-gray-400">
+              AI menganalisis data bisnis Anda secara real-time
+            </p>
+          </div>
         </div>
       </div>
     </div>

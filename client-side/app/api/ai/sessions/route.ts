@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, AuthError } from "@/lib/auth/session";
-import { getChatSessions, createChatSession, deleteChatSession } from "@/lib/ai/chat-service";
+import { getChatSessions, createChatSession, deleteChatSession, updateSessionTitle } from "@/lib/ai/chat-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +49,25 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
     return NextResponse.json({ error: "Failed to delete session" }, { status: 500 });
+  }
+}
+
+/** PATCH /api/ai/sessions — Update session title */
+export async function PATCH(request: NextRequest) {
+  try {
+    const { businessId } = await requireAuth();
+    const body = await request.json();
+    const { id, title } = body;
+    if (!id || !title) {
+      return NextResponse.json({ error: "id and title required" }, { status: 400 });
+    }
+    const session = await updateSessionTitle(parseInt(id), businessId, title);
+    return NextResponse.json({ success: true, session });
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+    return NextResponse.json({ error: "Failed to update session" }, { status: 500 });
   }
 }
 
