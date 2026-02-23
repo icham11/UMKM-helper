@@ -4,6 +4,101 @@ import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { StockDocumentType, InventoryMovementType } from "@prisma/client";
 
 /**
+ * PATCH /api/ingredients/[id]
+ *
+ * Updates name, unit, and/or costPerUnit of an ingredient.
+ * costPerUnit is persisted by updating (or creating) the ingredient's first inventory batch.
+ *
+ * Success (200): { "success": true }
+ * Errors: 400 | 401 | 404 | 500
+ */
+export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { businessId } = await requireAuth();
+    const { id } = await context.params;
+    const ingredientId = Number(id);
+
+    if (isNaN(ingredientId)) {
+      return NextResponse.json({ error: "Invalid ingredient ID" }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const { name, unit, costPerUnit, initialStock, expirationDate } = body as {
+      name?: string;
+      unit?: string;
+      costPerUnit?: number;
+      /** Quantity to set on the initial batch (replaces the AI placeholder qty=0) */
+      initialStock?: number;
+      /** ISO date string YYYY-MM-DD for the batch expiration */
+      expirationDate?: string;
+    };
+
+    const ingredient = await prisma.ingredient.findFirst({
+      where: { id: ingredientId, businessId },
+      include: {
+        inventoryBatches: {
+          orderBy: { receivedAt: "asc" as const },
+        },
+      },
+    });
+
+    if (!ingredient) {
+      return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
+    }
+
+    // Update name / unit directly on the ingredient
+    if (name !== undefined || unit !== undefined) {
+      await prisma.ingredient.update({
+        where: { id: ingredientId },
+        data: {
+          ...(name !== undefined ? { name } : {}),
+          ...(unit !== undefined ? { unit } : {}),
+        },
+      });
+    }
+
+    // Persist costPerUnit / initialStock / expirationDate via the inventory-batch layer
+    const batchPatch: Record<string, unknown> = {};
+    if (costPerUnit !== undefined) batchPatch.costPerUnit = costPerUnit;
+    if (initialStock !== undefined) batchPatch.remainingQty = initialStock;
+    if (expirationDate !== undefined) batchPatch.expirationDate = expirationDate ? new Date(expirationDate) : null;
+
+    if (Object.keys(batchPatch).length > 0) {
+      const existingBatch = ingredient.inventoryBatches[0];
+      if (existingBatch) {
+        await prisma.inventoryBatch.update({
+          where: { id: existingBatch.id },
+          data: batchPatch,
+        });
+      } else {
+        // No batch yet — create one (costPerUnit must have a value for the DB constraint)
+        await prisma.inventoryBatch.create({
+          data: {
+            ingredientId,
+            remainingQty: (batchPatch.remainingQty as number) ?? 0,
+            costPerUnit: (batchPatch.costPerUnit as number) ?? 0,
+            ...(batchPatch.expirationDate !== undefined
+              ? { expirationDate: batchPatch.expirationDate as Date | null }
+              : {}),
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("PATCH /api/ingredients/[id] error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to update ingredient" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
  * DELETE /api/ingredients/[id]
  *
  * Permanently deletes an ingredient and all its inventory batches / movements.
@@ -102,6 +197,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       await tx.inventoryMovement.create({
         data: {
           ingredientId,
+          ingredientNameSnapshot: ingredient.name,
+          ingredientUnitSnapshot: ingredient.unit,
           stockDocumentId: stockDoc.id,
           quantity,
           costPerUnit,

@@ -35,41 +35,38 @@ export async function GET(request: NextRequest) {
     const ingredients = await prisma.ingredient.findMany({
       where: {
         businessId,
-        ...(search
-          ? { name: { contains: search, mode: "insensitive" as const } }
-          : {}),
+        ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
       },
       orderBy: { createdAt: "desc" },
       include: {
         inventoryBatches: {
-          where: { remainingQty: { gt: 0 } },
-          orderBy: { receivedAt: "asc" }, // FIFO order
+          // Fetch ALL batches (including qty=0 AI-placeholder batches) so we can
+          // fall back to the last batch's costPerUnit even when currentStock is 0.
+          orderBy: { receivedAt: "asc" },
         },
       },
     });
 
     const data = ingredients.map((ing) => {
-      const batches = ing.inventoryBatches;
+      const allBatches = ing.inventoryBatches;
+      // Active batches only (qty > 0) used for stock & weighted-average cost
+      const activeBatches = allBatches.filter((b) => Number(b.remainingQty) > 0);
 
-      // ✅ TOTAL STOCK = sum semua batch
-      const currentStock = batches.reduce(
-        (sum, b) => sum + Number(b.remainingQty),
-        0
-      );
+      // ✅ TOTAL STOCK = sum of active batches
+      // -1 is used as a sentinel for "never stocked" (no batches at all = just created, never configured)
+      const currentStock =
+        allBatches.length === 0 ? -1 : activeBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
 
       // ✅ Weighted average cost
-      const totalCost = batches.reduce(
-        (sum, b) =>
-          sum + Number(b.remainingQty) * Number(b.costPerUnit),
-        0
-      );
+      const totalCost = activeBatches.reduce((sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit), 0);
 
+      // Fall back to the last batch regardless of qty (covers AI-created qty=0 placeholder batches)
       const costPerUnit =
         currentStock > 0
           ? totalCost / currentStock
-          : batches.length > 0
-          ? Number(batches[batches.length - 1].costPerUnit)
-          : null;
+          : allBatches.length > 0
+            ? Number(allBatches[allBatches.length - 1].costPerUnit)
+            : null;
 
       return {
         id: ing.id,
@@ -78,29 +75,23 @@ export async function GET(request: NextRequest) {
         minStock: ing.minStock,
         currentStock,
         costPerUnit,
-        ...(withBatches ? { inventoryBatches: batches } : {}),
+        ...(withBatches ? { inventoryBatches: activeBatches } : {}),
       };
     });
 
     return NextResponse.json({ success: true, data });
   } catch (error: unknown) {
     if (isAuthError(error)) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     console.error("GET /api/ingredients error:", error);
 
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to fetch ingredients",
+        error: error instanceof Error ? error.message : "Failed to fetch ingredients",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -129,6 +120,49 @@ export async function GET(request: NextRequest) {
  *   401 — { "error": "Unauthorized" }
  *   500 — { "error": "Failed to create ingredient(s)" }
  */
+/**
+ * DELETE /api/ingredients
+ *
+ * Body: { "ids": [1, 2, 3] }
+ *
+ * Bulk-deletes the given ingredients (and cascade: batches / movements)
+ * that belong to the authenticated user's business.
+ *
+ * Success (200): { "success": true, "deleted": 3 }
+ * Errors: 400, 401, 500
+ */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { businessId } = await requireAuth();
+    const body = await request.json();
+    const ids: unknown = body.ids;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: "ids must be a non-empty array" }, { status: 400 });
+    }
+
+    const numericIds = ids.map(Number).filter((n) => !isNaN(n));
+    if (numericIds.length === 0) {
+      return NextResponse.json({ error: "No valid IDs provided" }, { status: 400 });
+    }
+
+    const { count } = await prisma.ingredient.deleteMany({
+      where: { id: { in: numericIds }, businessId },
+    });
+
+    return NextResponse.json({ success: true, deleted: count });
+  } catch (error: unknown) {
+    if (isAuthError(error)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    console.error("DELETE /api/ingredients error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to delete ingredients" },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { businessId } = await requireAuth();

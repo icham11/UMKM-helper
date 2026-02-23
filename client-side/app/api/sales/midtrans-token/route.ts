@@ -43,10 +43,7 @@ async function validateInventoryAvailability(
 
     for (const recipe of recipes) {
       const requiredQty = Number(recipe.quantity) * item.quantity;
-      const availableQty = recipe.ingredient.inventoryBatches.reduce(
-        (sum, b) => sum + Number(b.remainingQty),
-        0,
-      );
+      const availableQty = recipe.ingredient.inventoryBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
 
       if (availableQty < requiredQty) {
         throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
@@ -110,10 +107,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!customerName) {
-      return NextResponse.json(
-        { error: "Customer name is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Customer name is required" }, { status: 400 });
     }
 
     // Email validation for Midtrans
@@ -127,93 +121,94 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate products
-      const productIds = [...new Set(items.map((i) => i.productId))];
-      const products = await tx.product.findMany({
-        where: { id: { in: productIds }, businessId },
-        select: { id: true, name: true, sellingPrice: true },
-      });
-
-      if (products.length !== productIds.length) {
-        const foundIds = new Set(products.map((p) => p.id));
-        const missing = productIds.filter((id) => !foundIds.has(id));
-        throw new Error(`Product with ID ${missing[0]} not found`);
-      }
-
-      await validateInventoryAvailability(tx, items);
-
-      const productMap = new Map(
-        products.map((p) => [p.id, { name: p.name, price: Number(p.sellingPrice) }]),
-      );
-
-      // 2. Calculate total
-      let totalRevenue = 0;
-      const itemDetails = [];
-
-      for (const item of items) {
-        const product = productMap.get(item.productId)!;
-        const subtotal = product.price * item.quantity;
-        totalRevenue += subtotal;
-
-        itemDetails.push({
-          id: `PROD-${item.productId}`,
-          name: product.name,
-          price: product.price,
-          quantity: item.quantity,
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Validate products
+        const productIds = [...new Set(items.map((i) => i.productId))];
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds }, businessId, deletedAt: null },
+          select: { id: true, name: true, sellingPrice: true },
         });
-      }
 
-      // 3. Generate transaction number
-      const timestamp = Date.now();
-      const random = Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0");
-      const transactionNumber = `TRX-${timestamp}-${random}`;
+        if (products.length !== productIds.length) {
+          const foundIds = new Set(products.map((p) => p.id));
+          const missing = productIds.filter((id) => !foundIds.has(id));
+          throw new Error(`Product with ID ${missing[0]} not found`);
+        }
 
-      // 4. Create stock document
-      const stockDocument = await tx.stockDocument.create({
-        data: {
-          businessId,
-          type: "Sale",
-          notes: `Pending sale - Midtrans payment`,
-        },
-      });
+        await validateInventoryAvailability(tx, items);
 
-      // 5. Create sale with Pending status
-      const sale = await tx.sale.create({
-        data: {
-          businessId,
-          stockDocumentId: stockDocument.id,
+        const productMap = new Map(products.map((p) => [p.id, { name: p.name, price: Number(p.sellingPrice) }]));
+
+        // 2. Calculate total
+        let totalRevenue = 0;
+        const itemDetails = [];
+
+        for (const item of items) {
+          const product = productMap.get(item.productId)!;
+          const subtotal = product.price * item.quantity;
+          totalRevenue += subtotal;
+
+          itemDetails.push({
+            id: `PROD-${item.productId}`,
+            name: product.name,
+            price: product.price,
+            quantity: item.quantity,
+          });
+        }
+
+        // 3. Generate transaction number
+        const timestamp = Date.now();
+        const random = Math.floor(Math.random() * 1000)
+          .toString()
+          .padStart(3, "0");
+        const transactionNumber = `TRX-${timestamp}-${random}`;
+
+        // 4. Create stock document
+        const stockDocument = await tx.stockDocument.create({
+          data: {
+            businessId,
+            type: "Sale",
+            notes: `Pending sale - Midtrans payment`,
+          },
+        });
+
+        // 5. Create sale with Pending status
+        const sale = await tx.sale.create({
+          data: {
+            businessId,
+            stockDocumentId: stockDocument.id,
+            transactionNumber,
+            totalRevenue,
+            totalCost: 0, // Will calculate after payment success
+            paymentMethod,
+            paymentStatus: "Pending",
+            customerName,
+            customerEmail,
+            customerPhone,
+          },
+        });
+
+        // 6. Create sale items (without deducting inventory yet)
+        await tx.saleItem.createMany({
+          data: items.map((item) => ({
+            saleId: sale.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            priceAtSale: productMap.get(item.productId)!.price,
+            costAtSale: 0, // Will calculate after payment success
+          })),
+        });
+
+        return {
+          saleId: sale.id,
           transactionNumber,
           totalRevenue,
-          totalCost: 0, // Will calculate after payment success
-          paymentMethod,
-          paymentStatus: "Pending",
-          customerName,
-          customerEmail,
-          customerPhone,
-        },
-      });
-
-      // 6. Create sale items (without deducting inventory yet)
-      await tx.saleItem.createMany({
-        data: items.map((item) => ({
-          saleId: sale.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          priceAtSale: productMap.get(item.productId)!.price,
-          costAtSale: 0, // Will calculate after payment success
-        })),
-      });
-
-      return {
-        saleId: sale.id,
-        transactionNumber,
-        totalRevenue,
-        itemDetails,
-      };
-    }, { timeout: 15000 });
+          itemDetails,
+        };
+      },
+      { timeout: 15000 },
+    );
 
     const origin = request.nextUrl?.origin ?? new URL(request.url).origin;
 

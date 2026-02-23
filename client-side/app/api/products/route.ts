@@ -62,6 +62,7 @@ async function checkDuplicateProducts(
     where: {
       businessId,
       name: { in: names, mode: "insensitive" },
+      deletedAt: null,
     },
     select: { name: true },
   });
@@ -108,12 +109,13 @@ export async function GET(request: NextRequest) {
 
     const where = {
       businessId,
+      deletedAt: null as null,
       ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
       ...(categoryId ? { categoryId: Number(categoryId) } : {}),
     };
 
     // Build raw WHERE fragments (reused for stats + margin sort query)
-    const whereParts: Prisma.Sql[] = [Prisma.sql`"businessId" = ${businessId}`];
+    const whereParts: Prisma.Sql[] = [Prisma.sql`"businessId" = ${businessId}`, Prisma.sql`"deletedAt" IS NULL`];
     if (search) whereParts.push(Prisma.sql`name ILIKE ${"%" + search + "%"}`);
     if (categoryId) whereParts.push(Prisma.sql`"categoryId" = ${Number(categoryId)}`);
     const whereRaw = Prisma.join(whereParts, " AND ");
@@ -182,8 +184,9 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 unit: true,
+                // Fetch ALL batches (including depleted qty=0 batches) so we can
+                // fall back to the most recent batch's costPerUnit even when stock is 0.
                 inventoryBatches: {
-                  where: { remainingQty: { gt: 0 } },
                   orderBy: { receivedAt: "desc" },
                   select: { costPerUnit: true, remainingQty: true },
                 },
@@ -197,11 +200,18 @@ export async function GET(request: NextRequest) {
     // Enrich with costPerUnit and recipeCost for the wireframe
     const enriched = products.map((product) => {
       const recipesWithCost = product.recipes.map((r) => {
-        const batches = r.ingredient.inventoryBatches;
-        const currentStock = batches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-        const totalCost = batches.reduce((sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit), 0);
+        const allBatches = r.ingredient.inventoryBatches;
+        // Active batches (qty > 0) drive the weighted-average cost;
+        // when stock is 0 we fall back to the most recent batch's costPerUnit.
+        const activeBatches = allBatches.filter((b) => Number(b.remainingQty) > 0);
+        const currentStock = activeBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
+        const totalCost = activeBatches.reduce((sum, b) => sum + Number(b.remainingQty) * Number(b.costPerUnit), 0);
         const costPerUnit =
-          currentStock > 0 ? totalCost / currentStock : batches[0] ? Number(batches[0].costPerUnit) : null;
+          currentStock > 0
+            ? totalCost / currentStock
+            : allBatches[0] // ordered desc → [0] is the most recent batch
+              ? Number(allBatches[0].costPerUnit)
+              : null;
 
         return {
           ...r,
@@ -478,7 +488,9 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Some products were not found" }, { status: 404 });
     }
 
-    await prisma.product.deleteMany({ where: { id: { in: ids }, businessId } });
+    // Soft-delete: SaleItem / ProductMetrics / ProductForecast rows are preserved
+    const now = new Date();
+    await prisma.product.updateMany({ where: { id: { in: ids }, businessId }, data: { deletedAt: now } });
 
     return NextResponse.json({ success: true, deleted: ids.length });
   } catch (error) {
