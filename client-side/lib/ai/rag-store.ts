@@ -1098,13 +1098,20 @@ async function fetchExistingHashes(
   >(
     `SELECT id, "sourceType", "sourceId", "chunkIndex", "contentHash"
      FROM "BusinessDocument"
-     WHERE "businessId" = $1 AND "sourceType" != 'pdf_document'`,
+     WHERE "businessId" = $1 AND "sourceType" != 'pdf_document'
+     ORDER BY id`,
     businessId
   );
 
   const map = new Map<string, { id: number; contentHash: string | null }>();
   for (const row of rows) {
     const key = chunkKeyStr({ sourceType: row.sourceType, sourceId: row.sourceId, chunkIndex: row.chunkIndex });
+    // If duplicate keys exist (shouldn't happen, but defensive), keep the latest ID
+    const existing = map.get(key);
+    if (existing) {
+      // Mark the older duplicate for cleanup
+      console.warn(`[RAG] Duplicate chunk key detected: ${key} (ids: ${existing.id}, ${row.id}). Keeping latest.`);
+    }
     map.set(key, { id: row.id, contentHash: row.contentHash });
   }
   return map;
@@ -1127,137 +1134,137 @@ export async function indexBusinessDocuments(
   const t0 = Date.now();
   console.log(`[RAG] Starting incremental sync for business ${businessId}...`);
 
-  // 1. Build fresh chunks from current data
-  const chunks = await buildBusinessChunks(businessId);
-  if (chunks.length === 0) {
-    // No business data → wipe stale docs (but preserve uploaded PDFs)
-    const deleted = await prisma.$executeRawUnsafe(
-      `DELETE FROM "BusinessDocument" WHERE "businessId" = $1 AND "sourceType" != 'pdf_document'`,
-      businessId
-    );
-    console.log(`[RAG] No data to index. Deleted ${deleted} stale docs.`);
-    return { total: 0, added: 0, updated: 0, deleted: Number(deleted), unchanged: 0, elapsed: Date.now() - t0 };
-  }
-
-  // 2. Hash each chunk
-  const chunksWithHash = chunks.map((c) => ({
-    ...c,
-    contentHash: hashContent(c.content),
-    key: chunkKeyStr(c),
-  }));
-
-  // 3. Fetch existing hashes from DB
-  const existingMap = await fetchExistingHashes(businessId);
-  console.log(`[RAG] Existing documents: ${existingMap.size}, New chunks: ${chunksWithHash.length}`);
-
-  // 4. Classify chunks: new, changed, or unchanged
-  const toEmbed: (typeof chunksWithHash)[number][] = [];   // need new embedding
-  const toSkip: (typeof chunksWithHash)[number][] = [];     // hash match → skip
-  const newChunkKeys = new Set<string>();
-
-  for (const chunk of chunksWithHash) {
-    newChunkKeys.add(chunk.key);
-    const existing = existingMap.get(chunk.key);
-
-    if (!existing) {
-      // New chunk — needs embedding
-      toEmbed.push(chunk);
-    } else if (existing.contentHash !== chunk.contentHash) {
-      // Content changed — needs re-embedding
-      toEmbed.push(chunk);
-    } else {
-      // Unchanged — skip entirely
-      toSkip.push(chunk);
-    }
-  }
-
-  // 5. Find stale docs to delete (exist in DB but not in current chunks)
-  const staleIds: number[] = [];
-  for (const [key, existing] of existingMap.entries()) {
-    if (!newChunkKeys.has(key)) {
-      staleIds.push(existing.id);
-    }
-  }
-
-  console.log(`[RAG] Sync plan: ${toEmbed.length} to embed, ${toSkip.length} unchanged, ${staleIds.length} stale`);
-
-  // 6. Delete stale documents
-  if (staleIds.length > 0) {
-    // Delete in batches to avoid overly long SQL
-    const BATCH = 100;
-    for (let i = 0; i < staleIds.length; i += BATCH) {
-      const batch = staleIds.slice(i, i + BATCH);
-      await prisma.$executeRawUnsafe(
-        `DELETE FROM "BusinessDocument" WHERE id = ANY($1::int[])`,
-        batch
+  try {
+    // 1. Build fresh chunks from current data
+    const chunks = await buildBusinessChunks(businessId);
+    if (chunks.length === 0) {
+      // No business data → wipe stale docs (but preserve uploaded PDFs)
+      const deleted = await prisma.$executeRawUnsafe(
+        `DELETE FROM "BusinessDocument" WHERE "businessId" = $1 AND "sourceType" != 'pdf_document'`,
+        businessId
       );
+      console.log(`[RAG] No data to index. Deleted ${deleted} stale docs.`);
+      return { total: 0, added: 0, updated: 0, deleted: Number(deleted), unchanged: 0, elapsed: Date.now() - t0 };
     }
-    console.log(`[RAG] 🗑️  Deleted ${staleIds.length} stale documents`);
-  }
 
-  // 7. Generate embeddings ONLY for new/changed chunks
-  if (toEmbed.length > 0) {
-    const texts = toEmbed.map((c) => c.content);
-    console.log(`[RAG] Generating ${texts.length} embeddings via Gemini (skipping ${toSkip.length} unchanged)...`);
-    const embeddings = await generateEmbeddingsBatch(texts);
+    // 2. Hash each chunk
+    const chunksWithHash = chunks.map((c) => ({
+      ...c,
+      contentHash: hashContent(c.content),
+      key: chunkKeyStr(c),
+    }));
 
-    // 8. Upsert new/changed documents
-    for (let i = 0; i < toEmbed.length; i++) {
-      const chunk = toEmbed[i];
-      const vecStr = `[${embeddings[i].join(",")}]`;
+    // 3. Fetch existing hashes from DB
+    const existingMap = await fetchExistingHashes(businessId);
+    console.log(`[RAG] Existing documents: ${existingMap.size}, New chunks: ${chunksWithHash.length}`);
+
+    // 4. Classify chunks: new, changed, or unchanged
+    const toEmbed: (typeof chunksWithHash)[number][] = [];   // need new embedding
+    const toSkip: (typeof chunksWithHash)[number][] = [];     // hash match → skip
+    const newChunkKeys = new Set<string>();
+
+    for (const chunk of chunksWithHash) {
+      newChunkKeys.add(chunk.key);
       const existing = existingMap.get(chunk.key);
 
-      if (existing) {
-        // UPDATE existing row (content changed) — matched by primary key
-        await prisma.$executeRawUnsafe(
-          `UPDATE "BusinessDocument"
-           SET "content" = $1, "contentHash" = $2, "embedding" = $3::vector,
-               "metadata" = $4::jsonb, "updatedAt" = NOW()
-           WHERE id = $5`,
-          chunk.content,
-          chunk.contentHash,
-          vecStr,
-          JSON.stringify(chunk.metadata),
-          existing.id
-        );
+      if (!existing) {
+        toEmbed.push(chunk);
+      } else if (existing.contentHash !== chunk.contentHash) {
+        toEmbed.push(chunk);
       } else {
-        // INSERT new row — no conflict possible since key doesn't exist
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO "BusinessDocument"
-             ("businessId", "content", "contentHash", "embedding", "sourceType", "sourceId", "metadata", "chunkIndex", "createdAt", "updatedAt")
-           VALUES ($1, $2, $3, $4::vector, $5, $6, $7::jsonb, $8, NOW(), NOW())`,
-          businessId,
-          chunk.content,
-          chunk.contentHash,
-          vecStr,
-          chunk.sourceType,
-          chunk.sourceId,
-          JSON.stringify(chunk.metadata),
-          chunk.chunkIndex
-        );
+        toSkip.push(chunk);
       }
     }
 
-    console.log(`[RAG] ✅ Upserted ${toEmbed.length} documents`);
+    // 5. Find stale docs to delete (exist in DB but not in current chunks)
+    const staleIds: number[] = [];
+    for (const [key, existing] of existingMap.entries()) {
+      if (!newChunkKeys.has(key)) {
+        staleIds.push(existing.id);
+      }
+    }
+
+    console.log(`[RAG] Sync plan: ${toEmbed.length} to embed, ${toSkip.length} unchanged, ${staleIds.length} stale`);
+
+    // 6. Delete stale documents
+    if (staleIds.length > 0) {
+      const BATCH = 100;
+      for (let i = 0; i < staleIds.length; i += BATCH) {
+        const batch = staleIds.slice(i, i + BATCH);
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM "BusinessDocument" WHERE id = ANY($1::int[])`,
+          batch
+        );
+      }
+      console.log(`[RAG] 🗑️  Deleted ${staleIds.length} stale documents`);
+    }
+
+    // 7. Generate embeddings ONLY for new/changed chunks
+    if (toEmbed.length > 0) {
+      const texts = toEmbed.map((c) => c.content);
+      console.log(`[RAG] Generating ${texts.length} embeddings via Gemini (skipping ${toSkip.length} unchanged)...`);
+      const embeddings = await generateEmbeddingsBatch(texts);
+
+      // 8. Upsert new/changed documents
+      for (let i = 0; i < toEmbed.length; i++) {
+        const chunk = toEmbed[i];
+        const vecStr = `[${embeddings[i].join(",")}]`;
+        const existing = existingMap.get(chunk.key);
+
+        if (existing) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "BusinessDocument"
+             SET "content" = $1, "contentHash" = $2, "embedding" = $3::vector,
+                 "metadata" = $4::jsonb, "updatedAt" = NOW()
+             WHERE id = $5`,
+            chunk.content,
+            chunk.contentHash,
+            vecStr,
+            JSON.stringify(chunk.metadata),
+            existing.id
+          );
+        } else {
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO "BusinessDocument"
+               ("businessId", "content", "contentHash", "embedding", "sourceType", "sourceId", "metadata", "chunkIndex", "createdAt", "updatedAt")
+             VALUES ($1, $2, $3, $4::vector, $5, $6, $7::jsonb, $8, NOW(), NOW())`,
+            businessId,
+            chunk.content,
+            chunk.contentHash,
+            vecStr,
+            chunk.sourceType,
+            chunk.sourceId,
+            JSON.stringify(chunk.metadata),
+            chunk.chunkIndex
+          );
+        }
+      }
+
+      console.log(`[RAG] ✅ Upserted ${toEmbed.length} documents`);
+    }
+
+    const added = toEmbed.filter((c) => !existingMap.has(c.key)).length;
+    const updated = toEmbed.length - added;
+    const elapsed = Date.now() - t0;
+
+    console.log(
+      `[RAG] ✅ Incremental sync complete in ${elapsed}ms — ` +
+      `added: ${added}, updated: ${updated}, unchanged: ${toSkip.length}, deleted: ${staleIds.length}`
+    );
+
+    return {
+      total: chunks.length,
+      added,
+      updated,
+      deleted: staleIds.length,
+      unchanged: toSkip.length,
+      elapsed,
+    };
+  } catch (err) {
+    const elapsed = Date.now() - t0;
+    console.error(`[RAG] ❌ Incremental sync failed after ${elapsed}ms:`, err);
+    throw err;
   }
-
-  const added = toEmbed.filter((c) => !existingMap.has(c.key)).length;
-  const updated = toEmbed.length - added;
-  const elapsed = Date.now() - t0;
-
-  console.log(
-    `[RAG] ✅ Incremental sync complete in ${elapsed}ms — ` +
-    `added: ${added}, updated: ${updated}, unchanged: ${toSkip.length}, deleted: ${staleIds.length}`
-  );
-
-  return {
-    total: chunks.length,
-    added,
-    updated,
-    deleted: staleIds.length,
-    unchanged: toSkip.length,
-    elapsed,
-  };
 }
 
 // ==================== SEMANTIC SEARCH ====================
@@ -1273,41 +1280,83 @@ export async function searchDocuments(
   const { topK = 8, sourceTypes, minSimilarity = 0.25 } = options;
 
   // 1. Embed the query (uses RETRIEVAL_QUERY task type)
-  const queryVec = await generateQueryEmbedding(query);
+  let queryVec: number[];
+  try {
+    queryVec = await generateQueryEmbedding(query);
+  } catch (err) {
+    console.error("[RAG Search] Failed to embed query:", err);
+    return []; // graceful fallback — no crash, just no results
+  }
+
+  // Validate embedding dimension
+  if (queryVec.length !== 768) {
+    console.error(`[RAG Search] Invalid embedding dimension: ${queryVec.length}, expected 768`);
+    return [];
+  }
+
+  // Validate all values are finite numbers
+  if (!queryVec.every((v) => Number.isFinite(v))) {
+    console.error("[RAG Search] Embedding contains non-finite values");
+    return [];
+  }
+
   const vecStr = `[${queryVec.join(",")}]`;
 
-  // 2. Build SQL
-  let sql = `
-    SELECT
-      id,
-      content,
-      "sourceType",
-      "sourceId",
-      metadata,
-      1 - (embedding <=> $1::vector) AS similarity
-    FROM "BusinessDocument"
-    WHERE "businessId" = $2
-      AND embedding IS NOT NULL
-      AND 1 - (embedding <=> $1::vector) >= $3
-  `;
+  // 2. Build SQL — parameterized to avoid injection
+  // Use <=> for cosine distance (pgvector) and convert to similarity (1 - distance)
+  let sql: string;
   const params: unknown[] = [vecStr, businessId, minSimilarity];
 
   if (sourceTypes && sourceTypes.length > 0) {
-    sql += ` AND "sourceType" = ANY($4::text[])`;
-    params.push(sourceTypes);
+    sql = `
+      SELECT
+        id,
+        content,
+        "sourceType",
+        "sourceId",
+        COALESCE(metadata, '{}'::jsonb) AS metadata,
+        1 - (embedding <=> $1::vector) AS similarity
+      FROM "BusinessDocument"
+      WHERE "businessId" = $2
+        AND embedding IS NOT NULL
+        AND 1 - (embedding <=> $1::vector) >= $3
+        AND "sourceType" = ANY($4::text[])
+      ORDER BY similarity DESC
+      LIMIT $5
+    `;
+    params.push(sourceTypes, topK);
+  } else {
+    sql = `
+      SELECT
+        id,
+        content,
+        "sourceType",
+        "sourceId",
+        COALESCE(metadata, '{}'::jsonb) AS metadata,
+        1 - (embedding <=> $1::vector) AS similarity
+      FROM "BusinessDocument"
+      WHERE "businessId" = $2
+        AND embedding IS NOT NULL
+        AND 1 - (embedding <=> $1::vector) >= $3
+      ORDER BY similarity DESC
+      LIMIT $4
+    `;
+    params.push(topK);
   }
 
-  sql += ` ORDER BY similarity DESC LIMIT $${params.length + 1}`;
-  params.push(topK);
-
   // 3. Execute
-  const rows: SearchResult[] = await prisma.$queryRawUnsafe(sql, ...params);
+  try {
+    const rows: SearchResult[] = await prisma.$queryRawUnsafe(sql, ...params);
 
-  return rows.map((r) => ({
-    ...r,
-    similarity: Number(r.similarity),
-    metadata: (r.metadata || {}) as Record<string, unknown>,
-  }));
+    return rows.map((r) => ({
+      ...r,
+      similarity: Number(r.similarity),
+      metadata: (typeof r.metadata === "object" && r.metadata !== null ? r.metadata : {}) as Record<string, unknown>,
+    }));
+  } catch (err) {
+    console.error("[RAG Search] Query failed:", err);
+    return []; // graceful — don't crash the chat
+  }
 }
 
 /**
@@ -1355,16 +1404,22 @@ export async function getRelevantContext(
 // ==================== STATUS ====================
 
 export async function getIndexStatus(businessId: number): Promise<IndexStatus> {
-  const rows = await prisma.$queryRawUnsafe<{ count: bigint; last_updated: Date | null }[]>(
-    `SELECT COUNT(*) as count, MAX("updatedAt") as last_updated FROM "BusinessDocument" WHERE "businessId" = $1`,
-    businessId
-  );
-  const count = Number(rows[0]?.count || 0);
-  return {
-    indexed: count > 0,
-    documentCount: count,
-    lastUpdated: rows[0]?.last_updated || null,
-  };
+  try {
+    const rows = await prisma.$queryRawUnsafe<{ count: bigint; last_updated: Date | null }[]>(
+      `SELECT COUNT(*) as count, MAX("updatedAt") as last_updated FROM "BusinessDocument" WHERE "businessId" = $1`,
+      businessId
+    );
+    const count = Number(rows[0]?.count || 0);
+    return {
+      indexed: count > 0,
+      documentCount: count,
+      lastUpdated: rows[0]?.last_updated || null,
+    };
+  } catch (err) {
+    // If the table doesn't exist yet, return unindexed status instead of crashing
+    console.warn("[RAG] getIndexStatus failed (table may not exist):", err instanceof Error ? err.message : err);
+    return { indexed: false, documentCount: 0, lastUpdated: null };
+  }
 }
 
 // ==================== HELPERS ====================

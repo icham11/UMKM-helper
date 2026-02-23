@@ -63,14 +63,26 @@ async function main() {
   }
 
   // 2c. Add unique constraint for incremental sync
+  // NOTE: We use COALESCE for sourceId because PostgreSQL treats NULL != NULL
+  // in unique indexes, which would allow duplicate entries for chunks where sourceId IS NULL
   try {
+    // Drop old index if it exists (it didn't handle NULLs properly)
+    await client.query(`DROP INDEX IF EXISTS "BusinessDocument_sync_key";`);
     await client.query(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "BusinessDocument_sync_key"
-        ON "BusinessDocument" ("businessId", "sourceType", "sourceId", "chunkIndex");
+      CREATE UNIQUE INDEX "BusinessDocument_sync_key"
+        ON "BusinessDocument" ("businessId", "sourceType", COALESCE("sourceId", -1), "chunkIndex");
     `);
-    console.log("✅ Unique sync key index created");
+    console.log("✅ Unique sync key index created (with NULL-safe COALESCE)");
   } catch (e) {
-    console.warn("⚠️ Sync key index may already exist:", e.message);
+    // If it fails due to existing duplicates, just create a non-unique index
+    console.warn("⚠️ Unique sync key index failed (possible duplicates):", e.message);
+    try {
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS "BusinessDocument_sync_key_nonuniq"
+          ON "BusinessDocument" ("businessId", "sourceType", COALESCE("sourceId", -1), "chunkIndex");
+      `);
+      console.log("✅ Non-unique sync key index created as fallback");
+    } catch { /* ignore */ }
   }
 
   // 2d. Add contentHash lookup index
