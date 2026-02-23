@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, PackageOpen, X, History, RefreshCw, AlertTriangle, Trash2, Loader2 } from "lucide-react";
 import IngredientStatusBadge from "./components/IngredientStatusBadge";
 import { getIngredients, deleteIngredient, bulkDeleteIngredients, type Ingredient } from "@/lib/api/ingredients";
+import { INGREDIENT_UNITS } from "@/lib/validations/product";
 
 import { useBusiness } from "@/context/BusinessContext";
 
@@ -297,7 +298,7 @@ export default function IngredientsPage() {
               <th className="px-6 py-4 text-left font-bold">Nama</th>
               <th className="px-6 py-4 text-left font-bold">Stok</th>
               <th className="px-6 py-4 text-left font-bold">Min</th>
-              <th className="px-6 py-4 text-left font-bold">Harga</th>
+              <th className="px-6 py-4 text-left font-bold">Harga / Unit</th>
               <th className="px-6 py-4 text-left font-bold">Status</th>
               <th className="px-6 py-4 text-left font-bold">Aksi</th>
             </tr>
@@ -336,7 +337,10 @@ export default function IngredientsPage() {
                       <span className="font-semibold">{ingredient.minStock}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-indigo-700 font-bold">{formatCurrency(ingredient.costPerUnit)}</td>
+                  <td className="px-4 py-3 text-indigo-700 font-bold">
+                    <span className="font-semibold">{formatCurrency(ingredient.costPerUnit)}</span>{" "}
+                    <span className="text-xs text-slate-500">/ {ingredient.unit}</span>
+                  </td>
                   <td className="px-4 py-3">
                     <IngredientStatusBadge stock={ingredient.currentStock} minStock={ingredient.minStock} />
                   </td>
@@ -767,12 +771,21 @@ function AddIngredientModal({ onClose, onSuccess }: AddIngredientModalProps) {
         </div>
         <div>
           <label className="block text-sm font-semibold text-indigo-700 mb-1">Satuan</label>
-          <input
-            className="w-full border border-indigo-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-gray-400"
-            placeholder="gram / kg / ml / pcs"
+          <select
+            className="w-full border border-indigo-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            value={form.unit}
             onChange={(e) => setForm({ ...form, unit: e.target.value })}
             required
-          />
+          >
+            <option value="" disabled>
+              -- Pilih satuan --
+            </option>
+            {INGREDIENT_UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-sm font-semibold text-indigo-700 mb-1">Minimum Stock</label>

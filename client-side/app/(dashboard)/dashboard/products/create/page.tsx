@@ -48,7 +48,7 @@ function NewIngredientEditRow({
   onChange: (patch: Partial<LocalNewIng>) => void;
   onDelete: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const nameErr = touched && !ingredient.ingredientName.trim();
   const unitErr = touched && !ingredient.unit?.trim();
@@ -86,7 +86,7 @@ function NewIngredientEditRow({
             value={ingredient.unit ?? ""}
             onChange={(e) => onChange({ unit: e.target.value })}
             placeholder="e.g. kg"
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+            className={`w-full border rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 outline-none bg-white ${
               unitErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
             }`}
           />
@@ -101,7 +101,7 @@ function NewIngredientEditRow({
             value={ingredient.costPerUnit ?? ""}
             onChange={(e) => onChange({ costPerUnit: e.target.value === "" ? null : Number(e.target.value) })}
             placeholder="0"
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+            className={`w-full border rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 outline-none bg-white ${
               costErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
             }`}
           />
@@ -148,7 +148,7 @@ function NewIngredientEditRow({
                 value={ingredient.initialStock ?? ""}
                 onChange={(e) => onChange({ initialStock: e.target.value === "" ? undefined : Number(e.target.value) })}
                 placeholder={`0${ingredient.unit ? ` ${ingredient.unit}` : ""}`}
-                className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white"
+                className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
               />
               {ingredient.unit && <span className="text-xs text-gray-400 shrink-0">{ingredient.unit}</span>}
             </div>
@@ -430,15 +430,17 @@ export default function CreateProductsPage() {
   }
 
   if (!business) {
-    return <div className="flex items-center justify-center h-[60vh] text-gray-400 text-lg">No business found.</div>;
+    return (
+      <div className="flex items-center justify-center h-[60vh] text-gray-400 text-lg">Bisnis tidak ditemukan.</div>
+    );
   }
 
   if (success) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-green-600">
         <CheckCircle2 size={60} />
-        <p className="text-2xl font-extrabold">Products saved!</p>
-        <p className="text-sm text-gray-500">Redirecting to products list…</p>
+        <p className="text-2xl font-extrabold">Produk berhasil disimpan!</p>
+        <p className="text-sm text-gray-500">Mengalihkan ke daftar produk…</p>
       </div>
     );
   }
@@ -454,8 +456,8 @@ export default function CreateProductsPage() {
           <ChevronLeft size={22} />
         </button>
         <div>
-          <h1 className="text-2xl font-extrabold text-indigo-700">Add Products</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Choose how you want to add new products.</p>
+          <h1 className="text-2xl font-extrabold text-indigo-700">Tambah Produk</h1>
+          <p className="text-sm text-gray-400 mt-0.5">Pilih cara menambahkan produk baru.</p>
         </div>
       </div>
 
@@ -471,9 +473,9 @@ export default function CreateProductsPage() {
               <ImageIcon size={28} />
             </span>
             <div>
-              <p className="text-lg font-bold text-indigo-700">Generate Products using Photo</p>
+              <p className="text-lg font-bold text-indigo-700">Generate Produk dari Foto</p>
               <p className="text-sm text-gray-500 mt-0.5">
-                Upload a menu or price list — AI will extract all products at once.
+                Upload menu atau daftar harga — AI akan mengekstrak semua produk sekaligus.
               </p>
             </div>
             <Sparkles size={20} className="ml-auto text-indigo-300 group-hover:text-indigo-500 transition" />
@@ -482,7 +484,7 @@ export default function CreateProductsPage() {
           {/* Divider */}
           <div className="flex items-center gap-3 text-gray-300 text-sm font-medium">
             <span className="flex-1 border-t border-gray-200" />
-            or
+            atau
             <span className="flex-1 border-t border-gray-200" />
           </div>
 
@@ -496,10 +498,10 @@ export default function CreateProductsPage() {
             </span>
             <div>
               <p className="text-lg font-bold text-gray-700 group-hover:text-indigo-700 transition">
-                Add Product Individually
+                Tambah Produk Satu per Satu
               </p>
               <p className="text-sm text-gray-400 mt-0.5">
-                Fill in a product form with AI assist options for name, price, and recipe.
+                Isi formulir produk dengan bantuan AI untuk nama, harga, dan resep.
               </p>
             </div>
           </button>
@@ -511,17 +513,15 @@ export default function CreateProductsPage() {
         <div className="space-y-6">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-lg font-bold text-slate-800">
-                {drafts.length} product{drafts.length !== 1 ? "s" : ""} generated
-              </h2>
-              <p className="text-sm text-gray-400">Review and edit each product before saving.</p>
+              <h2 className="text-lg font-bold text-slate-800">{drafts.length} produk berhasil digenerate</h2>
+              <p className="text-sm text-gray-400">Periksa dan edit setiap produk sebelum menyimpan.</p>
             </div>
             <button
               onClick={discardDrafts}
               disabled={discarding}
               className="text-sm text-gray-400 hover:text-gray-600 underline disabled:opacity-50"
             >
-              {discarding ? "Cleaning up…" : "Start over"}
+              {discarding ? "Membersihkan…" : "Mulai ulang"}
             </button>
           </div>
 
@@ -545,7 +545,7 @@ export default function CreateProductsPage() {
                       newIngredientsConfirmed ? "text-green-800" : "text-amber-800"
                     }`}
                   >
-                    New Ingredients
+                    Bahan Baru
                   </h3>
                   <span
                     className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -556,14 +556,14 @@ export default function CreateProductsPage() {
                   </span>
                   {newIngredientsConfirmed && (
                     <span className="text-xs font-semibold text-green-600 bg-green-100 px-2 py-0.5 rounded-full">
-                      Confirmed
+                      Dikonfirmasi
                     </span>
                   )}
                 </div>
                 <p className={`text-xs ${newIngredientsConfirmed ? "text-green-600" : "text-amber-600"}`}>
                   {newIngredientsConfirmed
-                    ? "All new ingredients are set. You can still edit and re-confirm."
-                    : "Fill in the unit & cost for each new ingredient, then confirm before saving."}
+                    ? "Semua bahan baru sudah diatur. Anda masih bisa mengedit dan konfirmasi ulang."
+                    : "Isi satuan & biaya untuk setiap bahan baru, lalu konfirmasi sebelum menyimpan."}
                 </p>
               </div>
 
@@ -601,7 +601,7 @@ export default function CreateProductsPage() {
                   <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
                     <AlertTriangle size={14} className="text-red-500 shrink-0" />
                     <p className="text-xs font-semibold text-red-600">
-                      Some ingredients are missing required fields. Fix them, then click &ldquo;Confirm All&rdquo;.
+                      Beberapa bahan masih belum lengkap. Perbaiki, lalu klik &ldquo;Konfirmasi Semua&rdquo;.
                     </p>
                   </div>
                 )}
@@ -621,12 +621,12 @@ export default function CreateProductsPage() {
                   {confirmingIngredients ? (
                     <>
                       <Loader2 size={15} className="animate-spin" />
-                      Saving…
+                      Menyimpan…
                     </>
                   ) : (
                     <>
                       <CheckCircle2 size={15} />
-                      {newIngredientsConfirmed ? "Re-confirm" : "Confirm All"}
+                      {newIngredientsConfirmed ? "Konfirmasi Ulang" : "Konfirmasi Semua"}
                     </>
                   )}
                 </button>
@@ -655,7 +655,7 @@ export default function CreateProductsPage() {
             className="flex items-center gap-2 text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition"
           >
             <Plus size={16} />
-            Add another product manually
+            Tambah produk lain secara manual
           </button>
 
           {error && (
@@ -669,7 +669,7 @@ export default function CreateProductsPage() {
             <div className="flex items-center gap-2 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3">
               <AlertTriangle size={15} className="text-amber-500 shrink-0" />
               <p className="text-xs font-semibold text-amber-700">
-                Please confirm the new ingredients above before saving products.
+                Harap konfirmasi bahan baru di atas sebelum menyimpan produk.
               </p>
             </div>
           )}
@@ -680,7 +680,7 @@ export default function CreateProductsPage() {
               disabled={discarding}
               className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition disabled:opacity-50"
             >
-              {discarding ? "Cleaning up…" : "Cancel"}
+              {discarding ? "Membersihkan…" : "Batal"}
             </button>
             <button
               onClick={handleBulkConfirm}
@@ -695,10 +695,10 @@ export default function CreateProductsPage() {
               {submitting ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  Saving…
+                  Menyimpan…
                 </>
               ) : (
-                `Confirm & Save ${drafts.length} Product${drafts.length !== 1 ? "s" : ""}`
+                `Konfirmasi & Simpan ${drafts.length} Produk`
               )}
             </button>
           </div>
@@ -710,9 +710,9 @@ export default function CreateProductsPage() {
         <div className="space-y-6">
           <div className="flex items-center gap-3">
             <button onClick={() => setMode("idle")} className="text-sm text-indigo-600 font-semibold hover:underline">
-              ← Back
+              ← Kembali
             </button>
-            <h2 className="text-lg font-bold text-slate-700">New Product</h2>
+            <h2 className="text-lg font-bold text-slate-700">Produk Baru</h2>
           </div>
           <ProductForm
             onSuccess={() => {
