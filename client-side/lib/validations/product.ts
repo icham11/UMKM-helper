@@ -8,11 +8,37 @@ export const createCategorySchema = z.object({
 
 export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
 
+// ===================== INGREDIENT UNITS =====================
+
+export const INGREDIENT_UNITS = [
+  // Weight
+  "gram",
+  "ons",
+  "kg",
+  // Volume
+  "ml",
+  "liter",
+  // Count / Packaging
+  "pcs",
+  "lusin",
+  "pak",
+  "karton",
+  "sachet",
+  "botol",
+  "kaleng",
+  "ikat",
+  "lembar",
+  // Length
+  "meter",
+] as const;
+
+export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
+
 // ===================== INGREDIENT =====================
 
 export const createIngredientSchema = z.object({
   name: z.string().min(1, "Ingredient name is required").max(200),
-  unit: z.string().min(1, "Unit is required").max(50),
+  unit: z.enum(INGREDIENT_UNITS, { errorMap: () => ({ message: "Pilih satuan yang valid" }) }),
   minStock: z.number().int().min(0).default(0),
   initialBatch: z
     .object({
@@ -31,7 +57,7 @@ export type CreateIngredientInput = z.infer<typeof createIngredientSchema>;
 
 export const updateIngredientSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  unit: z.string().min(1).max(50).optional(),
+  unit: z.enum(INGREDIENT_UNITS).optional(),
   minStock: z.number().int().min(0).optional(),
   batch: z
     .object({
@@ -134,6 +160,7 @@ export interface AIGeneratedProduct {
     quantity: number;
     costPerUnit?: number; // from latest batch or AI estimate
     estimatedStockQty?: number; // AI-estimated initial stock for new ingredients
+    expirationDate?: string; // ISO date (YYYY-MM-DD) computed from AI shelf-life estimate
   }[];
 }
 

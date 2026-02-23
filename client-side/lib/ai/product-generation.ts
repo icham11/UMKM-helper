@@ -1,13 +1,35 @@
 import { groq, GROQ_MODELS } from "@/lib/groq";
 import type { AIGeneratedProduct } from "@/lib/validations/product";
+import { INGREDIENT_UNITS } from "@/lib/validations/product";
 
 // ===================== SYSTEM PROMPTS =====================
+
+const ALLOWED_UNITS = INGREDIENT_UNITS.join(", ");
+
+const UNIT_PRICING_HINT = `Soft pricing guidance for costPerUnit (cost per 1 unit in IDR, Indonesian market):
+- gram: typically Rp 5–200 (flour, sugar ~Rp 15; meat ~Rp 100–150; spices ~Rp 50–200)
+- ons (100g): typically Rp 500–15,000
+- kg: typically Rp 5,000–150,000
+- ml: typically Rp 5–100 (water/oil ~Rp 10–30; syrup ~Rp 30–80)
+- liter: typically Rp 5,000–50,000
+- pcs: typically Rp 200–50,000 depending on item
+- sachet: typically Rp 500–5,000
+- botol: typically Rp 5,000–50,000
+- kaleng: typically Rp 8,000–40,000
+- pak: typically Rp 5,000–30,000
+- karton: typically Rp 50,000–300,000
+- lembar: typically Rp 200–5,000
+- ikat: typically Rp 2,000–15,000
+- lusin: typically Rp 10,000–100,000
+- meter: typically Rp 5,000–50,000
+These are hints only — use your judgment for premium or specialty items.`;
 
 const PRODUCT_SYSTEM_PROMPT = `You are an AI assistant for UMKM (Indonesian small businesses).
 You help generate product data including recipes and ingredients.
 You MUST respond ONLY with valid JSON — no markdown, no code fences, no explanation text.
 All prices should be in Indonesian Rupiah (IDR).
-All quantities should use standard metric units (gram, ml, butir, lembar, etc.).`;
+Units MUST be one of the following (exact string, lowercase): ${ALLOWED_UNITS}.
+${UNIT_PRICING_HINT}`;
 
 // ===================== GENERATE BY NAME =====================
 
@@ -57,11 +79,13 @@ Respond with a SINGLE JSON object (NOT an array) in this exact format:
 
 Rules:
 - If an ingredient exists in the database, include its "ingredientId" and use its costPerUnit from the data above. If it does NOT exist, omit "ingredientId" and estimate a realistic costPerUnit in IDR.
-- "costPerUnit" is the cost per 1 unit (per gram, per ml, per butir, etc.) in IDR.
-- For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
+- "unit" MUST be one of: ${ALLOWED_UNITS}. Choose the most appropriate one — prefer gram/ml for bulk ingredients, pcs for whole items, sachet/botol/kaleng for packaged goods.
+- "costPerUnit" is the cost per 1 unit in IDR. Use the pricing guidance in the system prompt as a soft reference.
+- For NEW ingredients (no ingredientId), include:
+  - "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
+  - "estimatedShelfLifeDays" — typical shelf life in days for this ingredient (e.g. fresh chicken: 3, eggs: 21, milk: 7, flour: 180, cooking oil: 365, dried spices: 730). Be realistic.
 - "sellingPrice" should be a realistic retail price in IDR, typically 2-3x the total recipe cost.
 - "quantity" is how much of the ingredient is needed to make ONE unit of the product.
-- Use the most appropriate unit for each ingredient.
 - The recipe should be realistic and complete.`;
 
   const completion = await groq.chat.completions.create({
@@ -145,8 +169,11 @@ Rules:
 - Extract ALL products visible in the image.
 - If prices are visible, use them. Otherwise estimate realistic IDR prices.
 - For recipes: generate a realistic recipe for each product. Use existing ingredients when possible (include ingredientId and their costPerUnit from the data). For new ingredients, omit ingredientId and estimate costPerUnit.
-- "costPerUnit" is the cost per 1 unit (per gram, per ml, etc.) in IDR.
-- For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
+- "unit" MUST be one of: ${ALLOWED_UNITS}. Choose the most appropriate one — prefer gram/ml for bulk ingredients, pcs for whole items, sachet/botol/kaleng for packaged goods.
+- "costPerUnit" is the cost per 1 unit in IDR. Use the pricing guidance in the system prompt as a soft reference.
+- For NEW ingredients (no ingredientId), include:
+  - "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
+  - "estimatedShelfLifeDays" — typical shelf life in days for this ingredient (e.g. fresh chicken: 3, eggs: 21, milk: 7, flour: 180, cooking oil: 365, dried spices: 730). Be realistic.
 - Use the same ingredient across products when it makes sense (e.g., "Susu Fresh Milk" for all milk-based drinks).`;
 
   const completion = await groq.chat.completions.create({
@@ -246,10 +273,10 @@ If valid, respond with this exact JSON format:
 Rules:
 - Match existing ingredients by name (case-insensitive). If matched, include "ingredientId" and use their costPerUnit from the data.
 - For new ingredients, omit "ingredientId" and estimate a realistic costPerUnit in IDR.
-- "costPerUnit" is the cost per 1 unit (per gram, per ml, per butir, etc.) in IDR.
+- "unit" MUST be one of: ${ALLOWED_UNITS}. Choose the most appropriate one — prefer gram/ml for bulk ingredients, pcs for whole items, sachet/botol/kaleng for packaged goods.
+- "costPerUnit" is the cost per 1 unit in IDR. Use the pricing guidance in the system prompt as a soft reference.
 - For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
-- Quantities should be for ONE serving/unit of the product.
-- Use standard units: gram, kg, ml, liter, butir, lembar, sendok makan (sdm), sendok teh (sdt), etc.`;
+- Quantities should be for ONE serving/unit of the product.`;
 
   const completion = await groq.chat.completions.create({
     messages: [
@@ -304,6 +331,7 @@ interface RawAIRecipeItem {
   quantity?: number;
   costPerUnit?: number;
   estimatedStockQty?: number;
+  estimatedShelfLifeDays?: number; // shelf life in days for new ingredients
 }
 
 interface RawAIProductResponse {
@@ -322,6 +350,14 @@ function parseAIProductResponse(raw: string): AIGeneratedProduct {
       throw new Error("AI response missing required fields (name, categoryName, sellingPrice)");
     }
 
+    // Base date for shelf-life computation
+    const today = new Date();
+    const toExpiryDate = (days: number): string => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + Math.max(1, Math.round(days)));
+      return d.toISOString().split("T")[0]; // YYYY-MM-DD
+    };
+
     const product: AIGeneratedProduct = {
       name: String(parsed.name),
       categoryName: String(parsed.categoryName),
@@ -334,6 +370,10 @@ function parseAIProductResponse(raw: string): AIGeneratedProduct {
             quantity: Number(r.quantity || 0),
             costPerUnit: r.costPerUnit ? Number(r.costPerUnit) : undefined,
             estimatedStockQty: r.estimatedStockQty ? Number(r.estimatedStockQty) : undefined,
+            // Only compute expirationDate for new ingredients (no ingredientId)
+            ...(!r.ingredientId && r.estimatedShelfLifeDays
+              ? { expirationDate: toExpiryDate(r.estimatedShelfLifeDays) }
+              : {}),
           }))
         : [],
     };

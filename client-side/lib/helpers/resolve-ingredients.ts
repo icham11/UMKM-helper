@@ -8,6 +8,7 @@ interface ResolvedRecipeItem {
   quantity: number;
   costPerUnit: number;
   isNew: boolean;
+  expirationDate?: string;
 }
 
 export interface ResolvedProduct {
@@ -118,6 +119,7 @@ export async function resolveIngredients(
             create: {
               remainingQty: 0,
               costPerUnit,
+              ...(item.expirationDate ? { expirationDate: new Date(item.expirationDate) } : {}),
             },
           },
         },
@@ -135,6 +137,7 @@ export async function resolveIngredients(
         quantity: item.quantity,
         costPerUnit,
         isNew,
+        ...(item.expirationDate ? { expirationDate: item.expirationDate } : {}),
       });
     }
 
