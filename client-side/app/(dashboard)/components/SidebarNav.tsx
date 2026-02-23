@@ -13,6 +13,7 @@ import {
   FileDown,
   Users,
   BookOpen,
+  Clock,
 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 
@@ -118,6 +119,12 @@ export default function SidebarNav() {
           <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">
             NEW
           </span>
+        </Link>
+        <Link
+          href="/dashboard/shift-history"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
+        >
+          <Clock className="w-4 h-4" /> Tutup Kasir
         </Link>
         {isOwner && (
           <Link

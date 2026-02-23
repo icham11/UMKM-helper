@@ -21,7 +21,10 @@ import {
   ChevronDown,
   Receipt,
   BookOpen,
+  LogOut,
+  DollarSign,
 } from "lucide-react";
+import { useShift } from "@/context/ShiftContext";
 
 // ─── Types ───
 interface RecipeIngredient {
@@ -29,20 +32,20 @@ interface RecipeIngredient {
     id: number;
     name: string;
     unit: string;
-    currentStock: number;
+    currentStock: number | string; // Prisma Decimal → string in JSON
   };
-  quantity: number;
+  quantity: number | string; // Prisma Decimal → string in JSON
 }
 
 interface Product {
   id: number;
   name: string;
-  sellingPrice: number;
+  sellingPrice: number | string; // Prisma Decimal → string in JSON
   categoryId: number | null;
   isActive: boolean;
   category?: { id: number; name: string } | null;
   recipes?: RecipeIngredient[];
-  recipeCost?: number;
+  recipeCost?: number | string;
 }
 
 interface CartItem {
@@ -55,7 +58,21 @@ interface CartItem {
 // ─── Helpers ───
 const formatRupiah = (val: number) => `Rp ${val.toLocaleString("id-ID")}`;
 
-function getProductAvailability(product: Product): { available: boolean; maxQty: number; missingIngredients: string[] } {
+/**
+ * Compute ingredient availability for a product.
+ *
+ * Without `reservedStock`: returns raw maxQty based on currentStock (DB value).
+ * With `reservedStock`: deducts ingredient qty already claimed by OTHER cart items,
+ *   then returns total maxQty this product could occupy (for the ENTIRE cart).
+ *
+ * Key design:
+ *   reservedStock should EXCLUDE the product's own cart reservation so that
+ *   maxQty = "how many total of THIS product can be supported given OTHER items".
+ */
+function getProductAvailability(
+  product: Product,
+  reservedByOthers?: Map<number, number>,
+): { available: boolean; maxQty: number; missingIngredients: string[] } {
   if (!product.recipes || product.recipes.length === 0) {
     return { available: true, maxQty: 999, missingIngredients: [] };
   }
@@ -64,12 +81,15 @@ function getProductAvailability(product: Product): { available: boolean; maxQty:
   let maxQty = Infinity;
 
   for (const recipe of product.recipes) {
-    const stock = recipe.ingredient.currentStock;
-    const needed = recipe.quantity;
+    // CRITICAL: Prisma Decimal serializes to string in JSON — must Number() everything
+    const realStock = Number(recipe.ingredient.currentStock) || 0;
+    const reservedByOther = reservedByOthers?.get(recipe.ingredient.id) ?? 0;
+    const effectiveStock = Math.max(0, realStock - reservedByOther);
+    const needed = Number(recipe.quantity) || 0;
 
     if (needed <= 0) continue;
 
-    const canMake = Math.floor(stock / needed);
+    const canMake = Math.floor(effectiveStock / needed);
     if (canMake <= 0) {
       missing.push(recipe.ingredient.name);
     }
@@ -81,6 +101,29 @@ function getProductAvailability(product: Product): { available: boolean; maxQty:
     maxQty: maxQty === Infinity ? 999 : maxQty,
     missingIngredients: missing,
   };
+}
+
+/**
+ * Build a map of ingredientId → total qty reserved by cart items,
+ * optionally EXCLUDING a specific product (so we can compute that product's max).
+ */
+function buildReservedStock(
+  cart: CartItem[],
+  products: Product[],
+  excludeProductId?: number,
+): Map<number, number> {
+  const reserved = new Map<number, number>();
+  for (const cartItem of cart) {
+    if (cartItem.productId === excludeProductId) continue;
+    const product = products.find((p) => p.id === cartItem.productId);
+    if (!product?.recipes) continue;
+    for (const recipe of product.recipes) {
+      const current = reserved.get(recipe.ingredient.id) ?? 0;
+      // CRITICAL: recipe.quantity is Prisma Decimal → string in JSON
+      reserved.set(recipe.ingredient.id, current + Number(recipe.quantity) * cartItem.quantity);
+    }
+  }
+  return reserved;
 }
 
 function formatDate(date: Date): string {
@@ -115,6 +158,43 @@ export default function POSPage() {
   const [kasbonNotes, setKasbonNotes] = useState("");
   const [kasbonDueDate, setKasbonDueDate] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Shift management ──
+  const { shift, isOpen: isShiftOpen, loading: shiftLoading, openShift, closeShift, refresh: refreshShift } = useShift();
+  const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
+  const [openingCashInput, setOpeningCashInput] = useState("");
+  const [actualCashInput, setActualCashInput] = useState("");
+  const [closeNotes, setCloseNotes] = useState("");
+  const [shiftActionLoading, setShiftActionLoading] = useState(false);
+  const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
+
+  const handleOpenShift = async () => {
+    const amount = Number(openingCashInput.replace(/\D/g, ""));
+    if (isNaN(amount) || amount < 0) return;
+    setShiftActionLoading(true);
+    const res = await openShift(amount);
+    setShiftActionLoading(false);
+    if (res.success) {
+      setOpeningCashInput("");
+    } else {
+      alert(res.error || "Gagal membuka shift");
+    }
+  };
+
+  const handleCloseShift = async () => {
+    const amount = Number(actualCashInput.replace(/\D/g, ""));
+    if (isNaN(amount) || amount < 0) return;
+    setShiftActionLoading(true);
+    const res = await closeShift(amount, closeNotes || undefined);
+    setShiftActionLoading(false);
+    if (res.success) {
+      setCloseResult(res.data as Record<string, unknown>);
+      setActualCashInput("");
+      setCloseNotes("");
+    } else {
+      alert(res.error || "Gagal menutup shift");
+    }
+  };
 
   // ── Keyboard shortcuts for cashier speed ──
   useEffect(() => {
@@ -182,7 +262,17 @@ export default function POSPage() {
       const response = await fetch("/api/products?withRecipe=true&limit=999");
       const data = await response.json();
       if (data.success) {
-        setProducts(data.data.filter((p: Product) => p.isActive));
+        const activeProducts = data.data.filter((p: Product) => p.isActive);
+        // Debug: log recipe data to verify ingredients are loaded
+        if (process.env.NODE_ENV === "development") {
+          const withRecipes = activeProducts.filter((p: Product) => p.recipes && p.recipes.length > 0);
+          console.log(`[POS] Loaded ${activeProducts.length} products, ${withRecipes.length} have recipes`);
+          if (withRecipes.length > 0) {
+            const sample = withRecipes[0];
+            console.log(`[POS] Sample recipe data:`, sample.name, sample.recipes);
+          }
+        }
+        setProducts(activeProducts);
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -200,37 +290,50 @@ export default function POSPage() {
     return Array.from(cats.entries()).map(([id, name]) => ({ id, name }));
   }, [products]);
 
+  // ── Precompute ingredient reservations by ALL cart items (for ingredient stock display) ──
+  const allReservedStock = useMemo(() => buildReservedStock(cart, products), [cart, products]);
+
   // Filter products & sort: available first, then low stock, then unavailable
   const filteredProducts = useMemo(() => {
-    return products
-      .filter((p) => {
-        const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-        const matchCategory = selectedCategory === "all" || String(p.categoryId) === selectedCategory;
-        return matchSearch && matchCategory;
-      })
-      .sort((a, b) => {
-        const availA = getProductAvailability(a);
-        const availB = getProductAvailability(b);
-        // Available products first, unavailable last
-        if (availA.available && !availB.available) return -1;
-        if (!availA.available && availB.available) return 1;
-        // Among available, sort by maxQty descending (more stock = higher)
-        if (availA.available && availB.available) {
-          return availB.maxQty - availA.maxQty;
-        }
-        return 0;
-      });
-  }, [products, searchQuery, selectedCategory]);
+    const filtered = products.filter((p) => {
+      const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchCategory = selectedCategory === "all" || String(p.categoryId) === selectedCategory;
+      return matchSearch && matchCategory;
+    });
+
+    // Precompute availability for each product (exclude own reservation)
+    const availMap = new Map<number, { available: boolean; remaining: number }>();
+    for (const p of filtered) {
+      const reservedByOthers = buildReservedStock(cart, products, p.id);
+      const { available, maxQty } = getProductAvailability(p, reservedByOthers);
+      const cartQty = cart.find(c => c.productId === p.id)?.quantity || 0;
+      availMap.set(p.id, { available, remaining: maxQty - cartQty });
+    }
+
+    return filtered.sort((a, b) => {
+      const aa = availMap.get(a.id)!;
+      const bb = availMap.get(b.id)!;
+      const canAddA = aa.available && aa.remaining > 0;
+      const canAddB = bb.available && bb.remaining > 0;
+      if (canAddA && !canAddB) return -1;
+      if (!canAddA && canAddB) return 1;
+      if (canAddA && canAddB) return bb.remaining - aa.remaining;
+      return 0;
+    });
+  }, [products, searchQuery, selectedCategory, cart]);
 
   // Cart operations
   const addToCart = (product: Product) => {
-    const { available, maxQty } = getProductAvailability(product);
+    // reservedByOthers excludes this product → maxQty = total capacity for this product
+    const reservedByOthers = buildReservedStock(cart, products, product.id);
+    const { available, maxQty } = getProductAvailability(product, reservedByOthers);
     if (!available) return;
+
+    const currentQty = cart.find((item) => item.productId === product.id)?.quantity || 0;
+    if (currentQty >= maxQty) return; // already at max
 
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
-      const currentQty = existing ? existing.quantity : 0;
-      if (currentQty >= maxQty) return prev;
 
       if (existing) {
         return prev.map((item) =>
@@ -247,7 +350,11 @@ export default function POSPage() {
         .map((item) => {
           if (item.productId !== productId) return item;
           const product = products.find((p) => p.id === productId);
-          const { maxQty } = product ? getProductAvailability(product) : { maxQty: 999 };
+          if (!product) return { ...item, quantity: Math.max(0, item.quantity + delta) };
+
+          // Reserved by OTHER products in cart (exclude this one)
+          const reservedByOthers = buildReservedStock(prev, products, productId);
+          const { maxQty } = getProductAvailability(product, reservedByOthers);
           const newQty = Math.max(0, Math.min(item.quantity + delta, maxQty));
           return { ...item, quantity: newQty };
         })
@@ -425,6 +532,23 @@ export default function POSPage() {
               {mounted && currentTime ? formatTime(currentTime) : ""}
             </span>
           </div>
+          {/* Shift indicator */}
+          {isShiftOpen && shift && (
+            <button
+              onClick={() => { refreshShift(); setShowCloseShiftModal(true); }}
+              className="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="font-semibold">Shift Buka</span>
+              <span className="text-xs text-emerald-500">
+                | Modal {formatRupiah(shift.openingCash)} | {shift.runningTotals.transactionCount} trx
+              </span>
+              <LogOut className="w-3.5 h-3.5 ml-1" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -506,10 +630,31 @@ export default function POSPage() {
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filteredProducts.map((product) => {
-                  const { available, maxQty, missingIngredients } = getProductAvailability(product);
+                  // Reserved by OTHER cart items (exclude this product)
+                  const reservedByOthers = buildReservedStock(cart, products, product.id);
+                  const { available, maxQty, missingIngredients } = getProductAvailability(product, reservedByOthers);
                   const inCart = cart.find((c) => c.productId === product.id);
                   const cartQty = inCart?.quantity || 0;
-                  const isMaxed = cartQty >= maxQty;
+                  // maxQty = total capacity for this product (given others' reservations)
+                  const remaining = maxQty - cartQty;
+                  const isMaxed = available && remaining <= 0;
+
+                  // Compute effective ingredient stock (DB stock - ALL cart reservations)
+                  // This shows the GLOBAL remaining for each ingredient across the whole cart
+                  const ingredientStocks = (product.recipes || []).map((r) => {
+                    const dbStock = Number(r.ingredient.currentStock) || 0;
+                    const totalReserved = allReservedStock.get(r.ingredient.id) ?? 0;
+                    const effectiveStock = Math.max(0, dbStock - totalReserved);
+                    const needed = Number(r.quantity) || 0;
+                    return {
+                      name: r.ingredient.name,
+                      unit: r.ingredient.unit,
+                      dbStock,
+                      effectiveStock,
+                      needed,
+                      depleted: needed > 0 && effectiveStock < needed,
+                    };
+                  });
 
                   return (
                     <button
@@ -550,26 +695,72 @@ export default function POSPage() {
                         {formatRupiah(Number(product.sellingPrice))}
                       </p>
 
+                      {/* ── Ingredient stock indicators (real-time) ── */}
+                      {ingredientStocks.length > 0 ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {ingredientStocks.slice(0, 3).map((ing) => (
+                            <span
+                              key={ing.name}
+                              className={`inline-flex items-center text-[9px] px-1.5 py-0.5 rounded-md font-medium transition-colors ${
+                                ing.depleted
+                                  ? "bg-red-100 text-red-600"
+                                  : ing.effectiveStock < ing.needed * 3
+                                  ? "bg-amber-50 text-amber-700"
+                                  : "bg-gray-100 text-gray-500"
+                              }`}
+                            >
+                              {ing.name}: {Math.round(ing.effectiveStock)}{ing.unit}
+                            </span>
+                          ))}
+                          {ingredientStocks.length > 3 && (
+                            <span className="text-[9px] text-gray-400">+{ingredientStocks.length - 3}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-1.5">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gray-50 text-gray-400 italic">
+                            Tanpa resep bahan
+                          </span>
+                        </div>
+                      )}
+
                       {/* Availability status */}
-                      {!available ? (
-                        <div className="mt-2 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5 text-red-400" />
+                      {!available && missingIngredients.length > 0 ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                           <span className="text-[10px] text-red-500 font-medium">
                             Habis: {missingIngredients.slice(0, 2).join(", ")}
                             {missingIngredients.length > 2 && ` +${missingIngredients.length - 2}`}
                           </span>
                         </div>
-                      ) : maxQty <= 5 ? (
-                        <div className="mt-2 flex items-center gap-1">
-                          <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+                      ) : !available ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                          <span className="text-[10px] text-red-500 font-medium">Stok habis</span>
+                        </div>
+                      ) : isMaxed ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                          <span className="text-[10px] text-orange-600 font-medium">
+                            Maks {cartQty} (bahan terpakai)
+                          </span>
+                        </div>
+                      ) : remaining <= 5 ? (
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                           <span className="text-[10px] text-amber-600 font-medium">
-                            Sisa {maxQty} porsi
+                            {cartQty > 0
+                              ? `${cartQty} di cart · +${remaining} lagi`
+                              : `Bisa ${remaining} porsi`
+                            }
                           </span>
                         </div>
                       ) : (
-                        <div className="mt-2 flex items-center gap-1">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-                          <span className="text-[10px] text-green-600 font-medium">Tersedia</span>
+                        <div className="mt-1.5 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                          <span className="text-[10px] text-green-600 font-medium">
+                            Tersedia{cartQty > 0 ? ` · ${cartQty} di cart` : ""}
+                          </span>
                         </div>
                       )}
                     </button>
@@ -610,11 +801,20 @@ export default function POSPage() {
               </div>
             ) : (
               <div className="space-y-3">
-                {cart.map((item) => (
+                {cart.map((item) => {
+                  const product = products.find((p) => p.id === item.productId);
+                  const reservedByOthers = product ? buildReservedStock(cart, products, item.productId) : new Map();
+                  const { maxQty } = product ? getProductAvailability(product, reservedByOthers) : { maxQty: 999 };
+                  const atMax = item.quantity >= maxQty;
+
+                  return (
                   <div key={item.productId} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
                       <p className="text-xs text-gray-500">{formatRupiah(item.price)}</p>
+                      {atMax && product?.recipes && product.recipes.length > 0 && (
+                        <p className="text-[9px] text-orange-500 mt-0.5">⚠ Maks. bahan baku</p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <button
@@ -625,8 +825,13 @@ export default function POSPage() {
                       </button>
                       <span className="w-7 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
                       <button
-                        onClick={() => updateQuantity(item.productId, 1)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                        onClick={() => !atMax && updateQuantity(item.productId, 1)}
+                        disabled={atMax}
+                        className={`w-7 h-7 flex items-center justify-center rounded-lg ${
+                          atMax
+                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                            : "bg-indigo-600 text-white hover:bg-indigo-700"
+                        }`}
                       >
                         <Plus className="w-3.5 h-3.5" />
                       </button>
@@ -638,7 +843,8 @@ export default function POSPage() {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -853,6 +1059,162 @@ export default function POSPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══ OPEN SHIFT MODAL — blocks POS until shift is opened ═══ */}
+      {!shiftLoading && !isShiftOpen && !closeResult && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl">
+            <div className="mx-auto w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center">
+              <DollarSign className="w-8 h-8 text-indigo-600" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Buka Shift Kasir</h2>
+              <p className="text-sm text-gray-500 mt-1">Masukkan jumlah uang cash di laci kasir sebelum mulai berjualan</p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 block text-left mb-1">Modal Awal (Rp)</label>
+              <input
+                type="text"
+                value={openingCashInput}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setOpeningCashInput(raw ? Number(raw).toLocaleString("id-ID") : "");
+                }}
+                placeholder="0"
+                className="w-full px-4 py-3 text-2xl font-bold text-center border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleOpenShift()}
+              />
+            </div>
+            <button
+              onClick={handleOpenShift}
+              disabled={shiftActionLoading || !openingCashInput}
+              className="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition text-lg"
+            >
+              {shiftActionLoading ? "Membuka..." : "🔓 Buka Shift"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ CLOSE SHIFT MODAL ═══ */}
+      {showCloseShiftModal && !closeResult && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowCloseShiftModal(false)}>
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">💰 Tutup Kasir</h2>
+              <button onClick={() => setShowCloseShiftModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+
+            {/* Running summary */}
+            {shift && (
+              <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-2">
+                <div className="flex justify-between"><span className="text-gray-500">Kasir</span><span className="font-medium">{shift.openedBy}</span></div>
+                <div className="flex justify-between"><span className="text-gray-500">Dibuka</span><span className="font-medium">{new Date(shift.openedAt).toLocaleString("id-ID")}</span></div>
+                <hr />
+                <div className="flex justify-between"><span>Modal Awal</span><span className="font-semibold">{formatRupiah(shift.openingCash)}</span></div>
+                <div className="flex justify-between"><span>💵 Cash Sales</span><span className="font-semibold text-green-600">+{formatRupiah(shift.runningTotals.cashTotal)}</span></div>
+                <div className="flex justify-between"><span>📱 QRIS</span><span>{formatRupiah(shift.runningTotals.qrisTotal)}</span></div>
+                <div className="flex justify-between"><span>🏦 Transfer</span><span>{formatRupiah(shift.runningTotals.transferTotal)}</span></div>
+                <div className="flex justify-between"><span>💳 Digital</span><span>{formatRupiah(shift.runningTotals.digitalTotal)}</span></div>
+                <div className="flex justify-between"><span>📝 Kasbon</span><span>{formatRupiah(shift.runningTotals.kasbonTotal)}</span></div>
+                <hr />
+                <div className="flex justify-between font-bold text-base"><span>Total Revenue</span><span className="text-indigo-600">{formatRupiah(shift.runningTotals.totalRevenue)}</span></div>
+                <div className="flex justify-between font-bold"><span>Cash Seharusnya</span><span className="text-emerald-600">{formatRupiah(shift.runningTotals.expectedCash)}</span></div>
+                <div className="flex justify-between"><span>Transaksi</span><span className="font-bold">{shift.runningTotals.transactionCount}</span></div>
+              </div>
+            )}
+
+            {/* Actual cash input */}
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Hitung Uang Cash di Laci (Rp)</label>
+              <input
+                type="text"
+                value={actualCashInput}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, "");
+                  setActualCashInput(raw ? Number(raw).toLocaleString("id-ID") : "");
+                }}
+                placeholder="Jumlah uang fisik"
+                className="w-full px-4 py-3 text-xl font-bold text-center border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleCloseShift()}
+              />
+              {/* Live discrepancy preview */}
+              {shift && actualCashInput && (() => {
+                const actual = Number(actualCashInput.replace(/\D/g, ""));
+                const diff = actual - shift.runningTotals.expectedCash;
+                return (
+                  <div className={`mt-2 text-sm font-semibold text-center ${diff === 0 ? "text-green-600" : diff > 0 ? "text-blue-600" : "text-red-600"}`}>
+                    {diff === 0 ? "✅ Cocok sempurna!" : diff > 0 ? `+${formatRupiah(diff)} (lebih)` : `${formatRupiah(diff)} (kurang)`}
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 block mb-1">Catatan (opsional)</label>
+              <textarea
+                value={closeNotes}
+                onChange={(e) => setCloseNotes(e.target.value)}
+                placeholder="Catatan shift..."
+                className="w-full px-3 py-2 border rounded-xl text-sm resize-none h-16 focus:border-indigo-500 outline-none"
+              />
+            </div>
+
+            <button
+              onClick={handleCloseShift}
+              disabled={shiftActionLoading || !actualCashInput}
+              className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
+            >
+              {shiftActionLoading ? "Menutup..." : "🔒 Tutup Shift & Settlement"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ CLOSE RESULT / SETTLEMENT RECEIPT ═══ */}
+      {closeResult && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+            <div className="text-center">
+              <div className="mx-auto w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                <CheckCircle2 className="w-7 h-7 text-green-600" />
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">Shift Ditutup ✅</h2>
+            </div>
+
+            <div className="bg-blue-50 rounded-xl p-4 text-sm space-y-2">
+              <div className="flex justify-between"><span>Modal Awal</span><span className="font-semibold">{formatRupiah(Number(closeResult.openingCash) || 0)}</span></div>
+              <div className="flex justify-between"><span>+ Cash Sales</span><span className="font-semibold text-green-600">+{formatRupiah(Number(closeResult.cashSalesTotal) || 0)}</span></div>
+              <hr className="border-blue-200" />
+              <div className="flex justify-between font-bold"><span>Seharusnya</span><span>{formatRupiah(Number(closeResult.expectedCash) || 0)}</span></div>
+              <div className="flex justify-between font-bold"><span>Aktual</span><span>{formatRupiah(Number(closeResult.actualCash) || 0)}</span></div>
+              <hr className="border-blue-200" />
+              <div className={`flex justify-between font-bold text-lg ${Number(closeResult.discrepancy) === 0 ? "text-green-600" : Number(closeResult.discrepancy) > 0 ? "text-blue-600" : "text-red-600"}`}>
+                <span>Selisih</span>
+                <span>{Number(closeResult.discrepancy) === 0 ? "✅ Cocok" : `${Number(closeResult.discrepancy) > 0 ? "+" : ""}${formatRupiah(Number(closeResult.discrepancy))}`}</span>
+              </div>
+            </div>
+
+            <div className="bg-indigo-600 text-white rounded-xl p-4 flex justify-between items-center">
+              <span className="font-semibold">Total Revenue</span>
+              <span className="text-xl font-bold">{formatRupiah(Number(closeResult.totalRevenue) || 0)}</span>
+            </div>
+
+            <div className="text-xs text-gray-400 text-center">
+              {String(closeResult.transactionCount ?? 0)} transaksi · Ditutup oleh {String(closeResult.closedBy ?? "")}
+            </div>
+
+            <button
+              onClick={() => { setCloseResult(null); setShowCloseShiftModal(false); }}
+              className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition"
+            >
+              OK — Buka Shift Baru
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

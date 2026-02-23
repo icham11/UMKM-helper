@@ -192,6 +192,18 @@ export async function POST(request: NextRequest) {
 
     const { items, paymentMethod, paymentStatus, customerName, customerEmail, customerPhone } = parsed.data;
 
+    // Look up active cashier shift (soft guard — don't block if shift feature not used yet)
+    let activeShift: { id: number } | null = null;
+    try {
+      // @ts-expect-error CashierShift types pending refresh
+      activeShift = await prisma.cashierShift.findFirst({
+        where: { businessId, status: "Open" },
+        select: { id: true },
+      });
+    } catch {
+      // CashierShift table may not exist yet — silently ignore
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       // 1. Validate all products exist and belong to business
       const productIds = [...new Set(items.map((i) => i.productId))];
@@ -307,6 +319,8 @@ export async function POST(request: NextRequest) {
         data: {
           businessId,
           stockDocumentId: stockDocument.id,
+          // @ts-expect-error cashierShiftId exists after migration
+          cashierShiftId: activeShift?.id || null,
           transactionNumber: generateTransactionNumber(),
           totalRevenue,
           totalCost,

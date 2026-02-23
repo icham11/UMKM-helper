@@ -121,6 +121,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Look up active cashier shift
+    let activeShift: { id: number } | null = null;
+    try {
+      // @ts-expect-error CashierShift types pending refresh
+      activeShift = await prisma.cashierShift.findFirst({
+        where: { businessId, status: "Open" },
+        select: { id: true },
+      });
+    } catch {
+      // CashierShift table may not exist yet — silently ignore
+    }
+
     const result = await prisma.$transaction(
       async (tx) => {
         // 1. Validate products
@@ -178,6 +190,8 @@ export async function POST(request: NextRequest) {
           data: {
             businessId,
             stockDocumentId: stockDocument.id,
+            // @ts-expect-error cashierShiftId exists after migration
+            cashierShiftId: activeShift?.id || null,
             transactionNumber,
             totalRevenue,
             totalCost: 0, // Will calculate after payment success

@@ -49,6 +49,11 @@ enum DebtStatus {
   Paid
 }
 
+enum ShiftStatus {
+  Open
+  Closed
+}
+
 // ==================== CORE LAYER ====================
 
 model User {
@@ -61,6 +66,8 @@ model User {
 
   businesses Business[]
   memberships BusinessMember[]
+  openedShifts  CashierShift[] @relation("ShiftOpenedBy")
+  closedShifts  CashierShift[] @relation("ShiftClosedBy")
 }
 
 model Business {
@@ -84,6 +91,7 @@ model Business {
   chatSessions         ChatSession[]
   documents            BusinessDocument[]
   debts                Debt[]
+  cashierShifts        CashierShift[]
 
   // requireAuth: findFirst where userId, orderBy createdAt
   // GET /api/businesses: findMany where userId
@@ -106,6 +114,47 @@ model BusinessMember {
   @@unique([businessId, userId])
   @@index([userId])
   @@index([businessId, role])
+}
+
+// ==================== CASHIER SHIFT / TUTUP KASIR ====================
+
+model CashierShift {
+  id               Int         @id @default(autoincrement())
+  businessId       Int
+  userId           Int         // who opened the shift
+  closedByUserId   Int?        // who closed the shift (could differ)
+  status           ShiftStatus @default(Open)
+
+  // Cash reconciliation
+  openingCash      Decimal     @db.Decimal(14, 2) // Modal awal
+  expectedCash     Decimal?    @db.Decimal(14, 2) // openingCash + cash sales (calculated on close)
+  actualCash       Decimal?    @db.Decimal(14, 2) // What cashier actually counted
+  discrepancy      Decimal?    @db.Decimal(14, 2) // actualCash - expectedCash
+
+  // Totals by payment method (filled on close)
+  cashSalesTotal     Decimal?  @db.Decimal(14, 2)
+  qrisSalesTotal     Decimal?  @db.Decimal(14, 2)
+  transferSalesTotal Decimal?  @db.Decimal(14, 2)
+  digitalSalesTotal  Decimal?  @db.Decimal(14, 2)
+  kasbonTotal        Decimal?  @db.Decimal(14, 2)
+  totalRevenue       Decimal?  @db.Decimal(14, 2)
+  transactionCount   Int?
+
+  notes     String?
+  openedAt  DateTime  @default(now())
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  openedBy User     @relation("ShiftOpenedBy", fields: [userId], references: [id])
+  closedBy User?    @relation("ShiftClosedBy", fields: [closedByUserId], references: [id])
+  sales    Sale[]
+
+  // Only one open shift per business
+  @@index([businessId, status])
+  @@index([businessId, openedAt(sort: Desc)])
+  @@index([userId])
 }
 
 // ==================== KASBON / PIUTANG LAYER ====================
@@ -348,6 +397,7 @@ model Sale {
   id                Int           @id @default(autoincrement())
   businessId        Int
   stockDocumentId   Int?
+  cashierShiftId    Int?
   transactionNumber String        @unique
   totalRevenue      Decimal       @db.Decimal(12, 2)
   totalCost         Decimal       @db.Decimal(12, 2)
@@ -364,6 +414,7 @@ model Sale {
 
   business      Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   stockDocument StockDocument? @relation(fields: [stockDocumentId], references: [id], onDelete: SetNull)
+  cashierShift  CashierShift?  @relation(fields: [cashierShiftId], references: [id], onDelete: SetNull)
   saleItems     SaleItem[]
   debt          Debt?
 
@@ -374,6 +425,8 @@ model Sale {
   // Midtrans webhook: findUnique where transactionNumber (already @unique, but compound helps)
   // Sales history filter: businessId + paymentMethod
   @@index([businessId, paymentMethod])
+  // Shift settlement: find all sales in a shift
+  @@index([cashierShiftId])
 }
 
 model SaleItem {
