@@ -77,7 +77,14 @@ export async function POST(request: NextRequest) {
 
         // 5. Update sale and process inventory if paid
         await prisma.$transaction(async (tx) => {
-          if (paymentStatus === "Paid" && sale.paymentStatus !== "Paid") {
+          // Re-fetch sale inside transaction to prevent double-processing
+          // (the client /confirm endpoint may have already set it to "Paid")
+          const freshSale = await tx.sale.findUniqueOrThrow({
+            where: { id: sale.id },
+            select: { paymentStatus: true },
+          });
+
+          if (paymentStatus === "Paid" && freshSale.paymentStatus !== "Paid") {
             // ── Payment successful ──
 
             // 5a. Create StockDocument for audit trail
@@ -151,6 +158,9 @@ export async function POST(request: NextRequest) {
             }
 
             log.info("Payment successful — inventory deducted, metrics updated", { orderId: order_id });
+          } else if (freshSale.paymentStatus === "Paid") {
+            // Already confirmed by client /confirm endpoint — skip
+            log.info("Payment already confirmed by client", { orderId: order_id });
           } else {
             // Just update status for other cases (pending, etc.)
             await tx.sale.update({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -38,7 +38,7 @@ export default function PaymentSuccessContent() {
   const [error, setError] = useState<string | null>(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [saleData, setSaleData] = useState<SaleData | null>(null);
-  const [pollCount, setPollCount] = useState(0);
+  const confirmedRef = useRef(false);
 
   const saleId = searchParams.get("saleId");
   const orderId = searchParams.get("orderId");
@@ -46,8 +46,7 @@ export default function PaymentSuccessContent() {
   const isPendingParam = searchParams.get("pending") === "true";
   const isKasbon = searchParams.get("kasbon") === "true";
   const isMidtrans = source === "midtrans";
-  // Midtrans success: either explicit status=success, OR source=midtrans without pending flag
-  // (Midtrans callbacks.finish redirect means payment completed)
+  // Midtrans success: onSuccess fired → payment is done
   const midtransSuccess = isMidtrans && !isPendingParam;
 
   const fetchSaleData = useCallback(async (): Promise<SaleData | null> => {
@@ -75,7 +74,26 @@ export default function PaymentSuccessContent() {
     return null;
   }, [saleId, orderId]);
 
-  // Initial load + polling for Midtrans payments
+  // Confirm Midtrans payment immediately via our API (no polling needed)
+  const confirmMidtransPayment = useCallback(async () => {
+    if (!saleId || confirmedRef.current) return;
+    confirmedRef.current = true;
+    try {
+      const res = await fetch(`/api/sales/${saleId}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const json = await res.json();
+      if (json.success) {
+        console.log("✅ Midtrans payment confirmed via client:", json.message);
+      } else {
+        console.warn("⚠️ Confirm API returned:", json.error);
+      }
+    } catch (err) {
+      console.warn("⚠️ Confirm call failed (webhook will handle):", err);
+    }
+  }, [saleId]);
+
   useEffect(() => {
     if (!saleId && !orderId) {
       setError("No sale information provided");
@@ -84,36 +102,22 @@ export default function PaymentSuccessContent() {
     }
 
     const init = async () => {
-      const sale = await fetchSaleData();
-
-      // If Midtrans onSuccess already fired, skip polling — payment is confirmed
+      // If Midtrans onSuccess fired → confirm payment immediately, then fetch data
       if (midtransSuccess) {
-        setLoading(false);
-        autoDownloadInvoice();
-        return;
+        await confirmMidtransPayment();
       }
 
-      if (
-        isMidtrans &&
-        sale &&
-        sale.paymentStatus === "Pending" &&
-        pollCount < 10
-      ) {
-        setTimeout(() => setPollCount((c) => c + 1), 3000);
-      } else {
-        setLoading(false);
+      await fetchSaleData();
+      setLoading(false);
 
-        if (
-          sale &&
-          (sale.paymentStatus === "Paid" || sale.paymentMethod === "Cash")
-        ) {
-          autoDownloadInvoice();
-        }
+      // Auto-download invoice for completed payments
+      if (midtransSuccess || isKasbon || !isMidtrans) {
+        autoDownloadInvoice();
       }
     };
 
     init();
-  }, [saleId, orderId, fetchSaleData, isMidtrans, midtransSuccess, pollCount]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [saleId, orderId, fetchSaleData, isMidtrans, midtransSuccess, isKasbon, confirmMidtransPayment]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const autoDownloadInvoice = async () => {
     if (!saleId) return;
@@ -201,23 +205,10 @@ export default function PaymentSuccessContent() {
       <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4" />
-          {isMidtrans && pollCount > 0 ? (
-            <>
-              <p className="text-lg font-semibold text-gray-900 mb-2">
-                Memverifikasi Pembayaran...
-              </p>
-              <p className="text-gray-600">
-                ⏳ Menunggu konfirmasi dari Midtrans ({pollCount}/10)
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-lg font-semibold text-gray-900 mb-2">
-                Memproses Transaksi...
-              </p>
-              <p className="text-gray-600">⏳ Mohon tunggu sebentar</p>
-            </>
-          )}
+          <p className="text-lg font-semibold text-gray-900 mb-2">
+            Memproses Transaksi...
+          </p>
+          <p className="text-gray-600">⏳ Mohon tunggu sebentar</p>
         </div>
       </div>
     );
