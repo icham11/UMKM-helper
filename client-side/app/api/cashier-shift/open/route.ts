@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("POST /api/cashier-shift/open error:", error);
-    return NextResponse.json({ error: "Gagal membuka shift" }, { status: 500 });
+    const msg = error instanceof Error && error.message.includes("does not exist")
+      ? "Tabel CashierShift belum ada. Jalankan migrasi database terlebih dahulu."
+      : "Gagal membuka shift";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
 

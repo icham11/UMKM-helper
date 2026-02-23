@@ -6,12 +6,11 @@ import { PaymentMethod } from "@prisma/client";
 import { createXenditInvoice } from "@/lib/xendit/invoices";
 import {
   generateTransactionNumber,
-  calculateProductCost,
   updateBusinessMetrics,
   updateProductMetrics,
   recomputeRecipeCost,
 } from "@/lib/services/saleHelpers";
-import { deductFIFO } from "@/lib/inventory/engine";
+import { deductFIFO, simulateFIFOCost } from "@/lib/inventory/engine";
 
 export const runtime = "nodejs";
 
@@ -251,58 +250,58 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // 3. Calculate costs and create sale
+      // 3. Calculate costs using FIFO simulation (also collects deduction breakdowns)
       let totalRevenue = 0;
       let totalCost = 0;
 
-      const saleItemsData = [];
+      const saleItemsData: {
+        productId: number;
+        quantity: number;
+        priceAtSale: number;
+        costAtSale: number;
+      }[] = [];
 
-      const allIngredientBreakdowns = [];
+      // Collect all ingredient deductions: { ingredientId, breakdown[] }
+      const allDeductions: {
+        ingredientId: number;
+        breakdown: { batchId: number; quantity: number; costPerUnit: number }[];
+      }[] = [];
 
       for (const item of items) {
         const price = productPriceMap.get(item.productId)!;
 
-        type CostResult =
-          | number
-          | {
-              cost: number;
-              ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[];
-            };
+        // Fetch recipes for this product
+        const recipes = await tx.recipe.findMany({
+          where: { productId: item.productId },
+          select: { ingredientId: true, quantity: true },
+        });
 
-        const costResult = await calculateProductCost(
-          tx,
-          item.productId,
-          item.quantity
-        ) as CostResult;
+        let itemCost = 0;
 
-        let cost: number;
-        let ingredientBreakdowns: { ingredientId: number; breakdown: { batchId: number; quantity: number }[] }[] = [];
+        for (const recipe of recipes) {
+          const requiredQty = Number(recipe.quantity) * item.quantity;
+          if (requiredQty <= 0) continue;
 
-        if (typeof costResult === "number") {
-          cost = costResult;
-        } else if (
-          costResult &&
-          typeof costResult === "object" &&
-          "cost" in costResult &&
-          "ingredientBreakdowns" in costResult
-        ) {
-          cost = costResult.cost;
-          ingredientBreakdowns = costResult.ingredientBreakdowns;
-        } else {
-          throw new Error("Unexpected return value from calculateProductCost");
+          // simulateFIFOCost: calculates cost AND returns batch breakdown for deduction
+          const { totalCost: ingredientCost, breakdown } = await simulateFIFOCost(
+            tx,
+            recipe.ingredientId,
+            requiredQty,
+          );
+
+          itemCost += ingredientCost;
+          allDeductions.push({ ingredientId: recipe.ingredientId, breakdown });
         }
 
         totalRevenue += price * item.quantity;
-        totalCost += cost;
+        totalCost += itemCost;
 
         saleItemsData.push({
           productId: item.productId,
           quantity: item.quantity,
           priceAtSale: price,
-          costAtSale: cost / item.quantity,
+          costAtSale: item.quantity > 0 ? itemCost / item.quantity : 0,
         });
-
-        allIngredientBreakdowns.push(...ingredientBreakdowns);
       }
 
       // 4. Create stock document for this sale
@@ -340,23 +339,13 @@ export async function POST(request: NextRequest) {
         })),
       });
       
-      for (const ingredient of allIngredientBreakdowns) {
-        // Fetch costPerUnit for each batch in the breakdown
-        const batchIds = ingredient.breakdown.map(b => b.batchId);
-        const batches = await tx.inventoryBatch.findMany({
-          where: { id: { in: batchIds } },
-          select: { id: true, costPerUnit: true },
-        });
-        const batchCostMap = new Map(batches.map(b => [b.id, Number(b.costPerUnit)]));
-        const breakdownWithCost = ingredient.breakdown.map(b => ({
-          ...b,
-          costPerUnit: batchCostMap.get(b.batchId) ?? 0,
-        }));
+      // 6.5. Deduct inventory using FIFO breakdowns
+      for (const deduction of allDeductions) {
         await deductFIFO(
           tx,
-          ingredient.ingredientId,
-          breakdownWithCost,
-          stockDocument.id
+          deduction.ingredientId,
+          deduction.breakdown,
+          stockDocument.id,
         );
       }
 
