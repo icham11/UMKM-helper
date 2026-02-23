@@ -1098,7 +1098,7 @@ async function fetchExistingHashes(
   >(
     `SELECT id, "sourceType", "sourceId", "chunkIndex", "contentHash"
      FROM "BusinessDocument"
-     WHERE "businessId" = $1`,
+     WHERE "businessId" = $1 AND "sourceType" != 'pdf_document'`,
     businessId
   );
 
@@ -1130,9 +1130,9 @@ export async function indexBusinessDocuments(
   // 1. Build fresh chunks from current data
   const chunks = await buildBusinessChunks(businessId);
   if (chunks.length === 0) {
-    // No data → wipe any stale documents
+    // No business data → wipe stale docs (but preserve uploaded PDFs)
     const deleted = await prisma.$executeRawUnsafe(
-      `DELETE FROM "BusinessDocument" WHERE "businessId" = $1`,
+      `DELETE FROM "BusinessDocument" WHERE "businessId" = $1 AND "sourceType" != 'pdf_document'`,
       businessId
     );
     console.log(`[RAG] No data to index. Deleted ${deleted} stale docs.`);
@@ -1341,6 +1341,7 @@ export async function getRelevantContext(
     forecast: "🔮 Prediksi",
     category: "🏷️ Kategori",
     business: "🏪 Info Bisnis",
+    pdf_document: "📄 Dokumen PDF",
   };
 
   const parts = results.map((r, i) => {

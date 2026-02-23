@@ -1,98 +1,172 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import { Bot, Brain, Camera } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Bot, Brain, Camera, FileText, Sparkles } from "lucide-react";
 import ImageAnalyzer from "@/app/(dashboard)/components/ai/ImageAnalyzer";
 import AIChatPage from "@/app/(dashboard)/components/ai/AIChatPage";
 import SmartInsightsPanel from "@/app/(dashboard)/components/ai/SmartInsightsPanel";
+import DocumentUploader from "@/app/(dashboard)/components/ai/DocumentUploader";
 
-type AITab = "chat" | "insights" | "image";
+type AITab = "chat" | "insights" | "documents" | "image";
+
+const tabs: { id: AITab; label: string; icon: typeof Bot; desc: string; gradient: string }[] = [
+  { id: "chat", label: "AI Assistant", icon: Bot, desc: "Tanya jawab cerdas", gradient: "from-indigo-500 to-violet-500" },
+  { id: "insights", label: "Smart Insights", icon: Brain, desc: "Analisis & prediksi", gradient: "from-emerald-500 to-teal-500" },
+  { id: "documents", label: "Dokumen", icon: FileText, desc: "Upload PDF ke AI", gradient: "from-amber-500 to-orange-500" },
+  { id: "image", label: "Analisis Gambar", icon: Camera, desc: "Foto invoice & stok", gradient: "from-rose-500 to-pink-500" },
+];
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const containerVariants: any = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.08 } },
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const itemVariants: any = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 260, damping: 24 } },
+};
 
 export default function AIAnalysisPage() {
   const [activeTab, setActiveTab] = useState<AITab>("chat");
+  const [mounted, setMounted] = useState(false);
 
-  const tabs: { id: AITab; label: string; icon: typeof Bot; description: string }[] = [
-    { id: "chat", label: "AI Assistant", icon: Bot, description: "Tanya jawab dengan AI tentang bisnis Anda" },
-    { id: "insights", label: "Smart Insights", icon: Brain, description: "Analisis & prediksi otomatis" },
-    { id: "image", label: "Analisis Gambar", icon: Camera, description: "Analisis foto invoice, struk, & stok" },
-  ];
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!mounted) return null;
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-indigo-50 via-white to-blue-100 py-8 px-2 md:px-8" style={{ minHeight: "100vh", paddingBottom: "64px" }}>
-      {/* Header */}
-      <div className="w-full max-w-4xl mb-6">
-        <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center">
-              <Bot className="w-5 h-5 text-indigo-600" />
-            </div>
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="min-h-screen pb-20"
+    >
+      {/* Ambient background blobs */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-[500px] h-[500px] bg-indigo-200/30 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-[400px] h-[400px] bg-violet-200/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-100/10 rounded-full blur-3xl" />
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+        {/* ─── Header ─── */}
+        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg shadow-indigo-500/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-transparent to-violet-50/50" />
+          <div className="relative px-6 py-5 flex items-center gap-4">
+            <motion.div
+              className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30"
+              whileHover={{ scale: 1.05, rotate: 5 }}
+              transition={{ type: "spring", stiffness: 400 }}
+            >
+              <Sparkles className="w-6 h-6 text-white" />
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
+            </motion.div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">AI Center</h1>
-              <p className="text-gray-500 text-sm">
-                Pusat AI untuk analisis bisnis, prediksi, dan rekomendasi
-              </p>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight">AI Center</h1>
+              <p className="text-sm text-gray-500">Pusat AI untuk analisis bisnis, prediksi, dan rekomendasi</p>
             </div>
           </div>
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Tab Navigation */}
-      <div className="w-full max-w-4xl flex gap-2 mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl transition font-medium text-sm border ${
-              activeTab === tab.id
-                ? "bg-indigo-600 text-white border-indigo-600 shadow-md"
-                : "bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-indigo-200"
-            }`}
-          >
-            <tab.icon className={`w-5 h-5 shrink-0 ${activeTab === tab.id ? "text-white" : "text-gray-400"}`} />
-            <div className="text-left min-w-0">
-              <p className="font-semibold text-sm">{tab.label}</p>
-              <p className={`text-xs truncate ${activeTab === tab.id ? "text-indigo-200" : "text-gray-500"}`}>
-                {tab.description}
-              </p>
-            </div>
-          </button>
-        ))}
-      </div>
+        {/* ─── Tab Navigation ─── */}
+        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {tabs.map((tab, i) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <motion.button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative group overflow-hidden rounded-xl p-4 text-left transition-all duration-300 border ${
+                  isActive
+                    ? "bg-white shadow-lg shadow-gray-200/60 border-gray-200/80 ring-1 ring-gray-900/5"
+                    : "bg-white/60 backdrop-blur-sm border-white/60 hover:bg-white hover:shadow-md hover:border-gray-200/80"
+                }`}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05, type: "spring", stiffness: 260, damping: 24 }}
+              >
+                {/* Active indicator top line */}
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${tab.gradient} transition-opacity duration-300 ${isActive ? "opacity-100" : "opacity-0"}`} />
 
-      {/* Tab Content */}
-      <motion.div
-        key={activeTab}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="w-full max-w-4xl"
-      >
-        {activeTab === "chat" && (
-          <AIChatPage />
-        )}
-        {activeTab === "insights" && (
-          <SmartInsightsPanel />
-        )}
-        {activeTab === "image" && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
-              <ImageAnalyzer />
-            </div>
-            <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
-              <div className="flex items-start gap-3">
-                <Camera className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
-                <div>
-                  <h3 className="font-semibold text-amber-800 text-sm">Catatan</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    Gambar yang diupload akan <strong>otomatis terhapus setelah 1 menit</strong> untuk menghemat storage.
-                  </p>
+                <div className="flex items-start gap-3">
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 shrink-0 ${
+                    isActive
+                      ? `bg-gradient-to-br ${tab.gradient} shadow-md`
+                      : "bg-gray-100 group-hover:bg-gray-200"
+                  }`}>
+                    <tab.icon className={`w-[18px] h-[18px] transition-colors ${isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-sm font-semibold transition-colors ${isActive ? "text-gray-900" : "text-gray-600 group-hover:text-gray-800"}`}>
+                      {tab.label}
+                    </p>
+                    <p className={`text-[11px] mt-0.5 transition-colors ${isActive ? "text-gray-500" : "text-gray-400"}`}>
+                      {tab.desc}
+                    </p>
+                  </div>
                 </div>
+
+                {/* Subtle background glow on active */}
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTabGlow"
+                    className={`absolute inset-0 -z-10 bg-gradient-to-br ${tab.gradient} opacity-[0.04] rounded-xl`}
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+              </motion.button>
+            );
+          })}
+        </motion.div>
+
+        {/* ─── Tab Content ─── */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 16, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 300, damping: 28 }}
+          >
+            {activeTab === "chat" && <AIChatPage />}
+            {activeTab === "insights" && <SmartInsightsPanel />}
+            {activeTab === "image" && (
+              <div className="space-y-4">
+                <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-gray-200/40 border border-white/60 p-6">
+                  <ImageAnalyzer />
+                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="rounded-xl p-4 bg-amber-50/80 backdrop-blur-sm border border-amber-200/60 flex items-start gap-3"
+                >
+                  <Camera className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div>
+                    <h3 className="font-semibold text-amber-800 text-sm">Catatan</h3>
+                    <p className="text-sm text-amber-700/80 mt-0.5">
+                      Gambar yang diupload akan <strong>otomatis terhapus setelah 1 menit</strong> untuk menghemat storage.
+                    </p>
+                  </div>
+                </motion.div>
               </div>
-            </div>
-          </div>
-        )}
-      </motion.div>
-    </div>
+            )}
+            {activeTab === "documents" && (
+              <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-lg shadow-gray-200/40 border border-white/60 p-6">
+                <DocumentUploader />
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </motion.div>
   );
 }

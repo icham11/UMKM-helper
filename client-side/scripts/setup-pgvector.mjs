@@ -84,6 +84,17 @@ async function main() {
     console.warn("⚠️ contentHash index may already exist:", e.message);
   }
 
+  // 2e. Add metadata GIN index for PDF document filename lookups
+  try {
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS "BusinessDocument_metadata_gin_idx"
+        ON "BusinessDocument" USING gin ("metadata");
+    `);
+    console.log("✅ metadata GIN index created");
+  } catch (e) {
+    console.warn("⚠️ metadata GIN index may already exist:", e.message);
+  }
+
   // 3. Create indexes
   await client.query(`
     CREATE INDEX IF NOT EXISTS "BusinessDocument_businessId_idx" 
