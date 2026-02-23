@@ -43,7 +43,22 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     })
 
-    return NextResponse.json({ success: true, data: businesses })
+    // Also include businesses where user is a member (e.g. Cashier)
+    const memberships = await prisma.businessMember.findMany({
+      where: { userId: Number(userId) },
+      include: { business: true },
+      orderBy: { createdAt: "desc" },
+    })
+
+    // Merge: owned businesses first, then member businesses (avoid duplicates)
+    const ownedIds = new Set(businesses.map((b) => b.id))
+    const memberBusinesses = memberships
+      .map((m) => m.business)
+      .filter((b) => !ownedIds.has(b.id))
+
+    const allBusinesses = [...businesses, ...memberBusinesses]
+
+    return NextResponse.json({ success: true, data: allBusinesses })
   } catch (e) {
     return NextResponse.json(
         { error: "Failed to fetch businesses" },

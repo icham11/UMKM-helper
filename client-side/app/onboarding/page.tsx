@@ -28,7 +28,7 @@ export default function OnboardingPage() {
 
     await refreshBusiness()
 
-    router.push("/home")
+    router.push("/dashboard")
 
   } catch (error) {
     console.error(error)

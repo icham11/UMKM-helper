@@ -20,15 +20,16 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
 
-  // Redirect to dashboard if already authenticated (JWT only)
+  // Redirect if already authenticated — role-aware
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = getCookie("token");
       if (token) {
-        router.push("/dashboard");
+        // Hard redirect via post-login route — handles role detection server-side
+        window.location.replace("/api/auth/post-login");
       }
     }
-  }, [router]);
+  }, []);
 
   const handleEmailLogin = async () => {
     setError("")
@@ -54,24 +55,10 @@ export default function LoginPage() {
         throw new Error(text)
       }
 
-      // Setelah login, cek apakah user sudah punya business
-      // Tunggu cookie token terset
-      await new Promise((r) => setTimeout(r, 300));
-      const resBusiness = await fetch("/api/businesses", { credentials: "include" });
-      if (resBusiness.ok) {
-        const data = await resBusiness.json();
-        if (Array.isArray(data.data) && data.data.length === 0) {
-          window.location.href = "/onboarding";
-        } else {
-          window.location.href = "/home";
-        }
-      } else if (resBusiness.status === 401) {
-        // Token invalid, hapus cookie token
-        document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        window.location.href = "/login";
-      } else {
-        window.location.href = "/dashboard";
-      }
+      // Login success — redirect through server-side post-login route
+      // which checks role (Cashier → /pos, Owner → /dashboard, no business → /onboarding)
+      await new Promise((r) => setTimeout(r, 200)); // wait for cookie to set
+      window.location.replace("/api/auth/post-login");
     } catch (err: any) {
       setError(err.message || "Login gagal")
     } finally {
@@ -138,7 +125,7 @@ export default function LoginPage() {
 
         {/* Google Login */}
         <button
-          onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+          onClick={() => signIn("google", { callbackUrl: "/api/auth/post-login" })}
           className="flex items-center justify-center gap-3 w-full bg-white border border-gray-300 text-gray-700 font-semibold py-3 rounded-lg shadow hover:bg-gray-50 transition mb-4"
         >
           <svg

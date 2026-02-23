@@ -77,18 +77,33 @@ export async function generateQueryEmbedding(query: string): Promise<number[]> {
 }
 
 /**
- * Generate embeddings for multiple texts in batch (max 100 per batch)
+ * Generate embeddings for multiple texts in batch
+ *
+ * Gemini free tier limits:
+ *   - 100 embedContent requests/min/model
+ *   - batchEmbedContents counts each item in the batch as 1 request
+ *
+ * Strategy:
+ *   - Use small batches (20 texts each) to avoid slamming the quota
+ *   - Wait between batches to stay under 100 req/min
+ *   - Retry with exponential backoff on 429 (rate limit) errors
  */
 export async function generateEmbeddingsBatch(texts: string[]): Promise<number[][]> {
   if (!GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY is not set.");
   }
 
-  const batchSize = 100; // Gemini batch limit
+  const BATCH_SIZE = 20;  // 20 items per API call → 5 calls = 100 items/min (safe)
+  const DELAY_MS = 1500;  // 1.5s between batches → ~13 batches/min × 20 = 260 items/min headroom
+  const MAX_RETRIES = 3;
   const allEmbeddings: number[][] = [];
 
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const batch = texts.slice(i, i + batchSize);
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    const batchNum = Math.floor(i / BATCH_SIZE) + 1;
+    const totalBatches = Math.ceil(texts.length / BATCH_SIZE);
+
+    console.log(`[Embedding] Batch ${batchNum}/${totalBatches} (${batch.length} items)`);
 
     const requests = batch.map((text) => ({
       model: `models/${GEMINI_EMBEDDING_MODEL}`,
@@ -99,33 +114,67 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
       outputDimensionality: EMBEDDING_DIMENSIONS,
     }));
 
-    const response = await fetch(
-      `${GEMINI_BATCH_EMBEDDING_URL}?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requests }),
-      }
-    );
+    // Retry loop with exponential backoff
+    let lastError: Error | null = null;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const response = await fetch(
+          `${GEMINI_BATCH_EMBEDDING_URL}?key=${GEMINI_API_KEY}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ requests }),
+          }
+        );
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Gemini Batch Embedding error: ${response.status} — ${error}`);
+        if (response.status === 429) {
+          // Rate limited — parse retry delay from response if available
+          const errorBody = await response.text();
+          const retryMatch = errorBody.match(/retry in ([\d.]+)s/i);
+          const waitSec = retryMatch ? Math.ceil(parseFloat(retryMatch[1])) + 2 : (attempt + 1) * 15;
+          console.warn(`[Embedding] Rate limited (429). Waiting ${waitSec}s before retry ${attempt + 1}/${MAX_RETRIES}...`);
+          await sleep(waitSec * 1000);
+          continue; // retry
+        }
+
+        if (!response.ok) {
+          const error = await response.text();
+          throw new Error(`Gemini Batch Embedding error: ${response.status} — ${error}`);
+        }
+
+        const data = await response.json();
+        const embeddings = data.embeddings.map(
+          (e: { values: number[] }) => e.values
+        );
+        allEmbeddings.push(...embeddings);
+        lastError = null;
+        break; // success — exit retry loop
+
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < MAX_RETRIES - 1) {
+          const backoff = (attempt + 1) * 10_000; // 10s, 20s, 30s
+          console.warn(`[Embedding] Attempt ${attempt + 1} failed, retrying in ${backoff / 1000}s...`);
+          await sleep(backoff);
+        }
+      }
     }
 
-    const data = await response.json();
-    const embeddings = data.embeddings.map(
-      (e: { values: number[] }) => e.values
-    );
-    allEmbeddings.push(...embeddings);
+    if (lastError) {
+      throw lastError;
+    }
 
-    // Rate limit pause between batches
-    if (i + batchSize < texts.length) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+    // Pause between batches to respect rate limits
+    if (i + BATCH_SIZE < texts.length) {
+      await sleep(DELAY_MS);
     }
   }
 
   return allEmbeddings;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export { EMBEDDING_DIMENSIONS };

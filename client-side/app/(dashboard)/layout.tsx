@@ -6,21 +6,9 @@ import { verifyToken } from "@/lib/auth/jwt";
 import prisma from "@/lib/prisma";
 import { BusinessProvider } from "@/context/BusinessContext";
 import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info";
-import LogoutButton from "@/app/(dashboard)/components/LogoutButton";
+import SidebarNav from "@/app/(dashboard)/components/SidebarNav";
 import AIChatWidget from "./components/ai/AIChatWidget";
-import {
-  BarChart3,
-  Bot,
-  ShoppingCart,
-  History,
-  Boxes,
-  Soup,
-  Package,
-  Building2,
-  User,
-  FileDown,
-} from "lucide-react";
-import Link from "next/link";
+import { ShoppingCart } from "lucide-react";
 import DashboardClientLayout from "./DashboardClientLayout";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -50,13 +38,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/login");
   }
 
-  // 🔥 4. CHECK BUSINESS (SERVER SIDE)
+  // 🔥 4. CHECK BUSINESS (SERVER SIDE) — owned or member
   const businesses = await prisma.business.findMany({
     where: { userId },
   });
 
+  // If not a business owner, check if they're a staff member
   if (!businesses.length) {
-    redirect("/onboarding");
+    const membership = await prisma.businessMember.findFirst({
+      where: { userId },
+      include: { business: true },
+    });
+
+    if (!membership) {
+      redirect("/onboarding");
+    }
+    // Staff member — let them through, the RoleContext handles permissions
   }
 
   const jwtUserName =
@@ -87,103 +84,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
                   </span>
                   <span className="font-bold text-lg text-indigo-700 tracking-wide">Code</span>
                 </div>
-                {/* ...existing sidebar sections... */}
-                {/* Section: Dashboard */}
-                <div className="mb-6">
-                  <div className="text-xs font-semibold text-gray-400 mb-2">Dashboard</div>
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
-                  >
-                    <BarChart3 className="w-5 h-5" /> Overview
-                  </Link>
-                  <Link
-                    href="/dashboard/analytics"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <BarChart3 className="w-4 h-4" /> Analytics
-                  </Link>
-                  <Link
-                    href="/analytics/products"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-blue-700 hover:bg-blue-50 transition"
-                  >
-                    <BarChart3 className="w-4 h-4" /> Product Analytics
-                  </Link>
-                </div>
-                {/* Section: AI Tools */}
-                <div className="mb-6">
-                  <div className="text-xs font-semibold text-gray-400 mb-2">AI Tools</div>
-                  <Link
-                    href="/dashboard/ai-analysis"
-                    className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-linear-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition"
-                  >
-                    <Bot className="w-5 h-5" /> AI Center
-                    <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">
-                      NEW
-                    </span>
-                  </Link>
-                </div>
-                {/* Section: Sales */}
-                <div className="mb-6">
-                  <div className="text-xs font-semibold text-gray-400 mb-2">Sales</div>
-                  <Link
-                    href="/pos"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <ShoppingCart className="w-5 h-5" /> POS
-                  </Link>
-                  <Link
-                    href="/dashboard/sales-history"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <History className="w-4 h-4" /> Sales History
-                  </Link>
-                  <Link
-                    href="/dashboard/export"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-green-50 transition"
-                  >
-                    <FileDown className="w-4 h-4" /> Export Data
-                  </Link>
-                </div>
-                {/* Section: Inventory */}
-                <div className="mb-6">
-                  <div className="text-xs font-semibold text-gray-400 mb-2">Inventory</div>
-                  <Link
-                    href="/dashboard/products"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <Package className="w-5 h-5" /> Products
-                  </Link>
-                  <Link
-                    href="/dashboard/ingredients"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <Boxes className="w-4 h-4" /> Ingredients
-                  </Link>
-                </div>
-                {/* Section: Settings */}
-                <div className="mb-6">
-                  <div className="text-xs font-semibold text-gray-400 mb-2">Settings</div>
-                  <Link
-                    href="/dashboard/business"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <Building2 className="w-5 h-5" /> Business
-                  </Link>
-                  <Link
-                    href="/dashboard/profile"
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-                  >
-                    <User className="w-4 h-4" /> Profile
-                  </Link>
-                </div>
+              {/* ...existing sidebar sections — now RBAC-aware... */}
+                <SidebarNav />
               </div>
               {/* User Info & Logout */}
               <div className="flex flex-col items-center justify-end pt-4 pb-8">
                 <SidebarUserInfo jwtUserName={jwtUserName} jwtUserEmail={jwtUserEmail} />
-                <div className="w-full mt-4">
-                  <LogoutButton />
-                </div>
               </div>
             </aside>
             <main className="flex-1 px-2 md:px-6 overflow-y-auto">

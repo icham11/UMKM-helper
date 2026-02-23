@@ -231,9 +231,9 @@ export async function POST(request: NextRequest) {
       },
       enabled_payments: getEnabledPayments(paymentMethod),
       callbacks: {
-        finish: `${origin}/pos/payment-success?saleId=${result.saleId}&orderId=${result.transactionNumber}`,
+        finish: `${origin}/pos/payment-success?saleId=${result.saleId}&orderId=${result.transactionNumber}&source=midtrans&status=success`,
         error: `${origin}/pos?payment=error&orderId=${result.transactionNumber}`,
-        pending: `${origin}/pos?payment=pending&orderId=${result.transactionNumber}`,
+        pending: `${origin}/pos/payment-success?saleId=${result.saleId}&orderId=${result.transactionNumber}&source=midtrans&pending=true`,
       },
     });
 

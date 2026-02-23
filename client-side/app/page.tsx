@@ -18,13 +18,14 @@ export default function LandingPage() {
   const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in
+    // Middleware handles redirect for authenticated users.
+    // This is just a fallback for client-side navigation.
     const token = getCookie("token");
     if (token) {
-      // Redirect to home if already authenticated
-      router.push("/home");
+      // Authenticated — middleware should have redirected already,
+      // but just in case, do a hard redirect via the post-login route.
+      window.location.href = "/api/auth/post-login";
     } else {
-      // Use setTimeout to avoid setState during render
       setTimeout(() => setIsChecking(false), 0);
     }
   }, [router]);

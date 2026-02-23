@@ -352,6 +352,26 @@ export async function POST(request: NextRequest) {
         await recomputeRecipeCost(tx, pid);
       }
 
+      // 7.5. If Kasbon, create Debt record
+      if (paymentMethod === "Kasbon") {
+        if (!customerName) {
+          throw new Error("Nama pelanggan wajib diisi untuk kasbon");
+        }
+        await tx.debt.create({
+          data: {
+            businessId,
+            saleId: sale.id,
+            customerName: customerName,
+            customerPhone: customerPhone || null,
+            totalAmount: totalRevenue,
+            paidAmount: 0,
+            status: "Unpaid",
+            notes: body.kasbonNotes || null,
+            dueDate: body.kasbonDueDate ? new Date(body.kasbonDueDate) : null,
+          },
+        });
+      }
+
       await updateBusinessMetrics(
         tx,
         businessId,

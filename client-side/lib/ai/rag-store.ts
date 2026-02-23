@@ -159,15 +159,16 @@ async function buildBusinessChunks(businessId: number): Promise<DocumentChunk[]>
   // Bucket by week
   const weeks: Record<
     string,
-    { revenue: number; cost: number; count: number; items: Record<string, { qty: number; rev: number }> }
+    { revenue: number; cost: number; count: number; items: Record<string, { qty: number; rev: number }>; paymentMethods: Record<string, number> }
   > = {};
 
   for (const sale of sales) {
     const wk = weekKey(sale.createdAt);
-    if (!weeks[wk]) weeks[wk] = { revenue: 0, cost: 0, count: 0, items: {} };
+    if (!weeks[wk]) weeks[wk] = { revenue: 0, cost: 0, count: 0, items: {}, paymentMethods: {} };
     weeks[wk].revenue += Number(sale.totalRevenue);
     weeks[wk].cost += Number(sale.totalCost);
     weeks[wk].count++;
+    weeks[wk].paymentMethods[sale.paymentMethod] = (weeks[wk].paymentMethods[sale.paymentMethod] || 0) + 1;
 
     for (const item of sale.saleItems) {
       const n = item.product.name;
@@ -186,6 +187,9 @@ async function buildBusinessChunks(businessId: number): Promise<DocumentChunk[]>
       .join(", ");
     const profit = data.revenue - data.cost;
     const margin = data.revenue > 0 ? ((profit / data.revenue) * 100).toFixed(1) : "0";
+    const pmBreakdown = Object.entries(data.paymentMethods)
+      .map(([m, c]) => `${m}: ${c}`)
+      .join(", ");
 
     chunks.push({
       content: [
@@ -194,13 +198,257 @@ async function buildBusinessChunks(businessId: number): Promise<DocumentChunk[]>
         `Pendapatan: Rp${data.revenue.toLocaleString("id-ID")}`,
         `Biaya bahan: Rp${data.cost.toLocaleString("id-ID")}`,
         `Profit: Rp${profit.toLocaleString("id-ID")} (margin ${margin}%)`,
+        `Metode pembayaran: ${pmBreakdown}`,
         `Produk terlaris: ${topItems || "—"}`,
       ].join("\n"),
       sourceType: "sale",
       sourceId: null,
-      metadata: { weekStart: wk, revenue: data.revenue, cost: data.cost, profit, count: data.count },
+      metadata: { weekStart: wk, revenue: data.revenue, cost: data.cost, profit, count: data.count, paymentMethods: data.paymentMethods },
       chunkIndex: ci++,
     });
+  }
+
+  // ─── 3a-bis. Product breakdown by payment method (all 90 days) ───
+  const productsByPayment: Record<string, Record<string, { qty: number; rev: number }>> = {};
+  for (const sale of sales) {
+    const pm = sale.paymentMethod;
+    if (!productsByPayment[pm]) productsByPayment[pm] = {};
+    for (const si of sale.saleItems) {
+      const pName = si.product.name;
+      if (!productsByPayment[pm][pName]) productsByPayment[pm][pName] = { qty: 0, rev: 0 };
+      productsByPayment[pm][pName].qty += si.quantity;
+      productsByPayment[pm][pName].rev += Number(si.priceAtSale) * si.quantity;
+    }
+  }
+
+  const pmNames = Object.keys(productsByPayment);
+  if (pmNames.length > 1) {
+    const pmLines: string[] = [];
+    for (const pm of pmNames) {
+      const sorted = Object.entries(productsByPayment[pm])
+        .sort(([, a], [, b]) => b.qty - a.qty)
+        .slice(0, 8);
+      if (sorted.length > 0) {
+        pmLines.push(`Metode ${pm}:`);
+        for (const [name, data] of sorted) {
+          pmLines.push(`  ${name}: ${data.qty} pcs (Rp${data.rev.toLocaleString("id-ID")})`);
+        }
+      }
+    }
+
+    chunks.push({
+      content: [
+        `[Produk Terlaris per Metode Pembayaran — 90 Hari]`,
+        ...pmLines,
+      ].join("\n"),
+      sourceType: "sale",
+      sourceId: null,
+      metadata: { paymentMethods: pmNames },
+      chunkIndex: ci++,
+    });
+  }
+
+  // ─── 3b. Recent individual transactions (last 7 days for detailed context) ───
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const recentSales = sales.filter((s) => new Date(s.createdAt) >= sevenDaysAgo);
+
+  // Chunk every 5 transactions together
+  for (let i = 0; i < recentSales.length; i += 5) {
+    const batch = recentSales.slice(i, i + 5);
+    const lines = batch.map((s) => {
+      const items = s.saleItems.map((si) => `${si.product.name} x${si.quantity}`).join(", ");
+      return [
+        `  ${s.transactionNumber} — ${new Date(s.createdAt).toLocaleString("id-ID")}`,
+        `  Item: ${items}`,
+        `  Total: Rp${Number(s.totalRevenue).toLocaleString("id-ID")} | Metode: ${s.paymentMethod} | Status: ${s.paymentStatus}`,
+        s.customerName ? `  Pelanggan: ${s.customerName}` : "",
+      ].filter(Boolean).join("\n");
+    });
+
+    chunks.push({
+      content: [
+        `[Transaksi Terbaru — ${new Date(batch[0].createdAt).toLocaleDateString("id-ID")}]`,
+        ...lines,
+      ].join("\n"),
+      sourceType: "sale_detail",
+      sourceId: null,
+      metadata: {
+        count: batch.length,
+        dateRange: `${new Date(batch[batch.length - 1].createdAt).toLocaleDateString("id-ID")} - ${new Date(batch[0].createdAt).toLocaleDateString("id-ID")}`,
+      },
+      chunkIndex: ci++,
+    });
+  }
+
+  // ─── 3c. Kasbon / Piutang (Debts) ───
+  const debts = await prisma.debt.findMany({
+    where: { businessId },
+    include: {
+      sale: {
+        select: {
+          transactionNumber: true,
+          createdAt: true,
+          saleItems: {
+            include: { product: { select: { id: true, name: true } } },
+          },
+        },
+      },
+      payments: { orderBy: { createdAt: "desc" } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (debts.length > 0) {
+    // Summary chunk
+    const totalDebt = debts.reduce((s, d) => s + Number(d.totalAmount), 0);
+    const totalPaid = debts.reduce((s, d) => s + Number(d.paidAmount), 0);
+    const totalRemaining = totalDebt - totalPaid;
+    const unpaidCount = debts.filter((d) => d.status !== "Paid").length;
+    const overdueCount = debts.filter(
+      (d) => d.status !== "Paid" && d.dueDate && new Date(d.dueDate) < new Date()
+    ).length;
+
+    // Group by customer
+    const byCustomer: Record<string, { total: number; remaining: number; count: number }> = {};
+    for (const d of debts) {
+      const k = d.customerName;
+      if (!byCustomer[k]) byCustomer[k] = { total: 0, remaining: 0, count: 0 };
+      byCustomer[k].total += Number(d.totalAmount);
+      byCustomer[k].remaining += Number(d.totalAmount) - Number(d.paidAmount);
+      byCustomer[k].count++;
+    }
+    const topDebtors = Object.entries(byCustomer)
+      .sort(([, a], [, b]) => b.remaining - a.remaining)
+      .slice(0, 10)
+      .map(([name, d]) => `${name}: Rp${d.remaining.toLocaleString("id-ID")} (${d.count} kasbon)`)
+      .join(", ");
+
+    chunks.push({
+      content: [
+        `[Kasbon / Piutang — Ringkasan]`,
+        `Total kasbon: ${debts.length} transaksi`,
+        `Total nilai kasbon: Rp${totalDebt.toLocaleString("id-ID")}`,
+        `Sudah dibayar: Rp${totalPaid.toLocaleString("id-ID")}`,
+        `Sisa piutang: Rp${totalRemaining.toLocaleString("id-ID")}`,
+        `Belum lunas: ${unpaidCount} kasbon`,
+        `Jatuh tempo: ${overdueCount} kasbon`,
+        `Debitur terbesar: ${topDebtors || "—"}`,
+      ].join("\n"),
+      sourceType: "debt",
+      sourceId: null,
+      metadata: { totalDebt, totalPaid, totalRemaining, unpaidCount, overdueCount },
+      chunkIndex: 0,
+    });
+
+    // ── Produk paling sering dikasbon ──
+    const kasbonProducts: Record<string, { qty: number; revenue: number; txCount: number }> = {};
+    const kasbonByCustomerProduct: Record<string, Record<string, number>> = {};
+
+    for (const d of debts) {
+      for (const si of d.sale.saleItems) {
+        const pName = si.product.name;
+        if (!kasbonProducts[pName]) kasbonProducts[pName] = { qty: 0, revenue: 0, txCount: 0 };
+        kasbonProducts[pName].qty += si.quantity;
+        kasbonProducts[pName].revenue += Number(si.priceAtSale) * si.quantity;
+        kasbonProducts[pName].txCount++;
+
+        // Track per customer too
+        const custKey = d.customerName;
+        if (!kasbonByCustomerProduct[custKey]) kasbonByCustomerProduct[custKey] = {};
+        kasbonByCustomerProduct[custKey][pName] = (kasbonByCustomerProduct[custKey][pName] || 0) + si.quantity;
+      }
+    }
+
+    const sortedKasbonProducts = Object.entries(kasbonProducts)
+      .sort(([, a], [, b]) => b.qty - a.qty);
+
+    if (sortedKasbonProducts.length > 0) {
+      const productLines = sortedKasbonProducts
+        .slice(0, 15)
+        .map(([name, data], i) =>
+          `  ${i + 1}. ${name}: ${data.qty} pcs (${data.txCount} transaksi kasbon, total Rp${data.revenue.toLocaleString("id-ID")})`
+        );
+
+      // Customer favorites
+      const customerFavLines = Object.entries(kasbonByCustomerProduct)
+        .slice(0, 10)
+        .map(([cust, prods]) => {
+          const topProd = Object.entries(prods).sort(([, a], [, b]) => b - a)[0];
+          return topProd ? `  ${cust} → sering kasbon: ${topProd[0]} (${topProd[1]} pcs)` : null;
+        })
+        .filter(Boolean);
+
+      chunks.push({
+        content: [
+          `[Produk Paling Sering Dikasbon]`,
+          `Daftar produk yang paling banyak dibeli dengan kasbon:`,
+          ...productLines,
+          ``,
+          `Preferensi kasbon per pelanggan:`,
+          ...customerFavLines,
+        ].join("\n"),
+        sourceType: "debt",
+        sourceId: null,
+        metadata: {
+          topProduct: sortedKasbonProducts[0]?.[0],
+          topProductQty: sortedKasbonProducts[0]?.[1]?.qty,
+          uniqueProducts: sortedKasbonProducts.length,
+        },
+        chunkIndex: 1,
+      });
+    }
+
+    // Individual overdue debts (with items)
+    const overdueDebts = debts.filter(
+      (d) => d.status !== "Paid" && d.dueDate && new Date(d.dueDate) < new Date()
+    );
+    if (overdueDebts.length > 0) {
+      const lines = overdueDebts.slice(0, 15).map((d) => {
+        const daysLate = Math.floor(
+          (new Date().getTime() - new Date(d.dueDate!).getTime()) / (1000 * 60 * 60 * 24)
+        );
+        const items = d.sale.saleItems.map((si) => `${si.product.name} x${si.quantity}`).join(", ");
+        return `  ${d.customerName}: Rp${(Number(d.totalAmount) - Number(d.paidAmount)).toLocaleString("id-ID")} sisa — lewat ${daysLate} hari — item: ${items} (${d.sale.transactionNumber})`;
+      });
+
+      chunks.push({
+        content: [
+          `[Kasbon Jatuh Tempo]`,
+          `Ada ${overdueDebts.length} kasbon yang sudah melewati jatuh tempo:`,
+          ...lines,
+        ].join("\n"),
+        sourceType: "debt",
+        sourceId: null,
+        metadata: { overdueCount: overdueDebts.length },
+        chunkIndex: 2,
+      });
+    }
+
+    // Active unpaid debts detail (with items)
+    const activeDebts = debts.filter((d) => d.status !== "Paid").slice(0, 20);
+    if (activeDebts.length > 0) {
+      const lines = activeDebts.map((d) => {
+        const remaining = Number(d.totalAmount) - Number(d.paidAmount);
+        const dueDateStr = d.dueDate
+          ? new Date(d.dueDate).toLocaleDateString("id-ID")
+          : "tidak ditentukan";
+        const items = d.sale.saleItems.map((si) => `${si.product.name} x${si.quantity}`).join(", ");
+        return `  ${d.customerName} (${d.customerPhone || "no HP"}) — sisa Rp${remaining.toLocaleString("id-ID")} — jatuh tempo: ${dueDateStr} — item: ${items} — status: ${d.status}`;
+      });
+
+      chunks.push({
+        content: [
+          `[Kasbon Aktif — Belum Lunas]`,
+          ...lines,
+        ].join("\n"),
+        sourceType: "debt",
+        sourceId: null,
+        metadata: { activeCount: activeDebts.length },
+        chunkIndex: 3,
+      });
+    }
   }
 
   // ─── 4. Business metrics (last 30 days summary) ───
@@ -422,9 +670,11 @@ export async function getRelevantContext(
     product: "📦 Produk",
     ingredient: "🧂 Bahan Baku",
     sale: "💰 Penjualan",
+    sale_detail: "🧾 Transaksi Detail",
     recipe: "📋 Resep",
     metric: "📊 Metrik",
     health: "🏥 Kesehatan Bisnis",
+    debt: "📒 Kasbon/Piutang",
   };
 
   const parts = results.map((r, i) => {

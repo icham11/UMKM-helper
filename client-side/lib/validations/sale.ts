@@ -21,6 +21,8 @@ export const createSaleSchema = z.object({
   customerName: z.string().optional(),
   customerEmail: z.string().email("Invalid email").optional(),
   customerPhone: z.string().optional(),
+  kasbonNotes: z.string().optional(),
+  kasbonDueDate: z.string().optional(),
 });
 
 export type CreateSaleInput = z.infer<typeof createSaleSchema>;

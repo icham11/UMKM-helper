@@ -2,19 +2,21 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
-// Supabase uses self-signed certs; allow them in development
-if (process.env.NODE_ENV === "development") {
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-}
-
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 function createPrismaClient() {
+  // Strip sslmode from connection string — we configure SSL via the Pool object
+  const rawUrl = process.env.DATABASE_URL ?? "";
+  const cleanUrl = rawUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: false,
+    connectionString: cleanUrl,
+    ssl:
+      process.env.NODE_ENV === "production"
+        ? { rejectUnauthorized: true }   // verify certs in production
+        : { rejectUnauthorized: false },  // allow self-signed in dev (Supabase pooler)
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({

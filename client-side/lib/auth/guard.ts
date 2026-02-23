@@ -1,35 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, AuthError } from "@/lib/auth/session";
+import { requireAuth, requireRole, AuthError, ForbiddenError } from "@/lib/auth/session";
+import type { AuthResult } from "@/lib/auth/session";
+import type { UserRole } from "@prisma/client";
 import { logAuth } from "@/lib/logger";
 
 /**
  * Auth Guard — Centralized authentication wrapper for API routes.
- *
- * Wraps a handler function with authentication check using `requireAuth()`.
- * Returns 401 automatically if the user is not authenticated.
- *
- * Usage:
- * ```ts
- * import { withAuth } from "@/lib/auth/guard";
- *
- * export const GET = withAuth(async (request, { userId, businessId }) => {
- *   // userId and businessId are guaranteed to be present
- *   return NextResponse.json({ data: "protected" });
- * });
- * ```
- *
- * For routes with dynamic params:
- * ```ts
- * export const PATCH = withAuth(async (request, { userId, businessId }) => {
- *   const { id } = await (request as any).__params; // Use standard param parsing
- *   return NextResponse.json({ data: "ok" });
- * });
- * ```
  */
 
 export interface AuthContext {
   userId: number;
   businessId: number;
+  role: UserRole;
 }
 
 type AuthenticatedHandler = (
@@ -39,21 +21,23 @@ type AuthenticatedHandler = (
 
 /**
  * Wrap an API route handler with auth guard.
- *
- * - On success: calls the handler with `{ userId, businessId }`
- * - On AuthError: returns 401 with error message
- * - On unexpected error: returns 500
  */
 export function withAuth(handler: AuthenticatedHandler) {
   return async (request: NextRequest, ..._args: unknown[]) => {
     try {
-      const auth = await requireAuth();
+      const auth: AuthResult = await requireAuth();
       return await handler(request, auth);
     } catch (error: unknown) {
       if (error instanceof AuthError) {
         return NextResponse.json(
           { error: error.message || "Unauthorized" },
           { status: 401 },
+        );
+      }
+      if (error instanceof ForbiddenError) {
+        return NextResponse.json(
+          { error: error.message || "Forbidden" },
+          { status: 403 },
         );
       }
 
@@ -64,6 +48,24 @@ export function withAuth(handler: AuthenticatedHandler) {
       );
     }
   };
+}
+
+/**
+ * Wrap an API route handler with auth + role guard.
+ *
+ * Usage:
+ * ```ts
+ * export const DELETE = withAuthRole(["Owner"], async (request, auth) => {
+ *   // Only Owner can reach here
+ *   return NextResponse.json({ ok: true });
+ * });
+ * ```
+ */
+export function withAuthRole(allowedRoles: UserRole[], handler: AuthenticatedHandler) {
+  return withAuth(async (request, auth) => {
+    requireRole(auth as AuthResult, ...allowedRoles);
+    return handler(request, auth);
+  });
 }
 
 /**

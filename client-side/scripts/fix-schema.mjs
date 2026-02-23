@@ -13,7 +13,6 @@ import dotenv from "dotenv";
 dotenv.config({ path: ".env.local", override: false });
 dotenv.config({ path: ".env", override: false });
 
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 if (!connectionString) {

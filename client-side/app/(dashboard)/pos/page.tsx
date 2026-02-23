@@ -20,6 +20,7 @@ import {
   Phone,
   ChevronDown,
   Receipt,
+  BookOpen,
 } from "lucide-react";
 
 // ─── Types ───
@@ -105,11 +106,14 @@ export default function POSPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "QRIS" | "Transfer" | "Digital">("Cash");
+  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "QRIS" | "Transfer" | "Digital" | "Kasbon">("Cash");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const [mounted, setMounted] = useState(false);
   const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [kasbonNotes, setKasbonNotes] = useState("");
+  const [kasbonDueDate, setKasbonDueDate] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // ── Keyboard shortcuts for cashier speed ──
@@ -123,12 +127,17 @@ export default function POSPage() {
       if (e.key === "F2") {
         e.preventDefault();
         if (cart.length > 0 && paymentMethod === "Cash" && !loading) {
-          handleCheckout(false);
+          handleCheckout("cash");
         }
       } else if (e.key === "F3") {
         e.preventDefault();
-        if (cart.length > 0 && paymentMethod !== "Cash" && !loading) {
-          handleCheckout(true);
+        if (cart.length > 0 && paymentMethod !== "Cash" && paymentMethod !== "Kasbon" && !loading) {
+          handleCheckout("online");
+        }
+      } else if (e.key === "F5") {
+        e.preventDefault();
+        if (cart.length > 0 && paymentMethod === "Kasbon" && !loading) {
+          handleCheckout("kasbon");
         }
       } else if (e.key === "F4") {
         e.preventDefault();
@@ -145,8 +154,10 @@ export default function POSPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [cart, paymentMethod, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live clock
+  // Live clock — only starts on client to avoid hydration mismatch
   useEffect(() => {
+    setMounted(true);
+    setCurrentTime(new Date());
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
@@ -252,17 +263,34 @@ export default function POSPage() {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // Checkout
-  const handleCheckout = async (useOnlinePayment: boolean) => {
+  const handleCheckout = async (mode: "cash" | "online" | "kasbon") => {
     if (cart.length === 0) return;
 
-    if (useOnlinePayment && (!customerName.trim() || !customerEmail.trim())) {
+    // Guard: prevent cash mode when non-cash method is selected (and vice versa)
+    if (mode === "cash" && paymentMethod !== "Cash") {
+      alert("Pilih metode pembayaran Cash terlebih dahulu!");
+      return;
+    }
+    if (mode === "online" && (paymentMethod === "Cash" || paymentMethod === "Kasbon")) {
+      alert("Pilih metode pembayaran online (QRIS/Transfer/Digital) terlebih dahulu!");
+      return;
+    }
+
+    if (mode === "online" && (!customerName.trim() || !customerEmail.trim())) {
+      // Auto-expand customer form so user can fill in the required fields
+      setShowCustomerForm(true);
       alert("Nama dan email wajib diisi untuk pembayaran online!");
+      return;
+    }
+
+    if (mode === "kasbon" && !customerName.trim()) {
+      alert("Nama pelanggan wajib diisi untuk kasbon!");
       return;
     }
 
     setLoading(true);
     try {
-      if (useOnlinePayment) {
+      if (mode === "online") {
         const response = await fetch("/api/sales/midtrans-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -277,23 +305,71 @@ export default function POSPage() {
         const data = await response.json();
         if (data.success) {
           const { saleId, orderId, snapToken } = data.data;
-          // @ts-expect-error - Midtrans Snap loaded from external script
-          window.snap.pay(snapToken, {
-            onSuccess: () => { window.location.href = `/pos/payment-success?saleId=${saleId}&orderId=${orderId}`; },
-            onPending: () => { alert("Menunggu pembayaran..."); clearCart(); },
-            onError: () => { alert("Pembayaran gagal!"); },
-            onClose: () => { console.log("Payment popup closed"); },
+
+          // Check if Midtrans Snap script is loaded
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const snapObj = (window as any).snap;
+          if (!snapObj || typeof snapObj.pay !== "function") {
+            alert("Midtrans belum siap. Coba refresh halaman dan ulangi.");
+            // Cancel the pending sale
+            await fetch(`/api/sales/${saleId}`, { method: "DELETE" }).catch(() => {});
+            setLoading(false);
+            return;
+          }
+
+          // Keep loading=true while popup is open — setLoading(false) only on close/error
+          snapObj.pay(snapToken, {
+            onSuccess: (result: Record<string, unknown>) => {
+              console.log("Midtrans onSuccess:", result);
+              window.location.href = `/pos/payment-success?saleId=${saleId}&orderId=${orderId}&source=midtrans&status=success`;
+            },
+            onPending: (result: Record<string, unknown>) => {
+              console.log("Midtrans onPending:", result);
+              window.location.href = `/pos/payment-success?saleId=${saleId}&orderId=${orderId}&source=midtrans&pending=true`;
+            },
+            onError: (result: Record<string, unknown>) => {
+              console.error("Midtrans onError:", result);
+              alert("Pembayaran gagal! Silakan coba lagi.");
+              setLoading(false);
+            },
+            onClose: () => {
+              console.log("Midtrans popup closed without finishing payment");
+              setLoading(false);
+              // Sale remains Pending — webhook will handle if user already paid
+            },
           });
+          return; // Don't call setLoading(false) — popup is still open
         } else {
           alert(`Error: ${data.error}`);
         }
-      } else {
+      } else if (mode === "kasbon") {
         const response = await fetch("/api/sales", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity })),
-            paymentMethod: "Cash",
+            paymentMethod: "Kasbon",
+            paymentStatus: "Pending",
+            customerName: customerName.trim(),
+            customerPhone: customerPhone || undefined,
+            kasbonNotes: kasbonNotes || undefined,
+            kasbonDueDate: kasbonDueDate || undefined,
+          }),
+        });
+        const data = await response.json();
+        if (data.success) {
+          window.location.href = `/pos/payment-success?saleId=${data.data.id}&orderId=${data.data.transactionNumber}&kasbon=true`;
+        } else {
+          alert(`Error: ${data.error}`);
+        }
+      } else {
+        // Cash — use the actual paymentMethod state (should always be "Cash" due to guard above)
+        const response = await fetch("/api/sales", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+            paymentMethod: paymentMethod, // Use actual state, not hardcoded
             paymentStatus: "Paid",
             customerName: customerName || undefined,
             customerEmail: customerEmail || undefined,
@@ -319,6 +395,8 @@ export default function POSPage() {
     setCustomerName("");
     setCustomerEmail("");
     setCustomerPhone("");
+    setKasbonNotes("");
+    setKasbonDueDate("");
   };
 
   return (
@@ -337,11 +415,15 @@ export default function POSPage() {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
             <CalendarDays className="w-4 h-4 text-indigo-500" />
-            <span className="font-medium">{formatDate(currentTime)}</span>
+            <span className="font-medium" suppressHydrationWarning>
+              {mounted && currentTime ? formatDate(currentTime) : ""}
+            </span>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
             <Clock className="w-4 h-4 text-indigo-500" />
-            <span className="font-mono font-medium">{formatTime(currentTime)}</span>
+            <span className="font-mono font-medium" suppressHydrationWarning>
+              {mounted && currentTime ? formatTime(currentTime) : ""}
+            </span>
           </div>
         </div>
       </div>
@@ -562,102 +644,211 @@ export default function POSPage() {
           </div>
 
           {/* Cart footer */}
-          <div className="border-t border-gray-100 px-5 py-4 space-y-3 shrink-0 bg-gray-50/50">
-            {/* Customer info toggle */}
-            <button
-              onClick={() => setShowCustomerForm(!showCustomerForm)}
-              className="w-full flex items-center justify-between text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50"
-            >
-              <span className="flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5" />
-                {customerName ? customerName : "Info Customer (opsional)"}
-              </span>
-              <ChevronDown className={`w-3.5 h-3.5 transition ${showCustomerForm ? "rotate-180" : ""}`} />
-            </button>
-
-            {showCustomerForm && (
-              <div className="space-y-2 bg-white border border-gray-200 rounded-lg p-3">
-                <div className="relative">
-                  <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Nama customer"
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div className="relative">
-                  <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="email"
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="Email customer"
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div className="relative">
-                  <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-                  <input
-                    type="tel"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="No. HP (opsional)"
-                    className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+          <div className="border-t border-gray-100 shrink-0 bg-gray-50/50">
+            {/* Payment method selector — always visible */}
+            <div className="px-5 pt-3 pb-2">
+              <div className="flex gap-1.5 flex-wrap">
+                {(["Cash", "QRIS", "Transfer", "Digital", "Kasbon"] as const).map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => {
+                      setPaymentMethod(method);
+                      if (method !== "Kasbon") {
+                        setKasbonNotes("");
+                        setKasbonDueDate("");
+                      }
+                      // Auto-expand customer form for online payments (Midtrans requires name+email)
+                      if (method === "QRIS" || method === "Transfer" || method === "Digital") {
+                        setShowCustomerForm(true);
+                      }
+                    }}
+                    className={`flex-1 min-w-[55px] py-2 text-[11px] font-medium rounded-lg transition cursor-pointer ${
+                      paymentMethod === method
+                        ? method === "Kasbon"
+                          ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-300"
+                          : "bg-indigo-600 text-white shadow-sm"
+                        : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
+                    }`}
+                  >
+                    {method === "Cash" ? "💵" : method === "QRIS" ? "📱" : method === "Transfer" ? "🏦" : method === "Digital" ? "💳" : "📒"}{" "}
+                    {method}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
 
-            {/* Payment method */}
-            <div className="flex gap-1.5">
-              {(["Cash", "QRIS", "Transfer", "Digital"] as const).map((method) => (
+            {/* Conditional forms — scrollable if needed */}
+            <div className="px-5 pb-2 overflow-y-auto max-h-[180px]">
+              {/* KASBON MODE */}
+              {paymentMethod === "Kasbon" && (
+                <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center gap-2 pb-1 border-b border-amber-200">
+                    <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                    <p className="text-[11px] text-amber-800 font-bold">Mode Kasbon — Piutang</p>
+                  </div>
+                  <div className="relative">
+                    <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-400" />
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Nama pelanggan (wajib) *"
+                      className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none ${
+                        !customerName.trim() ? "border-2 border-red-300" : "border border-amber-200"
+                      }`}
+                    />
+                  </div>
+                  <div className="relative">
+                    <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <input
+                      type="tel"
+                      value={customerPhone}
+                      onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="No. HP (untuk reminder WA)"
+                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="date"
+                      value={kasbonDueDate}
+                      onChange={(e) => setKasbonDueDate(e.target.value)}
+                      min={currentTime ? currentTime.toISOString().split("T")[0] : undefined}
+                      title="Jatuh tempo"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={kasbonNotes}
+                      onChange={(e) => setKasbonNotes(e.target.value)}
+                      placeholder="Catatan (opsional)"
+                      className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* NON-KASBON: customer info */}
+              {paymentMethod !== "Kasbon" && (
+                <div>
+                  <button
+                    onClick={() => setShowCustomerForm(!showCustomerForm)}
+                    className="w-full flex items-center justify-between text-xs text-gray-600 bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5" />
+                      {customerName || "Info Customer (opsional)"}
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 transition ${showCustomerForm ? "rotate-180" : ""}`} />
+                  </button>
+                  {showCustomerForm && (
+                    <div className="space-y-2 bg-white border border-gray-200 rounded-lg p-3 mt-2">
+                      <div className="relative">
+                        <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                          type="text"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                          placeholder="Nama customer"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                          type="email"
+                          value={customerEmail}
+                          onChange={(e) => setCustomerEmail(e.target.value)}
+                          placeholder="Email customer"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <div className="relative">
+                        <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                        <input
+                          type="tel"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          placeholder="No. HP (opsional)"
+                          className="w-full pl-8 pr-3 py-2 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Total + Checkout — always pinned at bottom */}
+            <div className="px-5 pb-4 pt-2 space-y-2 border-t border-gray-100">
+              <div className={`border rounded-xl p-2.5 ${
+                paymentMethod === "Kasbon" ? "bg-amber-50 border-amber-200" : "bg-white border-gray-200"
+              }`}>
+                <div className="flex justify-between items-center text-xs text-gray-500 mb-0.5">
+                  <span>{totalItems} item</span>
+                  <span>{paymentMethod === "Kasbon" ? "Total Kasbon" : "Subtotal"}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-base font-extrabold text-gray-900">Total</span>
+                  <span className={`text-base font-extrabold ${paymentMethod === "Kasbon" ? "text-amber-700" : "text-indigo-600"}`}>
+                    {formatRupiah(total)}
+                  </span>
+                </div>
+                {paymentMethod === "Kasbon" && customerName.trim() && cart.length > 0 && (
+                  <p className="text-[10px] text-amber-700 font-medium mt-1 truncate">
+                    📒 {customerName.trim()} hutang {formatRupiah(total)}
+                  </p>
+                )}
+              </div>
+
+              {paymentMethod === "Kasbon" ? (
                 <button
-                  key={method}
-                  onClick={() => setPaymentMethod(method)}
-                  className={`flex-1 py-2 text-[11px] font-medium rounded-lg transition ${
-                    paymentMethod === method
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
-                  }`}
+                  onClick={() => handleCheckout("kasbon")}
+                  disabled={loading || cart.length === 0 || !customerName.trim()}
+                  className="w-full flex items-center justify-center gap-2 bg-amber-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition shadow-sm cursor-pointer"
                 >
-                  {method === "Cash" ? "💵" : method === "QRIS" ? "📱" : method === "Transfer" ? "🏦" : "💳"}{" "}
-                  {method}
+                  {loading ? (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <BookOpen className="w-4 h-4" />
+                  )}
+                  {!customerName.trim()
+                    ? "Isi Nama Dulu"
+                    : cart.length === 0
+                    ? "Pilih Menu Dulu"
+                    : `Catat Kasbon ${formatRupiah(total)}`
+                  }
+                  <span className="text-[10px] opacity-70 ml-1">(F5)</span>
                 </button>
-              ))}
-            </div>
-
-            {/* Total */}
-            <div className="bg-white border border-gray-200 rounded-xl p-3">
-              <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
-                <span>{totalItems} item</span>
-                <span>Subtotal</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-lg font-extrabold text-gray-900">Total</span>
-                <span className="text-lg font-extrabold text-indigo-600">{formatRupiah(total)}</span>
-              </div>
-            </div>
-
-            {/* Checkout buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => handleCheckout(false)}
-                disabled={loading || cart.length === 0 || paymentMethod !== "Cash"}
-                className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition"
-              >
-                <Banknote className="w-4 h-4" />
-                Cash <span className="text-[10px] opacity-70">(F2)</span>
-              </button>
-              <button
-                onClick={() => handleCheckout(true)}
-                disabled={loading || cart.length === 0 || paymentMethod === "Cash"}
-                className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition"
-              >
-                <CreditCard className="w-4 h-4" />
-                Online <span className="text-[10px] opacity-70">(F3)</span>
-              </button>
+              ) : (
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleCheckout("cash")}
+                    disabled={loading || cart.length === 0 || paymentMethod !== "Cash"}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition cursor-pointer ${
+                      paymentMethod === "Cash"
+                        ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <Banknote className="w-4 h-4" />
+                    Cash <span className="text-[10px] opacity-70">(F2)</span>
+                  </button>
+                  <button
+                    onClick={() => handleCheckout("online")}
+                    disabled={loading || cart.length === 0 || paymentMethod === "Cash"}
+                    className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition cursor-pointer ${
+                      paymentMethod !== "Cash"
+                        ? "bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
+                        : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    {paymentMethod !== "Cash" ? paymentMethod : "Online"}{" "}
+                    <span className="text-[10px] opacity-70">(F3)</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -43,10 +43,12 @@ export const authOptions: AuthOptions = {
       return session;
     },
     async redirect({ url, baseUrl }) {
-      // After sign in, redirect to dashboard
+      // If the callback already specifies post-login, use it
+      if (url.includes("/api/auth/post-login")) return url;
+      // After sign in, redirect through post-login for role-aware routing
       if (url.startsWith(baseUrl)) return url;
       if (url.startsWith("/")) return `${baseUrl}${url}`;
-      return `${baseUrl}/dashboard`;
+      return `${baseUrl}/api/auth/post-login`;
     },
   },
 };

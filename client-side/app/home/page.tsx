@@ -1,6 +1,7 @@
 
 "use client";
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import {
   ReceiptText,
   Box,
@@ -22,6 +23,42 @@ import { useBusiness } from "@/context/BusinessContext";
 function HomePage() {
   const router = useRouter();
   const { business, loading } = useBusiness();
+  const [roleChecked, setRoleChecked] = useState(false);
+
+  // Kasir guard — middleware handles this, but this is a fallback
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error("auth failed");
+        return res.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (data?.data?.role === "Cashier") {
+          window.location.replace("/pos");
+        } else {
+          setRoleChecked(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setRoleChecked(true);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Show nothing until role is confirmed as non-Cashier
+  if (!roleChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-blue-100 via-indigo-100 to-blue-200">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm text-indigo-500 font-medium">Memuat...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-linear-to-br from-blue-100 via-indigo-100 to-blue-200 px-2 py-6 md:px-8 md:py-10 space-y-10 relative overflow-x-hidden flex flex-col">
       {/* Background Pattern */}
