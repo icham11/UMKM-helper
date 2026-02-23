@@ -19,9 +19,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      indexed: result.indexed,
-      elapsed: result.elapsed,
-      message: `Berhasil mengindeks ${result.indexed} dokumen dalam ${(result.elapsed / 1000).toFixed(1)} detik`,
+      ...result,
+      message: result.added + result.updated > 0
+        ? `Sync selesai: ${result.added} baru, ${result.updated} diperbarui, ${result.unchanged} tidak berubah, ${result.deleted} dihapus (${(result.elapsed / 1000).toFixed(1)}s)`
+        : `Semua ${result.unchanged} dokumen sudah up-to-date, ${result.deleted} dihapus (${(result.elapsed / 1000).toFixed(1)}s)`,
     });
   } catch (error) {
     if (error instanceof AuthError) {

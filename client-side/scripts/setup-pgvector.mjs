@@ -1,14 +1,22 @@
 // Script to setup pgvector extension and BusinessDocument table
-// Run: NODE_TLS_REJECT_UNAUTHORIZED=0 node scripts/setup-pgvector.mjs
+// Run: node scripts/setup-pgvector.mjs
 
 import "dotenv/config";
+import dotenv from "dotenv";
 import pg from "pg";
+
+dotenv.config({ path: ".env.local", override: false });
+dotenv.config({ path: ".env", override: false });
 
 const { Client } = pg;
 
 async function main() {
+  // Strip sslmode from URL — we configure SSL via the client object
+  const rawUrl = process.env.DATABASE_URL || "";
+  const cleanUrl = rawUrl.replace(/[?&]sslmode=[^&]*/g, "").replace(/\?$/, "");
+
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: cleanUrl,
     ssl: { rejectUnauthorized: false },
   });
 
@@ -42,6 +50,39 @@ async function main() {
     );
   `);
   console.log("✅ BusinessDocument table created");
+
+  // 2b. Add contentHash column if missing (incremental sync)
+  try {
+    await client.query(`
+      ALTER TABLE "BusinessDocument"
+      ADD COLUMN IF NOT EXISTS "contentHash" VARCHAR(64);
+    `);
+    console.log("✅ contentHash column ensured");
+  } catch (e) {
+    console.warn("⚠️ contentHash column may already exist:", e.message);
+  }
+
+  // 2c. Add unique constraint for incremental sync
+  try {
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "BusinessDocument_sync_key"
+        ON "BusinessDocument" ("businessId", "sourceType", "sourceId", "chunkIndex");
+    `);
+    console.log("✅ Unique sync key index created");
+  } catch (e) {
+    console.warn("⚠️ Sync key index may already exist:", e.message);
+  }
+
+  // 2d. Add contentHash lookup index
+  try {
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS "BusinessDocument_contentHash_idx"
+        ON "BusinessDocument" ("businessId", "contentHash");
+    `);
+    console.log("✅ contentHash index created");
+  } catch (e) {
+    console.warn("⚠️ contentHash index may already exist:", e.message);
+  }
 
   // 3. Create indexes
   await client.query(`

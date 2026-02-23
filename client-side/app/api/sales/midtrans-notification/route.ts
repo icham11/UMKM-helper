@@ -46,7 +46,17 @@ export async function POST(request: NextRequest) {
 
     const { order_id, transaction_status, fraud_status, transaction_id } = notification;
 
-    // 2. Build idempotency key and guard against duplicate processing
+    // 2a. Handle Midtrans test notifications (from Dashboard "Test notification URL")
+    if (order_id.startsWith("payment_notif_test_")) {
+      log.info("Test notification received — responding OK", { orderId: order_id });
+      return NextResponse.json({
+        success: true,
+        message: "Test notification acknowledged",
+        test: true,
+      });
+    }
+
+    // 3. Build idempotency key and guard against duplicate processing
     const eventId = buildMidtransEventId(order_id, transaction_status, transaction_id);
 
     const result = await withIdempotency(

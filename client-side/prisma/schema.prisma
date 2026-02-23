@@ -148,23 +148,26 @@ model DebtPayment {
 // ==================== RAG VECTOR LAYER ====================
 
 model BusinessDocument {
-  id         Int                          @id @default(autoincrement())
-  businessId Int
-  content    String                       @db.Text
-  embedding  Unsupported("vector(768)")?
-  sourceType String                       // "product" | "ingredient" | "sale" | "recipe" | "metric" | "health"
-  sourceId   Int?
-  metadata   Json?
-  chunkIndex Int                          @default(0)
-  createdAt  DateTime                     @default(now())
-  updatedAt  DateTime                     @updatedAt
+  id          Int                          @id @default(autoincrement())
+  businessId  Int
+  content     String                       @db.Text
+  contentHash String?                      // SHA-256 of content — used for incremental sync
+  embedding   Unsupported("vector(768)")?
+  sourceType  String                       // "product" | "ingredient" | "sale" | "sale_detail" | "recipe" | "metric" | "health" | "debt" | "debt_payment" | "inventory_batch" | "inventory_movement" | "stock_document" | "product_metrics" | "forecast" | "category" | "business"
+  sourceId    Int?
+  metadata    Json?
+  chunkIndex  Int                          @default(0)
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  // RAG: findMany where businessId + sourceType; deleteMany where businessId
+  // Incremental sync uses content hash comparison in application code
+  // (unique constraint not used due to NULL sourceId issues with pgvector)
   @@index([businessId, sourceType])
   @@index([businessId])
   @@index([sourceType])
+  @@index([businessId, contentHash])
 }
 
 // ==================== AI CHAT LAYER ====================

@@ -54,7 +54,7 @@ export default function RAGStatusPanel() {
       });
       const data = await res.json();
       if (data.success) {
-        setResult(`✅ ${data.indexed} dokumen berhasil diindeks (${(data.elapsed / 1000).toFixed(1)}s)`);
+        setResult(data.message || `✅ Sync selesai`);
         await checkStatus();
       } else {
         setResult(`❌ Error: ${data.error}`);
@@ -91,18 +91,38 @@ export default function RAGStatusPanel() {
     product: "bg-blue-100 text-blue-800",
     ingredient: "bg-green-100 text-green-800",
     sale: "bg-yellow-100 text-yellow-800",
+    sale_detail: "bg-yellow-50 text-yellow-700",
     recipe: "bg-purple-100 text-purple-800",
     metric: "bg-indigo-100 text-indigo-800",
     health: "bg-red-100 text-red-800",
+    debt: "bg-amber-100 text-amber-800",
+    debt_payment: "bg-amber-50 text-amber-700",
+    inventory_batch: "bg-teal-100 text-teal-800",
+    inventory_movement: "bg-cyan-100 text-cyan-800",
+    stock_document: "bg-gray-100 text-gray-800",
+    product_metrics: "bg-rose-100 text-rose-800",
+    forecast: "bg-violet-100 text-violet-800",
+    category: "bg-lime-100 text-lime-800",
+    business: "bg-slate-100 text-slate-800",
   };
 
   const sourceEmoji: Record<string, string> = {
     product: "📦",
     ingredient: "🧂",
     sale: "💰",
+    sale_detail: "🧾",
     recipe: "📋",
     metric: "📊",
     health: "🏥",
+    debt: "📒",
+    debt_payment: "💳",
+    inventory_batch: "📦",
+    inventory_movement: "🔄",
+    stock_document: "📄",
+    product_metrics: "📈",
+    forecast: "🔮",
+    category: "🏷️",
+    business: "🏪",
   };
 
   return (

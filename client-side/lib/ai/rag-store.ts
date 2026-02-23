@@ -1,13 +1,20 @@
 /**
- * RAG Vector Store — Indexing & Semantic Search
+ * RAG Vector Store — Incremental Indexing & Semantic Search
  *
  * Responsibilities:
  * 1. Build text chunks from business data (products, ingredients, sales, etc.)
  * 2. Generate embeddings via Gemini and store in PostgreSQL/pgvector
  * 3. Semantic similarity search using cosine distance
+ *
+ * Incremental Sync Strategy:
+ * - Each chunk is identified by (businessId, sourceType, sourceId, chunkIndex)
+ * - Content is SHA-256 hashed; only chunks whose hash changed get re-embedded
+ * - Stale chunks (no longer produced by buildBusinessChunks) are deleted
+ * - This avoids redundant Gemini API calls and saves quota
  */
 
 import prisma from "@/lib/prisma";
+import { createHash } from "crypto";
 import {
   generateQueryEmbedding,
   generateEmbeddingsBatch,
@@ -20,6 +27,13 @@ interface DocumentChunk {
   sourceType: string;
   sourceId: number | null;
   metadata: Record<string, unknown>;
+  chunkIndex: number;
+}
+
+/** Composite key that uniquely identifies a chunk in the vector store */
+interface ChunkKey {
+  sourceType: string;
+  sourceId: number | null;
   chunkIndex: number;
 }
 
@@ -36,6 +50,25 @@ export interface IndexStatus {
   indexed: boolean;
   documentCount: number;
   lastUpdated: Date | null;
+}
+
+export interface IncrementalIndexResult {
+  total: number;
+  added: number;
+  updated: number;
+  deleted: number;
+  unchanged: number;
+  elapsed: number;
+}
+
+// ==================== HASHING ====================
+
+function hashContent(content: string): string {
+  return createHash("sha256").update(content).digest("hex");
+}
+
+function chunkKeyStr(c: ChunkKey): string {
+  return `${c.sourceType}::${c.sourceId ?? "null"}::${c.chunkIndex}`;
 }
 
 // ==================== BUILD DOCUMENT CHUNKS ====================
@@ -543,63 +576,688 @@ async function buildBusinessChunks(businessId: number): Promise<DocumentChunk[]>
     });
   }
 
+  // ─── 7. Inventory Batches (FIFO detail per ingredient) ───
+  const allBatches = await prisma.inventoryBatch.findMany({
+    where: { ingredient: { businessId } },
+    include: { ingredient: { select: { id: true, name: true, unit: true } } },
+    orderBy: { receivedAt: "desc" },
+  });
+
+  // Group batches by ingredient
+  const batchesByIng: Record<number, typeof allBatches> = {};
+  for (const b of allBatches) {
+    if (!batchesByIng[b.ingredientId]) batchesByIng[b.ingredientId] = [];
+    batchesByIng[b.ingredientId].push(b);
+  }
+
+  let batchChunkIdx = 0;
+  for (const [ingIdStr, batches] of Object.entries(batchesByIng)) {
+    const ing = batches[0].ingredient;
+    const activeBatches = batches.filter((b) => Number(b.remainingQty) > 0);
+    const depletedBatches = batches.filter((b) => Number(b.remainingQty) <= 0);
+    const totalRemaining = activeBatches.reduce((s, b) => s + Number(b.remainingQty), 0);
+    const totalValue = activeBatches.reduce(
+      (s, b) => s + Number(b.remainingQty) * Number(b.costPerUnit),
+      0
+    );
+    const expiringBatches = activeBatches
+      .filter((b) => b.expirationDate && new Date(b.expirationDate) < new Date(Date.now() + 7 * 86400000))
+      .sort((a, b) => new Date(a.expirationDate!).getTime() - new Date(b.expirationDate!).getTime());
+
+    const batchLines = activeBatches.slice(0, 8).map((b) => {
+      const expStr = b.expirationDate
+        ? `, exp: ${new Date(b.expirationDate).toLocaleDateString("id-ID")}`
+        : "";
+      return `  Batch ${new Date(b.receivedAt).toLocaleDateString("id-ID")}: ${Number(b.remainingQty)} ${ing.unit} @ Rp${Number(b.costPerUnit).toLocaleString("id-ID")}${expStr}`;
+    });
+
+    const lines = [
+      `[Inventory Batch] ${ing.name}`,
+      `Batch aktif: ${activeBatches.length} | Habis: ${depletedBatches.length}`,
+      `Total sisa: ${totalRemaining} ${ing.unit}`,
+      `Total nilai stok: Rp${totalValue.toLocaleString("id-ID")}`,
+    ];
+
+    if (expiringBatches.length > 0) {
+      lines.push(`⚠️ ${expiringBatches.length} batch akan kedaluwarsa dalam 7 hari`);
+    }
+
+    if (batchLines.length > 0) {
+      lines.push(`Detail batch (FIFO):`, ...batchLines);
+    }
+
+    chunks.push({
+      content: lines.join("\n"),
+      sourceType: "inventory_batch",
+      sourceId: Number(ingIdStr),
+      metadata: {
+        ingredientName: ing.name,
+        activeBatches: activeBatches.length,
+        totalRemaining,
+        totalValue,
+        expiringCount: expiringBatches.length,
+      },
+      chunkIndex: batchChunkIdx++,
+    });
+  }
+
+  // ─── 8. Inventory Movements (purchase, sale, waste — last 60 days) ───
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
+  const movements = await prisma.inventoryMovement.findMany({
+    where: {
+      stockDocument: { businessId },
+      createdAt: { gte: sixtyDaysAgo },
+    },
+    include: {
+      ingredient: { select: { id: true, name: true, unit: true } },
+      stockDocument: { select: { type: true, notes: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Summarize movements by ingredient
+  const movementsByIng: Record<
+    string,
+    { name: string; unit: string; totalIn: number; totalOut: number; totalWaste: number; costIn: number; costOut: number; movements: number }
+  > = {};
+
+  for (const mv of movements) {
+    const name = mv.ingredient?.name || "Unknown";
+    const unit = mv.ingredient?.unit || "";
+    const key = name;
+    if (!movementsByIng[key]) {
+      movementsByIng[key] = { name, unit, totalIn: 0, totalOut: 0, totalWaste: 0, costIn: 0, costOut: 0, movements: 0 };
+    }
+
+    const qty = Number(mv.quantity);
+    const cost = qty * Number(mv.costPerUnit);
+    movementsByIng[key].movements++;
+
+    if (mv.type === "In") {
+      movementsByIng[key].totalIn += qty;
+      movementsByIng[key].costIn += cost;
+    } else {
+      // Out
+      if (mv.stockDocument.type === "Waste") {
+        movementsByIng[key].totalWaste += qty;
+      } else {
+        movementsByIng[key].totalOut += qty;
+      }
+      movementsByIng[key].costOut += cost;
+    }
+  }
+
+  const mvEntries = Object.values(movementsByIng).sort((a, b) => b.movements - a.movements);
+  if (mvEntries.length > 0) {
+    // Summary chunk
+    const totalPurchaseCost = mvEntries.reduce((s, m) => s + m.costIn, 0);
+    const totalSalesCost = mvEntries.reduce((s, m) => s + m.costOut, 0);
+    const totalWasteQty = mvEntries.reduce((s, m) => s + m.totalWaste, 0);
+
+    const summaryLines = mvEntries.slice(0, 20).map(
+      (m) =>
+        `  ${m.name}: masuk ${m.totalIn} ${m.unit}, keluar ${m.totalOut} ${m.unit}, waste ${m.totalWaste} ${m.unit} (${m.movements} pergerakan)`
+    );
+
+    chunks.push({
+      content: [
+        `[Pergerakan Inventori — 60 Hari Terakhir]`,
+        `Total bahan dengan pergerakan: ${mvEntries.length}`,
+        `Total biaya pembelian: Rp${totalPurchaseCost.toLocaleString("id-ID")}`,
+        `Total biaya penjualan (COGS): Rp${totalSalesCost.toLocaleString("id-ID")}`,
+        `Total waste: ${totalWasteQty} unit`,
+        ``,
+        `Detail per bahan:`,
+        ...summaryLines,
+      ].join("\n"),
+      sourceType: "inventory_movement",
+      sourceId: null,
+      metadata: { totalPurchaseCost, totalSalesCost, totalWasteQty, ingredientCount: mvEntries.length },
+      chunkIndex: 0,
+    });
+
+    // Waste detail chunk (if significant)
+    const wasteItems = mvEntries.filter((m) => m.totalWaste > 0).sort((a, b) => b.totalWaste - a.totalWaste);
+    if (wasteItems.length > 0) {
+      const wasteLines = wasteItems.slice(0, 15).map(
+        (m) => `  ${m.name}: ${m.totalWaste} ${m.unit} terbuang`
+      );
+
+      chunks.push({
+        content: [
+          `[Waste / Pemborosan Bahan — 60 Hari]`,
+          `Jumlah bahan yang terbuang: ${wasteItems.length} jenis`,
+          ...wasteLines,
+        ].join("\n"),
+        sourceType: "inventory_movement",
+        sourceId: null,
+        metadata: { wasteItemCount: wasteItems.length },
+        chunkIndex: 1,
+      });
+    }
+  }
+
+  // ─── 9. Stock Documents (purchase / waste records — last 60 days) ───
+  const stockDocs = await prisma.stockDocument.findMany({
+    where: { businessId, createdAt: { gte: sixtyDaysAgo } },
+    include: {
+      inventoryMovements: {
+        include: { ingredient: { select: { name: true, unit: true } } },
+        take: 10,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const purchaseDocs = stockDocs.filter((d) => d.type === "Purchase");
+  const wasteDocs = stockDocs.filter((d) => d.type === "Waste");
+
+  if (purchaseDocs.length > 0) {
+    const recentPurchases = purchaseDocs.slice(0, 15);
+    const purchaseLines = recentPurchases.map((doc) => {
+      const items = doc.inventoryMovements
+        .slice(0, 5)
+        .map((m) => {
+          const iName = m.ingredient?.name || "?";
+          return `${iName} ${Number(m.quantity)} @ Rp${Number(m.costPerUnit).toLocaleString("id-ID")}`;
+        })
+        .join(", ");
+      return `  ${new Date(doc.createdAt).toLocaleDateString("id-ID")}: ${items}${doc.notes ? ` (${doc.notes})` : ""}`;
+    });
+
+    chunks.push({
+      content: [
+        `[Riwayat Pembelian Bahan — 60 Hari]`,
+        `Total dokumen pembelian: ${purchaseDocs.length}`,
+        ...purchaseLines,
+      ].join("\n"),
+      sourceType: "stock_document",
+      sourceId: null,
+      metadata: { type: "Purchase", count: purchaseDocs.length },
+      chunkIndex: 0,
+    });
+  }
+
+  if (wasteDocs.length > 0) {
+    const wasteLines = wasteDocs.slice(0, 15).map((doc) => {
+      const items = doc.inventoryMovements
+        .slice(0, 5)
+        .map((m) => {
+          const iName = m.ingredient?.name || "?";
+          return `${iName} ${Number(m.quantity)}`;
+        })
+        .join(", ");
+      return `  ${new Date(doc.createdAt).toLocaleDateString("id-ID")}: ${items}${doc.notes ? ` (${doc.notes})` : ""}`;
+    });
+
+    chunks.push({
+      content: [
+        `[Riwayat Waste / Buang Bahan — 60 Hari]`,
+        `Total dokumen waste: ${wasteDocs.length}`,
+        ...wasteLines,
+      ].join("\n"),
+      sourceType: "stock_document",
+      sourceId: null,
+      metadata: { type: "Waste", count: wasteDocs.length },
+      chunkIndex: 1,
+    });
+  }
+
+  // ─── 10. Product Metrics (per-product performance — last 30 days) ───
+  const productMetrics = await prisma.productMetrics.findMany({
+    where: {
+      product: { businessId },
+      date: { gte: thirtyAgo },
+    },
+    include: { product: { select: { id: true, name: true, sellingPrice: true } } },
+    orderBy: { date: "desc" },
+  });
+
+  // Aggregate by product
+  const pmByProduct: Record<
+    string,
+    { id: number; name: string; totalQty: number; totalRev: number; totalCost: number; totalProfit: number; days: number }
+  > = {};
+
+  for (const pm of productMetrics) {
+    const k = pm.product.name;
+    if (!pmByProduct[k]) {
+      pmByProduct[k] = { id: pm.productId, name: pm.product.name, totalQty: 0, totalRev: 0, totalCost: 0, totalProfit: 0, days: 0 };
+    }
+    pmByProduct[k].totalQty += pm.quantitySold;
+    pmByProduct[k].totalRev += Number(pm.revenue);
+    pmByProduct[k].totalCost += Number(pm.cost);
+    pmByProduct[k].totalProfit += Number(pm.profit);
+    pmByProduct[k].days++;
+  }
+
+  const sortedPM = Object.values(pmByProduct).sort((a, b) => b.totalRev - a.totalRev);
+  if (sortedPM.length > 0) {
+    const pmLines = sortedPM.slice(0, 20).map((p, i) => {
+      const margin = p.totalRev > 0 ? ((p.totalProfit / p.totalRev) * 100).toFixed(1) : "0";
+      const avgPerDay = p.days > 0 ? (p.totalQty / p.days).toFixed(1) : "0";
+      return `  ${i + 1}. ${p.name}: ${p.totalQty} terjual (${avgPerDay}/hari), Revenue Rp${p.totalRev.toLocaleString("id-ID")}, Profit Rp${p.totalProfit.toLocaleString("id-ID")} (margin ${margin}%)`;
+    });
+
+    // Find declining & growing products (compare first half vs second half)
+    const halfDate = new Date();
+    halfDate.setDate(halfDate.getDate() - 15);
+    const firstHalf: Record<string, number> = {};
+    const secondHalf: Record<string, number> = {};
+    for (const pm of productMetrics) {
+      const k = pm.product.name;
+      if (new Date(pm.date) >= halfDate) {
+        secondHalf[k] = (secondHalf[k] || 0) + pm.quantitySold;
+      } else {
+        firstHalf[k] = (firstHalf[k] || 0) + pm.quantitySold;
+      }
+    }
+
+    const trendLines: string[] = [];
+    for (const k of Object.keys({ ...firstHalf, ...secondHalf })) {
+      const prev = firstHalf[k] || 0;
+      const curr = secondHalf[k] || 0;
+      if (prev > 0 && curr > prev * 1.3) {
+        trendLines.push(`  📈 ${k}: naik dari ${prev} → ${curr} (+${(((curr - prev) / prev) * 100).toFixed(0)}%)`);
+      } else if (prev > 0 && curr < prev * 0.7) {
+        trendLines.push(`  📉 ${k}: turun dari ${prev} → ${curr} (${(((curr - prev) / prev) * 100).toFixed(0)}%)`);
+      }
+    }
+
+    chunks.push({
+      content: [
+        `[Performa Produk — 30 Hari Terakhir]`,
+        `Produk yang punya data: ${sortedPM.length}`,
+        `Total revenue semua produk: Rp${sortedPM.reduce((s, p) => s + p.totalRev, 0).toLocaleString("id-ID")}`,
+        `Total profit semua produk: Rp${sortedPM.reduce((s, p) => s + p.totalProfit, 0).toLocaleString("id-ID")}`,
+        ``,
+        `Ranking produk:`,
+        ...pmLines,
+        ...(trendLines.length > 0 ? [``, `Tren 15 hari terakhir vs sebelumnya:`, ...trendLines] : []),
+      ].join("\n"),
+      sourceType: "product_metrics",
+      sourceId: null,
+      metadata: {
+        productCount: sortedPM.length,
+        topProduct: sortedPM[0]?.name,
+        topRevenue: sortedPM[0]?.totalRev,
+      },
+      chunkIndex: 0,
+    });
+
+    // Per-product daily breakdown for top 5 products
+    const top5 = sortedPM.slice(0, 5);
+    let pmDetailIdx = 1;
+    for (const tp of top5) {
+      const dailyData = productMetrics
+        .filter((pm) => pm.productId === tp.id)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      if (dailyData.length > 0) {
+        const dailyLines = dailyData.slice(-14).map((d) =>
+          `  ${new Date(d.date).toLocaleDateString("id-ID")}: ${d.quantitySold} pcs, Rp${Number(d.revenue).toLocaleString("id-ID")}`
+        );
+
+        chunks.push({
+          content: [
+            `[Detail Harian — ${tp.name}]`,
+            `Penjualan harian (14 hari terakhir):`,
+            ...dailyLines,
+          ].join("\n"),
+          sourceType: "product_metrics",
+          sourceId: tp.id,
+          metadata: { productName: tp.name, dataPoints: dailyData.length },
+          chunkIndex: pmDetailIdx++,
+        });
+      }
+    }
+  }
+
+  // ─── 11. Product Forecasts ───
+  const forecasts = await prisma.productForecast.findMany({
+    where: {
+      product: { businessId },
+      date: { gte: new Date() },
+    },
+    include: { product: { select: { name: true } } },
+    orderBy: { date: "asc" },
+  });
+
+  if (forecasts.length > 0) {
+    const forecastLines = forecasts.slice(0, 30).map(
+      (f) =>
+        `  ${f.product.name} — ${new Date(f.date).toLocaleDateString("id-ID")}: prediksi ${f.predictedQty} pcs (confidence ${Number(f.confidenceScore).toFixed(0)}%)${f.recommendedProduction ? `, rekomendasi: ${f.recommendedProduction}` : ""}`
+    );
+
+    chunks.push({
+      content: [
+        `[Prediksi Penjualan Produk]`,
+        `Jumlah prediksi tersedia: ${forecasts.length}`,
+        ...forecastLines,
+      ].join("\n"),
+      sourceType: "forecast",
+      sourceId: null,
+      metadata: { forecastCount: forecasts.length },
+      chunkIndex: 0,
+    });
+  }
+
+  // ─── 12. Categories summary ───
+  const categories = await prisma.category.findMany({
+    where: { businessId },
+    include: {
+      _count: { select: { products: true } },
+    },
+  });
+
+  if (categories.length > 0) {
+    // Build category product counts from already-fetched products
+    const productsByCategory: Record<number, { total: number; active: number; avgPrice: number }> = {};
+    for (const p of products) {
+      const catId = p.categoryId || 0;
+      if (!productsByCategory[catId]) productsByCategory[catId] = { total: 0, active: 0, avgPrice: 0 };
+      productsByCategory[catId].total++;
+      if (p.isActive) productsByCategory[catId].active++;
+      productsByCategory[catId].avgPrice += Number(p.sellingPrice);
+    }
+    for (const k of Object.keys(productsByCategory)) {
+      const d = productsByCategory[Number(k)];
+      if (d.total > 0) d.avgPrice = d.avgPrice / d.total;
+    }
+
+    const catLines = categories.map((c) => {
+      const data = productsByCategory[c.id] || { total: 0, active: 0, avgPrice: 0 };
+      return `  ${c.name}: ${data.total} produk (${data.active} aktif), harga rata-rata Rp${data.avgPrice.toLocaleString("id-ID")}`;
+    });
+
+    chunks.push({
+      content: [
+        `[Kategori Produk]`,
+        `Total kategori: ${categories.length}`,
+        ...catLines,
+      ].join("\n"),
+      sourceType: "category",
+      sourceId: null,
+      metadata: { categoryCount: categories.length },
+      chunkIndex: 0,
+    });
+  }
+
+  // ─── 13. Business Info + Staff ───
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    include: {
+      user: { select: { name: true, email: true } },
+      members: {
+        include: { user: { select: { name: true, email: true } } },
+      },
+    },
+  });
+
+  if (business) {
+    const ownerMembers = business.members.filter((m) => m.role === "Owner");
+    const cashierMembers = business.members.filter((m) => m.role === "Cashier");
+
+    const staffLines = [
+      `Owner: ${business.user.name} (${business.user.email})`,
+    ];
+    if (ownerMembers.length > 0) {
+      staffLines.push(`Co-owner: ${ownerMembers.map((m) => `${m.user.name} (${m.user.email})`).join(", ")}`);
+    }
+    if (cashierMembers.length > 0) {
+      staffLines.push(`Kasir: ${cashierMembers.map((m) => `${m.user.name} (${m.user.email})`).join(", ")}`);
+    }
+
+    chunks.push({
+      content: [
+        `[Info Bisnis]`,
+        `Nama bisnis: ${business.name}`,
+        `Lokasi: ${business.location || "Belum diatur"}`,
+        `Dibuat: ${new Date(business.createdAt).toLocaleDateString("id-ID")}`,
+        `Total anggota: ${business.members.length + 1}`,
+        ...staffLines,
+        `Jumlah produk: ${products.length}`,
+        `Jumlah bahan baku: ${ingredients.length}`,
+        `Jumlah kategori: ${categories.length}`,
+      ].join("\n"),
+      sourceType: "business",
+      sourceId: businessId,
+      metadata: {
+        name: business.name,
+        location: business.location,
+        memberCount: business.members.length + 1,
+        productCount: products.length,
+        ingredientCount: ingredients.length,
+      },
+      chunkIndex: 0,
+    });
+  }
+
+  // ─── 14. Debt Payments (riwayat cicilan kasbon) ───
+  const debtPayments = await prisma.debtPayment.findMany({
+    where: { debt: { businessId } },
+    include: {
+      debt: { select: { customerName: true, totalAmount: true, status: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+  });
+
+  if (debtPayments.length > 0) {
+    // Group by customer
+    const paymentsByCustomer: Record<string, { total: number; count: number; lastDate: Date }> = {};
+    for (const dp of debtPayments) {
+      const k = dp.debt.customerName;
+      if (!paymentsByCustomer[k]) {
+        paymentsByCustomer[k] = { total: 0, count: 0, lastDate: dp.createdAt };
+      }
+      paymentsByCustomer[k].total += Number(dp.amount);
+      paymentsByCustomer[k].count++;
+      if (dp.createdAt > paymentsByCustomer[k].lastDate) {
+        paymentsByCustomer[k].lastDate = dp.createdAt;
+      }
+    }
+
+    const paymentLines = Object.entries(paymentsByCustomer)
+      .sort(([, a], [, b]) => b.total - a.total)
+      .slice(0, 15)
+      .map(([name, data]) =>
+        `  ${name}: ${data.count} kali bayar, total Rp${data.total.toLocaleString("id-ID")} (terakhir: ${new Date(data.lastDate).toLocaleDateString("id-ID")})`
+      );
+
+    chunks.push({
+      content: [
+        `[Riwayat Pembayaran Kasbon]`,
+        `Total cicilan tercatat: ${debtPayments.length}`,
+        `Pelanggan yang mencicil:`,
+        ...paymentLines,
+      ].join("\n"),
+      sourceType: "debt_payment",
+      sourceId: null,
+      metadata: { totalPayments: debtPayments.length, customerCount: Object.keys(paymentsByCustomer).length },
+      chunkIndex: 0,
+    });
+  }
+
   return chunks;
 }
 
-// ==================== INDEXING ====================
+// ==================== INDEXING (INCREMENTAL) ====================
 
 /**
- * Index all business data into the vector store.
- * Deletes existing docs and replaces with fresh embeddings.
+ * Fetch existing document hashes from the vector store for a business.
+ * Returns a Map: chunkKeyStr → { id, contentHash }
  */
-export async function indexBusinessDocuments(
+async function fetchExistingHashes(
   businessId: number
-): Promise<{ indexed: number; elapsed: number }> {
-  const t0 = Date.now();
-  console.log(`[RAG] Starting indexing for business ${businessId}...`);
-
-  // 1. Build chunks
-  const chunks = await buildBusinessChunks(businessId);
-  if (chunks.length === 0) {
-    console.log("[RAG] No data to index.");
-    return { indexed: 0, elapsed: Date.now() - t0 };
-  }
-  console.log(`[RAG] Built ${chunks.length} document chunks`);
-
-  // 2. Generate embeddings via Gemini
-  const texts = chunks.map((c) => c.content);
-  console.log(`[RAG] Generating ${texts.length} embeddings via Gemini...`);
-  const embeddings = await generateEmbeddingsBatch(texts);
-  console.log(`[RAG] Got ${embeddings.length} embeddings`);
-
-  // 3. Delete old documents
-  await prisma.$executeRawUnsafe(
-    `DELETE FROM "BusinessDocument" WHERE "businessId" = $1`,
+): Promise<Map<string, { id: number; contentHash: string | null }>> {
+  const rows = await prisma.$queryRawUnsafe<
+    { id: number; sourceType: string; sourceId: number | null; chunkIndex: number; contentHash: string | null }[]
+  >(
+    `SELECT id, "sourceType", "sourceId", "chunkIndex", "contentHash"
+     FROM "BusinessDocument"
+     WHERE "businessId" = $1`,
     businessId
   );
 
-  // 4. Insert new documents with embeddings
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    const vecStr = `[${embeddings[i].join(",")}]`;
+  const map = new Map<string, { id: number; contentHash: string | null }>();
+  for (const row of rows) {
+    const key = chunkKeyStr({ sourceType: row.sourceType, sourceId: row.sourceId, chunkIndex: row.chunkIndex });
+    map.set(key, { id: row.id, contentHash: row.contentHash });
+  }
+  return map;
+}
 
-    await prisma.$executeRawUnsafe(
-      `INSERT INTO "BusinessDocument"
-         ("businessId", "content", "embedding", "sourceType", "sourceId", "metadata", "chunkIndex", "createdAt", "updatedAt")
-       VALUES ($1, $2, $3::vector, $4, $5, $6::jsonb, $7, NOW(), NOW())`,
-      businessId,
-      chunk.content,
-      vecStr,
-      chunk.sourceType,
-      chunk.sourceId,
-      JSON.stringify(chunk.metadata),
-      chunk.chunkIndex
+/**
+ * Index business data into the vector store — **incrementally**.
+ *
+ * 1. Builds all chunks from current business data
+ * 2. Hashes each chunk's content (SHA-256)
+ * 3. Compares with existing hashes in DB
+ * 4. Only generates embeddings for NEW or CHANGED chunks
+ * 5. Deletes STALE chunks that no longer exist in current data
+ *
+ * This reduces Gemini embedding API calls dramatically on subsequent syncs.
+ */
+export async function indexBusinessDocuments(
+  businessId: number
+): Promise<IncrementalIndexResult> {
+  const t0 = Date.now();
+  console.log(`[RAG] Starting incremental sync for business ${businessId}...`);
+
+  // 1. Build fresh chunks from current data
+  const chunks = await buildBusinessChunks(businessId);
+  if (chunks.length === 0) {
+    // No data → wipe any stale documents
+    const deleted = await prisma.$executeRawUnsafe(
+      `DELETE FROM "BusinessDocument" WHERE "businessId" = $1`,
+      businessId
     );
+    console.log(`[RAG] No data to index. Deleted ${deleted} stale docs.`);
+    return { total: 0, added: 0, updated: 0, deleted: Number(deleted), unchanged: 0, elapsed: Date.now() - t0 };
   }
 
+  // 2. Hash each chunk
+  const chunksWithHash = chunks.map((c) => ({
+    ...c,
+    contentHash: hashContent(c.content),
+    key: chunkKeyStr(c),
+  }));
+
+  // 3. Fetch existing hashes from DB
+  const existingMap = await fetchExistingHashes(businessId);
+  console.log(`[RAG] Existing documents: ${existingMap.size}, New chunks: ${chunksWithHash.length}`);
+
+  // 4. Classify chunks: new, changed, or unchanged
+  const toEmbed: (typeof chunksWithHash)[number][] = [];   // need new embedding
+  const toSkip: (typeof chunksWithHash)[number][] = [];     // hash match → skip
+  const newChunkKeys = new Set<string>();
+
+  for (const chunk of chunksWithHash) {
+    newChunkKeys.add(chunk.key);
+    const existing = existingMap.get(chunk.key);
+
+    if (!existing) {
+      // New chunk — needs embedding
+      toEmbed.push(chunk);
+    } else if (existing.contentHash !== chunk.contentHash) {
+      // Content changed — needs re-embedding
+      toEmbed.push(chunk);
+    } else {
+      // Unchanged — skip entirely
+      toSkip.push(chunk);
+    }
+  }
+
+  // 5. Find stale docs to delete (exist in DB but not in current chunks)
+  const staleIds: number[] = [];
+  for (const [key, existing] of existingMap.entries()) {
+    if (!newChunkKeys.has(key)) {
+      staleIds.push(existing.id);
+    }
+  }
+
+  console.log(`[RAG] Sync plan: ${toEmbed.length} to embed, ${toSkip.length} unchanged, ${staleIds.length} stale`);
+
+  // 6. Delete stale documents
+  if (staleIds.length > 0) {
+    // Delete in batches to avoid overly long SQL
+    const BATCH = 100;
+    for (let i = 0; i < staleIds.length; i += BATCH) {
+      const batch = staleIds.slice(i, i + BATCH);
+      await prisma.$executeRawUnsafe(
+        `DELETE FROM "BusinessDocument" WHERE id = ANY($1::int[])`,
+        batch
+      );
+    }
+    console.log(`[RAG] 🗑️  Deleted ${staleIds.length} stale documents`);
+  }
+
+  // 7. Generate embeddings ONLY for new/changed chunks
+  if (toEmbed.length > 0) {
+    const texts = toEmbed.map((c) => c.content);
+    console.log(`[RAG] Generating ${texts.length} embeddings via Gemini (skipping ${toSkip.length} unchanged)...`);
+    const embeddings = await generateEmbeddingsBatch(texts);
+
+    // 8. Upsert new/changed documents
+    for (let i = 0; i < toEmbed.length; i++) {
+      const chunk = toEmbed[i];
+      const vecStr = `[${embeddings[i].join(",")}]`;
+      const existing = existingMap.get(chunk.key);
+
+      if (existing) {
+        // UPDATE existing row (content changed) — matched by primary key
+        await prisma.$executeRawUnsafe(
+          `UPDATE "BusinessDocument"
+           SET "content" = $1, "contentHash" = $2, "embedding" = $3::vector,
+               "metadata" = $4::jsonb, "updatedAt" = NOW()
+           WHERE id = $5`,
+          chunk.content,
+          chunk.contentHash,
+          vecStr,
+          JSON.stringify(chunk.metadata),
+          existing.id
+        );
+      } else {
+        // INSERT new row — no conflict possible since key doesn't exist
+        await prisma.$executeRawUnsafe(
+          `INSERT INTO "BusinessDocument"
+             ("businessId", "content", "contentHash", "embedding", "sourceType", "sourceId", "metadata", "chunkIndex", "createdAt", "updatedAt")
+           VALUES ($1, $2, $3, $4::vector, $5, $6, $7::jsonb, $8, NOW(), NOW())`,
+          businessId,
+          chunk.content,
+          chunk.contentHash,
+          vecStr,
+          chunk.sourceType,
+          chunk.sourceId,
+          JSON.stringify(chunk.metadata),
+          chunk.chunkIndex
+        );
+      }
+    }
+
+    console.log(`[RAG] ✅ Upserted ${toEmbed.length} documents`);
+  }
+
+  const added = toEmbed.filter((c) => !existingMap.has(c.key)).length;
+  const updated = toEmbed.length - added;
   const elapsed = Date.now() - t0;
-  console.log(`[RAG] ✅ Indexed ${chunks.length} docs in ${elapsed}ms`);
-  return { indexed: chunks.length, elapsed };
+
+  console.log(
+    `[RAG] ✅ Incremental sync complete in ${elapsed}ms — ` +
+    `added: ${added}, updated: ${updated}, unchanged: ${toSkip.length}, deleted: ${staleIds.length}`
+  );
+
+  return {
+    total: chunks.length,
+    added,
+    updated,
+    deleted: staleIds.length,
+    unchanged: toSkip.length,
+    elapsed,
+  };
 }
 
 // ==================== SEMANTIC SEARCH ====================
@@ -675,6 +1333,14 @@ export async function getRelevantContext(
     metric: "📊 Metrik",
     health: "🏥 Kesehatan Bisnis",
     debt: "📒 Kasbon/Piutang",
+    debt_payment: "💳 Pembayaran Kasbon",
+    inventory_batch: "📦 Batch Inventori",
+    inventory_movement: "🔄 Pergerakan Stok",
+    stock_document: "📄 Dokumen Stok",
+    product_metrics: "📈 Performa Produk",
+    forecast: "🔮 Prediksi",
+    category: "🏷️ Kategori",
+    business: "🏪 Info Bisnis",
   };
 
   const parts = results.map((r, i) => {
