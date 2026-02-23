@@ -7,8 +7,16 @@ export const runtime = "nodejs";
 
 // ---------- PATCH /api/products/[id] — update selling price only ----------
 
+
+import { recipeItemSchema } from "@/lib/validations/product";
+
 const patchSchema = z.object({
-  sellingPrice: z.number().positive("Selling price must be positive"),
+  name: z.string().min(1).max(200).optional(),
+  categoryId: z.number().int().optional(),
+  categoryName: z.string().min(1).max(100).optional(),
+  sellingPrice: z.number().positive("Selling price must be positive").optional(),
+  createdAt: z.string().datetime().optional(),
+  recipe: z.array(recipeItemSchema).optional(),
 });
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,7 +31,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Ownership check — also blocks patching soft-deleted products
     const existing = await prisma.product.findFirst({
       where: { id, businessId, deletedAt: null },
-      select: { id: true },
+      include: { recipes: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
@@ -38,19 +46,69 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       );
     }
 
-    const updated = await prisma.product.update({
+    let categoryId = parsed.data.categoryId;
+    if (!categoryId && parsed.data.categoryName) {
+      // Find or create category by name (case-insensitive)
+      let category = await prisma.category.findFirst({
+        where: { businessId, name: { equals: parsed.data.categoryName, mode: "insensitive" } },
+      });
+      if (!category) {
+        category = await prisma.category.create({
+          data: { businessId, name: parsed.data.categoryName },
+        });
+      }
+      categoryId = category.id;
+    }
+
+    // Prepare update data
+    const updateData: any = {};
+    if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (parsed.data.sellingPrice !== undefined) updateData.sellingPrice = parsed.data.sellingPrice;
+    if (parsed.data.createdAt !== undefined) updateData.createdAt = new Date(parsed.data.createdAt);
+
+    // Update product main fields
+    const updatedProduct = await prisma.product.update({
       where: { id },
-      data: { sellingPrice: parsed.data.sellingPrice },
-      select: {
-        id: true,
-        name: true,
-        sellingPrice: true,
-        categoryId: true,
+      data: updateData,
+      include: {
         category: { select: { id: true, name: true } },
+        recipes: { include: { ingredient: true } },
       },
     });
 
-    return NextResponse.json({ success: true, data: updated });
+    // Update recipe if provided (replace all)
+    if (parsed.data.recipe) {
+      // Delete old recipes
+      await prisma.recipe.deleteMany({ where: { productId: id } });
+      // Insert new recipes
+      if (parsed.data.recipe.length > 0) {
+        await prisma.recipe.createMany({
+          data: parsed.data.recipe.map((r) => ({
+            productId: id,
+            ingredientId: r.ingredientId,
+            quantity: r.quantity,
+          })),
+        });
+      }
+      // Optionally, recompute recipeCost if you have such logic
+      try {
+        if (typeof recomputeRecipeCost === "function") {
+          await recomputeRecipeCost(id);
+        }
+      } catch {}
+    }
+
+    // Refetch updated product with relations
+    const result = await prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: { select: { id: true, name: true } },
+        recipes: { include: { ingredient: true } },
+      },
+    });
+
+    return NextResponse.json({ success: true, data: result });
   } catch (error: unknown) {
     if (isAuthError(error)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
