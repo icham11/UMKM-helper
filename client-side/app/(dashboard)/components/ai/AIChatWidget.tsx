@@ -292,7 +292,7 @@ export default function AIChatWidget() {
                   onKeyDown={handleKeyDown}
                   placeholder="Ketik pesan..."
                   rows={1}
-                  className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 max-h-24"
+                  className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 max-h-24 text-black placeholder-gray-400"
                   disabled={isLoading}
                 />
                 <button

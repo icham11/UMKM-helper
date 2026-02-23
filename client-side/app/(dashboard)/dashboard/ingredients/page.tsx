@@ -329,11 +329,11 @@ export default function IngredientsPage() {
                       </>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-slate-700 font-semibold">
+                  <td className="px-4 py-3 text-slate-700">
                     {ingredient.minStock === -1 ? (
-                      <span className="text-gray-400 italic">Tidak di-set</span>
+                      <span className="text-gray-400 italic">Belum di-set</span>
                     ) : (
-                      ingredient.minStock
+                      <span className="font-semibold">{ingredient.minStock}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-indigo-700 font-bold">{formatCurrency(ingredient.costPerUnit)}</td>

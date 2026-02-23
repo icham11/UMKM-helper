@@ -485,7 +485,7 @@ export default function ProfilePage() {
                         value={currentPw}
                         onChange={(e) => setCurrentPw(e.target.value)}
                         placeholder="Masukkan password saat ini"
-                        className="w-full px-4 py-2.5 pr-10 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full px-4 py-2.5 pr-10 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 text-black placeholder-gray-400"
                       />
                       <button
                         type="button"
@@ -508,7 +508,7 @@ export default function ProfilePage() {
                         value={newPw}
                         onChange={(e) => setNewPw(e.target.value)}
                         placeholder="Minimal 6 karakter"
-                        className="w-full px-4 py-2.5 pr-10 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300"
+                        className="w-full px-4 py-2.5 pr-10 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-300 text-black placeholder-gray-400"
                       />
                       <button
                         type="button"
@@ -557,7 +557,7 @@ export default function ProfilePage() {
                       value={confirmPw}
                       onChange={(e) => setConfirmPw(e.target.value)}
                       placeholder="Ulangi password baru"
-                      className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                      className={`w-full px-4 py-2.5 bg-white border rounded-xl text-sm focus:outline-none focus:ring-2 text-black placeholder-gray-400 ${
                         confirmPw && confirmPw !== newPw
                           ? "border-red-300 focus:ring-red-300"
                           : "border-gray-200 focus:ring-orange-300"
