@@ -48,11 +48,7 @@ export default function SidebarNav() {
             </span>
             <span className="text-xs font-bold text-amber-800">MODE KASIR</span>
           </div>
-          {userName && (
-            <p className="text-[11px] text-amber-700 font-medium truncate pl-4.5">
-              👤 {userName}
-            </p>
-          )}
+          {userName && <p className="text-[11px] text-amber-700 font-medium truncate pl-4.5">👤 {userName}</p>}
         </div>
       )}
       {/* Section: Dashboard — Owner only */}
@@ -71,11 +67,21 @@ export default function SidebarNav() {
           >
             <BarChart3 className="w-4 h-4" /> Analytics
           </Link>
+        </div>
+      )}
+
+      {/* Section: Analytics — consolidated single page */}
+      {isOwner && (
+        <div className="mb-6">
+          <div className="text-xs font-semibold text-gray-400 mb-2">Analytics</div>
           <Link
-            href="/analytics/products"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-blue-700 hover:bg-blue-50 transition"
+            href="/analytics"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-indigo-700 hover:bg-indigo-50 transition"
           >
-            <BarChart3 className="w-4 h-4" /> Product Analytics
+            <BarChart3 className="w-4 h-4" /> Analytics
+            <span className="ml-auto text-[10px] bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded-full font-bold">
+              New
+            </span>
           </Link>
         </div>
       )}
@@ -182,4 +188,3 @@ export default function SidebarNav() {
     </>
   );
 }
-

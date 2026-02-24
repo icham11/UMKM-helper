@@ -5,10 +5,425 @@ import type { Product, ProductCategory } from "@/types/product";
 import { getProducts } from "@/lib/api/products";
 import formatCurrency from "./formatCurrency";
 import { useRouter } from "next/navigation";
-import EditProductModal from "./EditProductModal";
-import RecipeModal from "./RecipeModal";
-import DeleteConfirmModal from "./DeleteConfirmModal";
-import BulkDeleteConfirmModal from "./BulkDeleteConfirmModal";
+import {
+  Plus,
+  ShoppingBag,
+  Search,
+  AlertTriangle,
+  Tag,
+  ChefHat,
+  Eye,
+  Pencil,
+  Trash2,
+  X,
+  Loader2,
+  CheckCircle2,
+  ChevronUp,
+  ChevronDown,
+  Filter,
+} from "lucide-react";
+import {
+  getProducts,
+  getCategoryOptions,
+  updateProductPrice,
+  deleteProduct,
+  bulkDeleteProducts,
+} from "@/lib/api/products";
+import type { GetProductsParams } from "@/lib/api/products";
+import { useBusiness } from "@/context/BusinessContext";
+import type { Product } from "@/types/product";
+
+const formatCurrency = (value: number) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(value);
+
+/**
+ * Renders a margin value with color + contextual badge.
+ * < -100%  → red + "Cek Data" badge (likely a unit/cost entry mistake)
+ * < 0%     → red + "Rugi" badge
+ * < 20%    → red
+ * < 50%    → yellow
+ * ≥ 50%    → green
+ */
+function MarginBadge({ margin }: { margin: number }) {
+  if (margin < -100) {
+    return (
+      <span className="text-red-700 font-semibold">
+        {margin}%{" "}
+        <span className="inline-flex items-center gap-0.5 bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          ⚠ Cek Data
+        </span>
+      </span>
+    );
+  }
+  if (margin < 0) {
+    return (
+      <span className="text-red-600 font-semibold">
+        {margin}%{" "}
+        <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+          Rugi
+        </span>
+      </span>
+    );
+  }
+  const color = margin >= 50 ? "text-green-600" : margin >= 20 ? "text-yellow-600" : "text-red-600";
+  return <span className={`${color} font-semibold`}>{margin}%</span>;
+}
+
+// Recipe modal
+
+function RecipeModal({ product, onClose }: { product: Product; onClose: () => void }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const recipeCost = Number(product.recipeCost);
+  const sellingPrice = Number(product.sellingPrice);
+  const margin =
+    sellingPrice > 0 && recipeCost > 0 ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100) : null;
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
+          <div>
+            <div className="flex items-center gap-2">
+              <ChefHat size={18} className="text-indigo-500" />
+              <h2 className="text-lg font-extrabold text-indigo-700">{product.name}</h2>
+            </div>
+            {product.category && (
+              <span className="inline-flex items-center gap-1 mt-1 bg-violet-100 text-violet-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                <Tag size={10} />
+                {product.category.name}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Pricing summary */}
+        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 text-center">
+          <div className="px-4 py-3">
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Selling Price</p>
+            <p className="text-sm font-extrabold text-indigo-700 mt-0.5">{formatCurrency(sellingPrice)}</p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Recipe Cost</p>
+            <p className="text-sm font-extrabold text-slate-700 mt-0.5">
+              {recipeCost > 0 ? formatCurrency(recipeCost) : "—"}
+            </p>
+          </div>
+          <div className="px-4 py-3">
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Margin</p>
+            <p className="text-sm font-extrabold mt-0.5">{margin !== null ? <MarginBadge margin={margin} /> : "—"}</p>
+          </div>
+        </div>
+
+        {/* Recipe list */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {product.recipes.length === 0 ? (
+            <p className="text-center text-gray-400 italic py-8">Tidak ada bahan dalam resep ini.</p>
+          ) : (
+            <div className="space-y-2">
+              {/* Column headers */}
+              <div className="grid grid-cols-12 gap-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+                <div className="col-span-5">Bahan</div>
+                <div className="col-span-2 text-right">Jml</div>
+                <div className="col-span-2">Satuan</div>
+                <div className="col-span-3 text-right">Biaya</div>
+              </div>
+              {product.recipes.map((r) => {
+                const costPerUnit = Number(r.ingredient.costPerUnit ?? 0);
+                const rowCost = Number(r.quantity) * costPerUnit;
+                return (
+                  <div
+                    key={r.id}
+                    className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100"
+                  >
+                    <div className="col-span-5 font-medium text-slate-700 text-sm truncate">{r.ingredient.name}</div>
+                    <div className="col-span-2 text-right text-sm text-gray-600">{Number(r.quantity)}</div>
+                    <div className="col-span-2 text-sm text-gray-500">{r.ingredient.unit}</div>
+                    <div className="col-span-3 text-right text-xs font-bold text-indigo-600">
+                      {rowCost > 0 ? formatCurrency(rowCost) : "—"}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Total */}
+              {recipeCost > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t border-gray-100 px-3">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Biaya Resep</span>
+                  <span className="text-sm font-extrabold text-indigo-700">{formatCurrency(recipeCost)}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Edit price modal
+
+function EditPriceModal({
+  product,
+  onClose,
+  onSaved,
+}: {
+  product: Product;
+  onClose: () => void;
+  onSaved: (updated: Product) => void;
+}) {
+  const [price, setPrice] = useState(Number(product.sellingPrice));
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  const recipeCost = Number(product.recipeCost);
+  const margin = price > 0 && recipeCost > 0 ? Math.round(((price - recipeCost) / price) * 100) : null;
+
+  const handleSave = async () => {
+    if (!price || price <= 0) {
+      setError("Harga jual harus lebih dari 0.");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateProductPrice(product.id, price);
+      onSaved({ ...product, sellingPrice: Number(updated.sellingPrice) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memperbarui harga");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
+          <div>
+            <h2 className="text-base font-extrabold text-indigo-700">Edit Harga Jual</h2>
+            <p className="text-xs text-gray-500 mt-0.5 truncate max-w-55">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Harga Jual (Rp)</label>
+            <input
+              type="number"
+              min={1}
+              autoFocus
+              value={price}
+              onChange={(e) => {
+                setPrice(Number(e.target.value));
+                setError(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+              className="mt-1.5 w-full border border-indigo-200 rounded-xl px-4 py-2.5 text-base font-semibold text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+            {recipeCost > 0 && (
+              <p className="text-xs text-gray-400 mt-1.5">
+                Biaya resep: {formatCurrency(recipeCost)}
+                {margin !== null && (
+                  <>
+                    {" — "}
+                    <MarginBadge margin={margin} />
+                  </>
+                )}
+              </p>
+            )}
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+              Simpan
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Delete confirmation modal
+
+function DeleteConfirmModal({
+  product,
+  onClose,
+  onDeleted,
+}: {
+  product: Product;
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  const handleDelete = async () => {
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteProduct(product.id);
+      onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menghapus produk");
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-6 py-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
+              <Trash2 size={18} />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-800">Hapus Produk?</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                <span className="font-semibold text-slate-700">{product.name}</span> dan seluruh resepnya akan dihapus
+                permanen. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+            >
+              Batal
+            </button>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+            >
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              Hapus
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Bulk delete confirmation modal
+
+function BulkDeleteConfirmModal({
+  count,
+  deleting,
+  error,
+  onClose,
+  onConfirm,
+}: {
+  count: number;
+  deleting: boolean;
+  error: string | null;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="px-6 py-6 space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
+              <Trash2 size={18} />
+            </div>
+            <div>
+              <h2 className="text-base font-extrabold text-slate-800">Hapus {count} Produk?</h2>
+              <p className="text-sm text-gray-500 mt-1">
+                Semua produk yang dipilih dan resepnya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+            >
+              Batal
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={deleting}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
+            >
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              Hapus {count}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type SortByField = "name" | "sellingPrice" | "createdAt" | "recipeCost" | "margin";
 type SortOrderType = "asc" | "desc";
@@ -224,7 +639,13 @@ export default function ProductsPage() {
           </div>
           <div className="bg-white rounded-2xl p-4 shadow border border-green-50">
             <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Rata-rata Margin</p>
-            <p className="text-2xl font-extrabold text-green-700 mt-1">{totalCount > 0 ? `${avgMargin}%` : "—"}</p>
+            <p
+              className={`text-2xl font-extrabold mt-1 ${
+                avgMargin < 0 ? "text-red-600" : avgMargin < 20 ? "text-yellow-600" : "text-green-700"
+              }`}
+            >
+              {totalCount > 0 ? `${avgMargin}%` : "—"}
+            </p>
           </div>
         </div>
 

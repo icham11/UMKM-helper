@@ -34,20 +34,12 @@ function calculateRange(range: RangeType) {
   return { start, end };
 }
 
-export function DateRangeProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function DateRangeProvider({ children }: { children: React.ReactNode }) {
   const [range, setRange] = useState<RangeType>("7d");
 
   const { start, end } = calculateRange(range);
 
-  return (
-    <DateRangeContext.Provider value={{ range, setRange, start, end }}>
-      {children}
-    </DateRangeContext.Provider>
-  );
+  return <DateRangeContext.Provider value={{ range, setRange, start, end }}>{children}</DateRangeContext.Provider>;
 }
 
 export function useDateRange() {
