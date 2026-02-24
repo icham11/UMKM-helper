@@ -3,12 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { TrendingUp, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,7 +34,11 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+        }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -52,22 +62,30 @@ export default function RegisterPage() {
         <div className="bg-white/90 backdrop-blur-sm p-8 sm:p-10 rounded-2xl shadow-xl border border-white/60">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-2xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                Cuanify
-              </span>
+            <Link href="/" className="group">
+              <Image
+                src="/cuanify-logo.svg"
+                alt="Cuanify"
+                width={180}
+                height={44}
+                className="h-10 w-auto"
+                priority
+              />
             </Link>
           </div>
 
-          <h1 className="text-2xl font-bold text-center text-gray-900 mb-1">Buat Akun Baru</h1>
-          <p className="text-center text-gray-500 mb-7 text-sm">Daftar gratis untuk mulai kelola bisnis Anda</p>
+          <h1 className="text-2xl font-bold text-center text-gray-900 mb-1">
+            Buat Akun Baru
+          </h1>
+          <p className="text-center text-gray-500 mb-7 text-sm">
+            Daftar gratis untuk mulai kelola bisnis Anda
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Nama Lengkap
+              </label>
               <input
                 type="text"
                 name="name"
@@ -79,7 +97,9 @@ export default function RegisterPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
               <input
                 type="email"
                 name="email"
@@ -91,7 +111,9 @@ export default function RegisterPage() {
               />
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
               <input
                 type={showPassword ? "text" : "password"}
                 name="password"
@@ -112,7 +134,9 @@ export default function RegisterPage() {
               </button>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Konfirmasi Password
+              </label>
               <input
                 type={showPassword ? "text" : "password"}
                 name="confirmPassword"

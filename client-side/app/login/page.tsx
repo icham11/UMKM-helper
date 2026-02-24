@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
-import { TrendingUp, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
+import { Eye, EyeOff } from "lucide-react";
 
 // Helper to read cookie value
 function getCookie(name: string): string | undefined {
@@ -14,13 +15,13 @@ function getCookie(name: string): string | undefined {
 }
 
 export default function LoginPage() {
-  const router = useRouter()
+  const router = useRouter();
 
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // Redirect if already authenticated — role-aware
   useEffect(() => {
@@ -34,15 +35,15 @@ export default function LoginPage() {
   }, []);
 
   const handleEmailLogin = async () => {
-    setError("")
+    setError("");
 
     if (!email || !password) {
-      setError("Email dan password wajib diisi")
-      return
+      setError("Email dan password wajib diisi");
+      return;
     }
 
     try {
-      setLoading(true)
+      setLoading(true);
 
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -50,11 +51,11 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
-      })
+      });
 
       if (!res.ok) {
-        const text = await res.text()
-        throw new Error(text)
+        const text = await res.text();
+        throw new Error(text);
       }
 
       // Login success — redirect through server-side post-login route
@@ -62,11 +63,11 @@ export default function LoginPage() {
       await new Promise((r) => setTimeout(r, 200)); // wait for cookie to set
       window.location.replace("/api/auth/post-login");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Login gagal")
+      setError(err instanceof Error ? err.message : "Login gagal");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
@@ -79,13 +80,15 @@ export default function LoginPage() {
         <div className="bg-white/90 backdrop-blur-sm p-8 sm:p-10 rounded-2xl shadow-xl border border-white/60">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-2xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                Cuanify
-              </span>
+            <Link href="/" className="group">
+              <Image
+                src="/cuanify-logo.svg"
+                alt="Cuanify"
+                width={180}
+                height={44}
+                className="h-10 w-auto"
+                priority
+              />
             </Link>
           </div>
 
@@ -106,7 +109,9 @@ export default function LoginPage() {
           {/* Email Login Form */}
           <div className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+              </label>
               <input
                 type="email"
                 placeholder="nama@email.com"
@@ -117,7 +122,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Password
+              </label>
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Masukkan password"
@@ -154,14 +161,28 @@ export default function LoginPage() {
 
           {/* Google Login */}
           <button
-            onClick={() => signIn("google", { callbackUrl: "/api/auth/post-login" })}
+            onClick={() =>
+              signIn("google", { callbackUrl: "/api/auth/post-login" })
+            }
             className="flex items-center justify-center gap-3 w-full bg-white border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition text-sm"
           >
             <svg className="w-5 h-5" viewBox="0 0 48 48" fill="none">
-              <path d="M47.532 24.552c0-1.636-.146-3.192-.418-4.667H24.48v8.844h12.98c-.56 3.016-2.24 5.57-4.77 7.29v6.06h7.72c4.52-4.164 7.12-10.3 7.12-17.527z" fill="#4285F4" />
-              <path d="M24.48 48c6.48 0 11.93-2.15 15.91-5.85l-7.72-6.06c-2.14 1.44-4.88 2.3-8.19 2.3-6.3 0-11.63-4.26-13.54-9.98H2.01v6.25C5.97 43.14 14.48 48 24.48 48z" fill="#34A853" />
-              <path d="M10.94 28.41a14.77 14.77 0 0 1 0-9.42v-6.25H2.01a24.01 24.01 0 0 0 0 21.92l8.93-6.25z" fill="#FBBC05" />
-              <path d="M24.48 9.5c3.53 0 6.67 1.22 9.15 3.62l6.84-6.84C36.41 2.15 30.96 0 24.48 0 14.48 0 5.97 4.86 2.01 12.34l8.93 6.25c1.91-5.72 7.24-9.98 13.54-9.98z" fill="#EA4335" />
+              <path
+                d="M47.532 24.552c0-1.636-.146-3.192-.418-4.667H24.48v8.844h12.98c-.56 3.016-2.24 5.57-4.77 7.29v6.06h7.72c4.52-4.164 7.12-10.3 7.12-17.527z"
+                fill="#4285F4"
+              />
+              <path
+                d="M24.48 48c6.48 0 11.93-2.15 15.91-5.85l-7.72-6.06c-2.14 1.44-4.88 2.3-8.19 2.3-6.3 0-11.63-4.26-13.54-9.98H2.01v6.25C5.97 43.14 14.48 48 24.48 48z"
+                fill="#34A853"
+              />
+              <path
+                d="M10.94 28.41a14.77 14.77 0 0 1 0-9.42v-6.25H2.01a24.01 24.01 0 0 0 0 21.92l8.93-6.25z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M24.48 9.5c3.53 0 6.67 1.22 9.15 3.62l6.84-6.84C36.41 2.15 30.96 0 24.48 0 14.48 0 5.97 4.86 2.01 12.34l8.93 6.25c1.91-5.72 7.24-9.98 13.54-9.98z"
+                fill="#EA4335"
+              />
             </svg>
             Masuk dengan Google
           </button>
@@ -186,5 +207,5 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
-  )
+  );
 }

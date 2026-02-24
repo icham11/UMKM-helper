@@ -9,10 +9,14 @@ import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info";
 import SidebarNav from "@/app/(dashboard)/components/SidebarNav";
 import AIChatWidgetLoader from "./components/ai/AIChatWidgetLoader";
 import MobileNavLoader from "./components/MobileNavLoader";
-import { TrendingUp } from "lucide-react";
+import Image from "next/image";
 import DashboardClientLayout from "./DashboardClientLayout";
 
-export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   // 🔐 1. Check NextAuth session
   const session = await getServerSession(authOptions);
 
@@ -31,7 +35,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
     userId = Number(session.user.id);
   }
 
-  if (!userId && jwtDecoded && typeof jwtDecoded === "object" && "userId" in jwtDecoded) {
+  if (
+    !userId &&
+    jwtDecoded &&
+    typeof jwtDecoded === "object" &&
+    "userId" in jwtDecoded
+  ) {
     userId = Number((jwtDecoded as { userId: number }).userId);
   }
 
@@ -75,21 +84,21 @@ export default async function DashboardLayout({ children }: { children: React.Re
             {/* ═══ Desktop Sidebar — visible from md (768px) ═══ */}
             <aside
               className="hidden md:flex w-60 lg:w-64 xl:w-72 flex-col py-5 px-4 lg:px-5 xl:px-7 shrink-0 border-r border-indigo-100/60 min-h-screen sticky top-0 h-screen overflow-y-auto custom-scrollbar"
-              style={{ background: "linear-gradient(180deg, #f8faff 0%, #eef2ff 50%, #e8e0ff 100%)" }}
+              style={{
+                background:
+                  "linear-gradient(180deg, #f8faff 0%, #eef2ff 50%, #e8e0ff 100%)",
+              }}
             >
               {/* Logo */}
               <div className="flex items-center gap-2.5 mb-8 px-1">
-                <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent tracking-tight leading-tight">
-                    Cuanify
-                  </span>
-                  <span className="text-[10px] text-indigo-400 font-medium leading-tight">
-                    {jwtUserName || "User"}
-                  </span>
-                </div>
+                <Image
+                  src="/cuanify-logo.svg"
+                  alt="Cuanify"
+                  width={150}
+                  height={38}
+                  className="h-9 w-auto"
+                  priority
+                />
               </div>
 
               {/* Navigation */}
@@ -99,7 +108,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
               {/* User Info & Logout */}
               <div className="pt-4 border-t border-indigo-100/60">
-                <SidebarUserInfo jwtUserName={jwtUserName} jwtUserEmail={jwtUserEmail} />
+                <SidebarUserInfo
+                  jwtUserName={jwtUserName}
+                  jwtUserEmail={jwtUserEmail}
+                />
               </div>
             </aside>
 
@@ -115,7 +127,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <AIChatWidgetLoader />
 
           {/* Mobile bottom nav + drawer — only on mobile (<md) */}
-          <MobileNavLoader jwtUserName={jwtUserName} jwtUserEmail={jwtUserEmail} />
+          <MobileNavLoader
+            jwtUserName={jwtUserName}
+            jwtUserEmail={jwtUserEmail}
+          />
         </div>
       </DashboardClientLayout>
     </BusinessProvider>
