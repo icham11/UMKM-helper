@@ -16,10 +16,13 @@ export async function GET(request: NextRequest) {
   try {
     const auth = await requireAuth();
 
+    if (auth.role === "Owner") {
+      return NextResponse.redirect(new URL("/dashboard/business", baseUrl));
+    }
     if (auth.role === "Cashier") {
       return NextResponse.redirect(new URL("/pos", baseUrl));
     }
-
+    // Default fallback for other roles
     return NextResponse.redirect(new URL("/dashboard", baseUrl));
   } catch (error) {
     if (error instanceof AuthError) {
