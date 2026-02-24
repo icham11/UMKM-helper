@@ -13,6 +13,9 @@ export default function EditProductModal({ product, categories, onClose, onSaved
   const [name, setName] = useState<string>(product.name);
   const [categoryId, setCategoryId] = useState<number>(product.categoryId ?? (categories[0]?.id ?? 0));
   const [sellingPrice, setSellingPrice] = useState<number>(Number(product.sellingPrice));
+  const [productType, setProductType] = useState<"ReadyStock" | "PreOrder">(
+    product.productType ?? "PreOrder"
+  );
   const [recipe, setRecipe] = useState<DraftRecipeRowWithClientId[]>(() => product.recipes.map((r, idx) => ({
     ingredientId: r.ingredient.id,
     ingredientName: r.ingredient.name,
@@ -68,6 +71,7 @@ export default function EditProductModal({ product, categories, onClose, onSaved
           name,
           categoryId: Number(categoryId),
           sellingPrice: Number(sellingPrice),
+          productType,
           recipe: recipePayload,
         }),
       });
@@ -176,6 +180,38 @@ export default function EditProductModal({ product, categories, onClose, onSaved
               </div>
             </div>
           </div>
+
+          {/* Product Type */}
+          <div className="mb-4">
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Tipe Produk</label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setProductType("PreOrder")}
+                className={`flex-1 py-2.5 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${
+                  productType === "PreOrder"
+                    ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                🍳 Made to Order
+                <div className="text-[9px] font-normal mt-0.5 text-gray-400">Bahan dikurangi saat dijual</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProductType("ReadyStock")}
+                className={`flex-1 py-2.5 px-3 rounded-xl border-2 text-xs font-semibold transition-all ${
+                  productType === "ReadyStock"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                📦 Ready Stock
+                <div className="text-[9px] font-normal mt-0.5 text-gray-400">Bahan dikurangi saat produksi</div>
+              </button>
+            </div>
+          </div>
+
           <div className="mb-4">
             <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Resep Produk</label>
             <div className="space-y-2">

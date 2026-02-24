@@ -189,7 +189,6 @@ export async function POST(request: NextRequest) {
           data: {
             businessId,
             stockDocumentId: stockDocument.id,
-            // @ts-expect-error cashierShiftId exists after migration
             cashierShiftId: activeShift?.id || null,
             transactionNumber,
             totalRevenue,

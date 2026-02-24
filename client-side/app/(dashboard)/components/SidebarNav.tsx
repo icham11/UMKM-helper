@@ -14,6 +14,7 @@ import {
   Users,
   BookOpen,
   Clock,
+  Factory,
 } from "lucide-react";
 import { useRole } from "@/context/RoleContext";
 
@@ -151,6 +152,12 @@ export default function SidebarNav() {
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
             <Package className="w-5 h-5" /> Products
+          </Link>
+          <Link
+            href="/dashboard/production"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-emerald-700 hover:bg-emerald-50 transition"
+          >
+            <Factory className="w-4 h-4" /> Produksi
           </Link>
           <Link
             href="/dashboard/ingredients"

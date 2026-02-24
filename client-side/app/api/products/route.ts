@@ -151,9 +151,22 @@ export async function GET(request: NextRequest) {
         orderBy: { [sortBy]: sortOrder },
         skip,
         take: limit,
-        include: { category: { select: { id: true, name: true } } },
+        include: {
+          category: { select: { id: true, name: true } },
+          productionBatches: {
+            where: { remainingQty: { gt: 0 } },
+            select: { remainingQty: true },
+          },
+        },
       });
-      return NextResponse.json({ success: true, data: products, meta });
+      const data = products.map((p) => ({
+        ...p,
+        availableStock: p.productType === "ReadyStock"
+          ? p.productionBatches.reduce((s, b) => s + b.remainingQty, 0)
+          : undefined,
+        productionBatches: undefined,
+      }));
+      return NextResponse.json({ success: true, data, meta });
     }
 
     // For margin sort: get paginated+sorted IDs via raw SQL, then fetch data by those IDs
@@ -180,6 +193,10 @@ export async function GET(request: NextRequest) {
       take: orderedIds ? undefined : limit,
       include: {
         category: { select: { id: true, name: true } },
+        productionBatches: {
+          where: { remainingQty: { gt: 0 } },
+          select: { remainingQty: true },
+        },
         recipes: {
           include: {
             ingredient: {
@@ -232,7 +249,15 @@ export async function GET(request: NextRequest) {
         return sum + Number(r.quantity) * (r.ingredient.costPerUnit ?? 0);
       }, 0);
 
-      return { ...product, recipes: recipesWithCost, recipeCost: Math.round(recipeCost) };
+      return {
+        ...product,
+        recipes: recipesWithCost,
+        recipeCost: Math.round(recipeCost),
+        availableStock: product.productType === "ReadyStock"
+          ? product.productionBatches.reduce((s, b) => s + b.remainingQty, 0)
+          : undefined,
+        productionBatches: undefined,
+      };
     });
 
     // Re-sort to preserve raw-SQL margin order
@@ -334,6 +359,7 @@ export async function POST(request: NextRequest) {
                 categoryId,
                 name: item.name,
                 sellingPrice: item.sellingPrice,
+                productType: item.productType ?? "PreOrder",
               },
             });
 
@@ -383,7 +409,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, categoryName, sellingPrice, recipe } = parsed.data;
+    const { name, categoryName, sellingPrice, recipe, productType } = parsed.data;
 
     // Run creates inside a transaction (refetch outside to avoid timeout)
     const createdId = await prisma.$transaction(
@@ -408,6 +434,7 @@ export async function POST(request: NextRequest) {
             categoryId,
             name,
             sellingPrice,
+            productType: productType ?? "PreOrder",
           },
         });
 

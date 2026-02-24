@@ -11,6 +11,7 @@ import {
   recomputeRecipeCost,
 } from "@/lib/services/saleHelpers";
 import { deductFIFO, simulateFIFOCost } from "@/lib/inventory/engine";
+import { deductProductionBatch, getReadyStockAvailable } from "@/lib/inventory/production-engine";
 
 export const runtime = "nodejs";
 
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
         const productIds = [...new Set(items.map((i) => i.productId))];
         const products = await tx.product.findMany({
           where: { id: { in: productIds }, businessId },
-          select: { id: true, sellingPrice: true },
+          select: { id: true, sellingPrice: true, productType: true },
         });
 
         if (products.length !== productIds.length) {
@@ -218,36 +219,52 @@ export async function POST(request: NextRequest) {
         }
 
         const productPriceMap = new Map(products.map((p) => [p.id, Number(p.sellingPrice)]));
+        const productTypeMap = new Map(products.map((p) => [p.id, p.productType]));
 
-        // 2. Check inventory availability for all items
+        // 2. Check availability for all items (ReadyStock → production batches, PreOrder → ingredients)
         for (const item of items) {
-          const recipes = await tx.recipe.findMany({
-            where: { productId: item.productId },
-            include: {
-              ingredient: {
-                select: {
-                  id: true,
-                  name: true,
-                  inventoryBatches: {
-                    where: { remainingQty: { gt: 0 } },
-                    select: { remainingQty: true },
+          const pType = productTypeMap.get(item.productId);
+
+          if (pType === "ReadyStock") {
+            // Check production batch availability
+            const available = await getReadyStockAvailable(tx, item.productId);
+            if (available < item.quantity) {
+              const prod = products.find((p) => p.id === item.productId);
+              throw new Error(
+                `Stok produksi "${prod?.id}" tidak cukup. Tersedia: ${available}, dibutuhkan: ${item.quantity}. Produksi dulu!`
+              );
+            }
+          } else {
+            // PreOrder: check ingredient stock (current behavior)
+            const recipes = await tx.recipe.findMany({
+              where: { productId: item.productId },
+              include: {
+                ingredient: {
+                  select: {
+                    id: true,
+                    name: true,
+                    inventoryBatches: {
+                      where: { remainingQty: { gt: 0 } },
+                      select: { remainingQty: true },
+                    },
                   },
                 },
               },
-            },
-          });
+            });
 
-          for (const recipe of recipes) {
-            const requiredQty = Number(recipe.quantity) * item.quantity;
-            const availableQty = recipe.ingredient.inventoryBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
-
-            if (availableQty < requiredQty) {
-              throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
+            for (const recipe of recipes) {
+              const requiredQty = Number(recipe.quantity) * item.quantity;
+              const availableQty = recipe.ingredient.inventoryBatches.reduce(
+                (sum, b) => sum + Number(b.remainingQty), 0
+              );
+              if (availableQty < requiredQty) {
+                throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
+              }
             }
           }
         }
 
-        // 3. Calculate costs using FIFO simulation (also collects deduction breakdowns)
+        // 3. Calculate costs — ReadyStock uses production batch cost, PreOrder uses ingredient FIFO
         let totalRevenue = 0;
         let totalCost = 0;
 
@@ -258,36 +275,57 @@ export async function POST(request: NextRequest) {
           costAtSale: number;
         }[] = [];
 
-        // Collect all ingredient deductions: { ingredientId, breakdown[] }
+        // Collect PreOrder ingredient deductions
         const allDeductions: {
           ingredientId: number;
           breakdown: { batchId: number; quantity: number; costPerUnit: number }[];
         }[] = [];
 
+        // Collect ReadyStock products that need production batch deduction
+        const readyStockDeductions: { productId: number; quantity: number }[] = [];
+
         for (const item of items) {
           const price = productPriceMap.get(item.productId)!;
-
-          // Fetch recipes for this product
-          const recipes = await tx.recipe.findMany({
-            where: { productId: item.productId },
-            select: { ingredientId: true, quantity: true },
-          });
-
+          const pType = productTypeMap.get(item.productId);
           let itemCost = 0;
 
-          for (const recipe of recipes) {
-            const requiredQty = Number(recipe.quantity) * item.quantity;
-            if (requiredQty <= 0) continue;
+          if (pType === "ReadyStock") {
+            // ReadyStock: cost comes from production batch (deducted later in step 6.5)
+            // Pre-calculate cost using FIFO from production batches
+            const batches = await tx.productionBatch.findMany({
+              where: { productId: item.productId, remainingQty: { gt: 0 } },
+              orderBy: { producedAt: "asc" },
+            });
 
-            // simulateFIFOCost: calculates cost AND returns batch breakdown for deduction
-            const { totalCost: ingredientCost, breakdown } = await simulateFIFOCost(
-              tx,
-              recipe.ingredientId,
-              requiredQty,
-            );
+            let remaining = item.quantity;
+            for (const batch of batches) {
+              if (remaining <= 0) break;
+              const take = Math.min(batch.remainingQty, remaining);
+              itemCost += take * Number(batch.costPerUnit);
+              remaining -= take;
+            }
 
-            itemCost += ingredientCost;
-            allDeductions.push({ ingredientId: recipe.ingredientId, breakdown });
+            readyStockDeductions.push({ productId: item.productId, quantity: item.quantity });
+          } else {
+            // PreOrder: cost from ingredient FIFO (current behavior)
+            const recipes = await tx.recipe.findMany({
+              where: { productId: item.productId },
+              select: { ingredientId: true, quantity: true },
+            });
+
+            for (const recipe of recipes) {
+              const requiredQty = Number(recipe.quantity) * item.quantity;
+              if (requiredQty <= 0) continue;
+
+              const { totalCost: ingredientCost, breakdown } = await simulateFIFOCost(
+                tx,
+                recipe.ingredientId,
+                requiredQty,
+              );
+
+              itemCost += ingredientCost;
+              allDeductions.push({ ingredientId: recipe.ingredientId, breakdown });
+            }
           }
 
           totalRevenue += price * item.quantity;
@@ -315,7 +353,6 @@ export async function POST(request: NextRequest) {
           data: {
             businessId,
             stockDocumentId: stockDocument.id,
-            // @ts-expect-error cashierShiftId exists after migration
             cashierShiftId: activeShift?.id || null,
             transactionNumber: generateTransactionNumber(),
             totalRevenue,
@@ -336,9 +373,12 @@ export async function POST(request: NextRequest) {
           })),
         });
 
-        // 6.5. Deduct inventory using FIFO breakdowns
+        // 6.5. Deduct inventory — PreOrder: ingredient FIFO, ReadyStock: production batches
         for (const deduction of allDeductions) {
           await deductFIFO(tx, deduction.ingredientId, deduction.breakdown, stockDocument.id);
+        }
+        for (const rsd of readyStockDeductions) {
+          await deductProductionBatch(tx, rsd.productId, rsd.quantity);
         }
 
         // 7. Recompute recipeCost on each sold product (keeps margin data fresh)

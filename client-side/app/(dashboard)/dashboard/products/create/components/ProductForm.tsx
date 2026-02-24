@@ -51,6 +51,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
   const [name, setName] = useState(initialDraft?.name ?? "");
   const [categoryName, setCategoryName] = useState(initialDraft?.categoryName ?? "");
   const [sellingPrice, setSellingPrice] = useState<number>(initialDraft?.sellingPrice ?? 0);
+  const [productType, setProductType] = useState<"ReadyStock" | "PreOrder">("PreOrder");
   const [recipe, setRecipe] = useState<DraftRecipeRow[]>(
     initialDraft?.recipe?.length ? initialDraft.recipe : [emptyRow(0)],
   );
@@ -242,6 +243,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
         name: name.trim(),
         categoryName: categoryName.trim(),
         sellingPrice,
+        productType,
         recipe: recipePayload,
       });
 
@@ -417,6 +419,48 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                 </div>
               )}
             </>
+          )}
+        </div>
+
+        {/* Product Type selector */}
+        <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 space-y-3">
+          <label className="text-sm font-bold text-gray-700">Tipe Produk</label>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setProductType("PreOrder")}
+              className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                productType === "PreOrder"
+                  ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+              }`}
+            >
+              <div className="text-lg mb-1">🍳</div>
+              <div>Made to Order</div>
+              <div className="text-[10px] font-normal mt-1 text-gray-400">
+                Bahan dikurangi saat dijual
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setProductType("ReadyStock")}
+              className={`flex-1 py-3 px-4 rounded-xl border-2 text-sm font-semibold transition-all ${
+                productType === "ReadyStock"
+                  ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+              }`}
+            >
+              <div className="text-lg mb-1">📦</div>
+              <div>Ready Stock</div>
+              <div className="text-[10px] font-normal mt-1 text-gray-400">
+                Bahan dikurangi saat produksi
+              </div>
+            </button>
+          </div>
+          {productType === "ReadyStock" && (
+            <p className="text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
+              💡 Produk Ready Stock membutuhkan proses produksi terlebih dahulu di menu <strong>Produksi</strong> sebelum bisa dijual di POS.
+            </p>
           )}
         </div>
       </div>
