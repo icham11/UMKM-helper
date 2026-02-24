@@ -1,9 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Plus, ChevronUp, ChevronDown, Tag, Pencil, ChefHat, Eye, Trash2, Loader2, AlertTriangle } from "lucide-react";
-import type { Product, ProductCategory } from "@/types/product";
-import { getProducts } from "@/lib/api/products";
-import formatCurrency from "./formatCurrency";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -31,7 +27,8 @@ import {
 } from "@/lib/api/products";
 import type { GetProductsParams } from "@/lib/api/products";
 import { useBusiness } from "@/context/BusinessContext";
-import type { Product } from "@/types/product";
+import type { Product, ProductCategory } from "@/types/product";
+import EditProductModal from "./EditProductModal";
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat("id-ID", {

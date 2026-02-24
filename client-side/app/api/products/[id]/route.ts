@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { z } from "zod";
+import { recomputeRecipeCost } from "@/lib/computeRecipeCost";
 
 export const runtime = "nodejs";
 
@@ -12,9 +13,9 @@ import { recipeItemSchema } from "@/lib/validations/product";
 
 const patchSchema = z.object({
   name: z.string().min(1).max(200).optional(),
-  categoryId: z.number().int().optional(),
+  categoryId: z.coerce.number().int().optional(),
   categoryName: z.string().min(1).max(100).optional(),
-  sellingPrice: z.number().positive("Selling price must be positive").optional(),
+  sellingPrice: z.coerce.number().positive("Selling price must be positive").optional(),
   createdAt: z.string().datetime().optional(),
   recipe: z.array(recipeItemSchema).optional(),
 });
@@ -40,6 +41,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const body = await request.json();
     const parsed = patchSchema.safeParse(body);
     if (!parsed.success) {
+      console.error("PATCH /api/products/[id] validation failed:", JSON.stringify(parsed.error.flatten(), null, 2), "Body:", JSON.stringify(body));
       return NextResponse.json(
         { error: "Validation failed", details: parsed.error.flatten().fieldErrors },
         { status: 400 },
@@ -91,12 +93,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           })),
         });
       }
-      // Optionally, recompute recipeCost if you have such logic
+      // Recompute recipeCost after recipe update
       try {
-        if (typeof recomputeRecipeCost === "function") {
-          await recomputeRecipeCost(id);
-        }
-      } catch {}
+        await recomputeRecipeCost(id);
+      } catch {
+        // non-critical — cost will be stale until next recompute
+      }
     }
 
     // Refetch updated product with relations

@@ -73,8 +73,8 @@ export type UpdateIngredientInput = z.infer<typeof updateIngredientSchema>;
 // ===================== RECIPE ITEM =====================
 
 export const recipeItemSchema = z.object({
-  ingredientId: z.number().int().positive(),
-  quantity: z.number().positive("Quantity must be positive"),
+  ingredientId: z.coerce.number().int().positive(),
+  quantity: z.coerce.number().positive("Quantity must be positive"),
 });
 
 export type RecipeItemInput = z.infer<typeof recipeItemSchema>;

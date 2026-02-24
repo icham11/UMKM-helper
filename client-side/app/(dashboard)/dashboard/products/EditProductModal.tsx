@@ -58,7 +58,7 @@ export default function EditProductModal({ product, categories, onClose, onSaved
       // Build recipe payload
       const recipePayload = recipe
         .filter((r) => r.ingredientId > 0 && r.ingredientName.trim())
-        .map((r) => ({ ingredientId: r.ingredientId, quantity: r.quantity }));
+        .map((r) => ({ ingredientId: Number(r.ingredientId), quantity: Number(r.quantity) }));
 
       const res = await fetch(`/api/products/${product.id}`, {
         method: "PATCH",
