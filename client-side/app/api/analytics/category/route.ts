@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
       JOIN "Product" p ON p.id = si."productId"
       LEFT JOIN "Category" c ON c.id = p."categoryId"
       WHERE s."businessId" = ${businessId}
+        AND s."paymentStatus" = 'Paid'
         AND s."createdAt" BETWEEN ${fromDate} AND ${toDate}
       GROUP BY c.id, c.name
       ORDER BY SUM(si."priceAtSale" * si.quantity) DESC

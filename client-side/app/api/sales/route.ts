@@ -203,213 +203,206 @@ export async function POST(request: NextRequest) {
       // CashierShift table may not exist yet — silently ignore
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 1. Validate all products exist and belong to business
-      const productIds = [...new Set(items.map((i) => i.productId))];
-      const products = await tx.product.findMany({
-        where: { id: { in: productIds }, businessId },
-        select: { id: true, sellingPrice: true },
-      });
-
-      if (products.length !== productIds.length) {
-        const foundIds = new Set(products.map((p) => p.id));
-        const missing = productIds.filter((id) => !foundIds.has(id));
-        throw new Error(`Product with ID ${missing[0]} not found`);
-      }
-
-      const productPriceMap = new Map(products.map((p) => [p.id, Number(p.sellingPrice)]));
-
-      // 2. Check inventory availability for all items
-      for (const item of items) {
-        const recipes = await tx.recipe.findMany({
-          where: { productId: item.productId },
-          include: {
-            ingredient: {
-              select: {
-                id: true,
-                name: true,
-                inventoryBatches: {
-                  where: { remainingQty: { gt: 0 } },
-                  select: { remainingQty: true },
-                },
-              },
-            },
-          },
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 1. Validate all products exist and belong to business
+        const productIds = [...new Set(items.map((i) => i.productId))];
+        const products = await tx.product.findMany({
+          where: { id: { in: productIds }, businessId },
+          select: { id: true, sellingPrice: true },
         });
 
-        for (const recipe of recipes) {
-          const requiredQty = Number(recipe.quantity) * item.quantity;
-          const availableQty = recipe.ingredient.inventoryBatches.reduce(
-            (sum, b) => sum + Number(b.remainingQty),
-            0,
-          );
-
-          if (availableQty < requiredQty) {
-            throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
-          }
-        }
-      }
-
-      // 3. Calculate costs using FIFO simulation (also collects deduction breakdowns)
-      let totalRevenue = 0;
-      let totalCost = 0;
-
-      const saleItemsData: {
-        productId: number;
-        quantity: number;
-        priceAtSale: number;
-        costAtSale: number;
-      }[] = [];
-
-      // Collect all ingredient deductions: { ingredientId, breakdown[] }
-      const allDeductions: {
-        ingredientId: number;
-        breakdown: { batchId: number; quantity: number; costPerUnit: number }[];
-      }[] = [];
-
-      for (const item of items) {
-        const price = productPriceMap.get(item.productId)!;
-
-        // Fetch recipes for this product
-        const recipes = await tx.recipe.findMany({
-          where: { productId: item.productId },
-          select: { ingredientId: true, quantity: true },
-        });
-
-        let itemCost = 0;
-
-        for (const recipe of recipes) {
-          const requiredQty = Number(recipe.quantity) * item.quantity;
-          if (requiredQty <= 0) continue;
-
-          // simulateFIFOCost: calculates cost AND returns batch breakdown for deduction
-          const { totalCost: ingredientCost, breakdown } = await simulateFIFOCost(
-            tx,
-            recipe.ingredientId,
-            requiredQty,
-          );
-
-          itemCost += ingredientCost;
-          allDeductions.push({ ingredientId: recipe.ingredientId, breakdown });
+        if (products.length !== productIds.length) {
+          const foundIds = new Set(products.map((p) => p.id));
+          const missing = productIds.filter((id) => !foundIds.has(id));
+          throw new Error(`Product with ID ${missing[0]} not found`);
         }
 
-        totalRevenue += price * item.quantity;
-        totalCost += itemCost;
+        const productPriceMap = new Map(products.map((p) => [p.id, Number(p.sellingPrice)]));
 
-        saleItemsData.push({
-          productId: item.productId,
-          quantity: item.quantity,
-          priceAtSale: price,
-          costAtSale: item.quantity > 0 ? itemCost / item.quantity : 0,
-        });
-      }
-
-      // 4. Create stock document for this sale
-      const stockDocument = await tx.stockDocument.create({
-        data: {
-          businessId,
-          type: "Sale",
-          notes: `Sale transaction`,
-        },
-      });
-
-      // 5. Create sale record
-      const sale = await tx.sale.create({
-        data: {
-          businessId,
-          stockDocumentId: stockDocument.id,
-          // @ts-expect-error cashierShiftId exists after migration
-          cashierShiftId: activeShift?.id || null,
-          transactionNumber: generateTransactionNumber(),
-          totalRevenue,
-          totalCost,
-          paymentMethod,
-          paymentStatus,
-          customerName,
-          customerEmail,
-          customerPhone,
-        },
-      });
-
-      // 6. Create sale items
-      await tx.saleItem.createMany({
-        data: saleItemsData.map((item) => ({
-          saleId: sale.id,
-          ...item,
-        })),
-      });
-      
-      // 6.5. Deduct inventory using FIFO breakdowns
-      for (const deduction of allDeductions) {
-        await deductFIFO(
-          tx,
-          deduction.ingredientId,
-          deduction.breakdown,
-          stockDocument.id,
-        );
-      }
-
-      // 7. Recompute recipeCost on each sold product (keeps margin data fresh)
-      const soldProductIds = [...new Set(items.map((i) => i.productId))];
-      for (const pid of soldProductIds) {
-        await recomputeRecipeCost(tx, pid);
-      }
-
-      // 7.5. If Kasbon, create Debt record
-      if (paymentMethod === "Kasbon") {
-        if (!customerName) {
-          throw new Error("Nama pelanggan wajib diisi untuk kasbon");
-        }
-        await tx.debt.create({
-          data: {
-            businessId,
-            saleId: sale.id,
-            customerName: customerName,
-            customerPhone: customerPhone || null,
-            totalAmount: totalRevenue,
-            paidAmount: 0,
-            status: "Unpaid",
-            notes: body.kasbonNotes || null,
-            dueDate: body.kasbonDueDate ? new Date(body.kasbonDueDate) : null,
-          },
-        });
-      }
-
-      await updateBusinessMetrics(
-        tx,
-        businessId,
-        totalRevenue,
-        totalCost
-      );
-
-      for (const item of saleItemsData) {
-        await updateProductMetrics(
-          tx,
-          item.productId,
-          item.quantity,
-          item.priceAtSale * item.quantity,
-          item.costAtSale * item.quantity
-        );
-      }
-
-      // 8. Return full sale with items
-      return tx.sale.findUnique({
-        where: { id: sale.id },
-        include: {
-          saleItems: {
+        // 2. Check inventory availability for all items
+        for (const item of items) {
+          const recipes = await tx.recipe.findMany({
+            where: { productId: item.productId },
             include: {
-              product: {
+              ingredient: {
                 select: {
                   id: true,
                   name: true,
-                  categoryId: true,
+                  inventoryBatches: {
+                    where: { remainingQty: { gt: 0 } },
+                    select: { remainingQty: true },
+                  },
+                },
+              },
+            },
+          });
+
+          for (const recipe of recipes) {
+            const requiredQty = Number(recipe.quantity) * item.quantity;
+            const availableQty = recipe.ingredient.inventoryBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
+
+            if (availableQty < requiredQty) {
+              throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
+            }
+          }
+        }
+
+        // 3. Calculate costs using FIFO simulation (also collects deduction breakdowns)
+        let totalRevenue = 0;
+        let totalCost = 0;
+
+        const saleItemsData: {
+          productId: number;
+          quantity: number;
+          priceAtSale: number;
+          costAtSale: number;
+        }[] = [];
+
+        // Collect all ingredient deductions: { ingredientId, breakdown[] }
+        const allDeductions: {
+          ingredientId: number;
+          breakdown: { batchId: number; quantity: number; costPerUnit: number }[];
+        }[] = [];
+
+        for (const item of items) {
+          const price = productPriceMap.get(item.productId)!;
+
+          // Fetch recipes for this product
+          const recipes = await tx.recipe.findMany({
+            where: { productId: item.productId },
+            select: { ingredientId: true, quantity: true },
+          });
+
+          let itemCost = 0;
+
+          for (const recipe of recipes) {
+            const requiredQty = Number(recipe.quantity) * item.quantity;
+            if (requiredQty <= 0) continue;
+
+            // simulateFIFOCost: calculates cost AND returns batch breakdown for deduction
+            const { totalCost: ingredientCost, breakdown } = await simulateFIFOCost(
+              tx,
+              recipe.ingredientId,
+              requiredQty,
+            );
+
+            itemCost += ingredientCost;
+            allDeductions.push({ ingredientId: recipe.ingredientId, breakdown });
+          }
+
+          totalRevenue += price * item.quantity;
+          totalCost += itemCost;
+
+          saleItemsData.push({
+            productId: item.productId,
+            quantity: item.quantity,
+            priceAtSale: price,
+            costAtSale: item.quantity > 0 ? itemCost / item.quantity : 0,
+          });
+        }
+
+        // 4. Create stock document for this sale
+        const stockDocument = await tx.stockDocument.create({
+          data: {
+            businessId,
+            type: "Sale",
+            notes: `Sale transaction`,
+          },
+        });
+
+        // 5. Create sale record
+        const sale = await tx.sale.create({
+          data: {
+            businessId,
+            stockDocumentId: stockDocument.id,
+            // @ts-expect-error cashierShiftId exists after migration
+            cashierShiftId: activeShift?.id || null,
+            transactionNumber: generateTransactionNumber(),
+            totalRevenue,
+            totalCost,
+            paymentMethod,
+            paymentStatus,
+            customerName,
+            customerEmail,
+            customerPhone,
+          },
+        });
+
+        // 6. Create sale items
+        await tx.saleItem.createMany({
+          data: saleItemsData.map((item) => ({
+            saleId: sale.id,
+            ...item,
+          })),
+        });
+
+        // 6.5. Deduct inventory using FIFO breakdowns
+        for (const deduction of allDeductions) {
+          await deductFIFO(tx, deduction.ingredientId, deduction.breakdown, stockDocument.id);
+        }
+
+        // 7. Recompute recipeCost on each sold product (keeps margin data fresh)
+        const soldProductIds = [...new Set(items.map((i) => i.productId))];
+        for (const pid of soldProductIds) {
+          await recomputeRecipeCost(tx, pid);
+        }
+
+        // 7.5. If Kasbon, create Debt record
+        if (paymentMethod === "Kasbon") {
+          if (!customerName) {
+            throw new Error("Nama pelanggan wajib diisi untuk kasbon");
+          }
+          await tx.debt.create({
+            data: {
+              businessId,
+              saleId: sale.id,
+              customerName: customerName,
+              customerPhone: customerPhone || null,
+              totalAmount: totalRevenue,
+              paidAmount: 0,
+              status: "Unpaid",
+              notes: body.kasbonNotes || null,
+              dueDate: body.kasbonDueDate ? new Date(body.kasbonDueDate) : null,
+            },
+          });
+        }
+
+        // Only update BusinessMetrics for paid sales (exclude kasbon/unpaid)
+        if (paymentStatus === "Paid") {
+          await updateBusinessMetrics(tx, businessId, totalRevenue, totalCost);
+
+          for (const item of saleItemsData) {
+            await updateProductMetrics(
+              tx,
+              item.productId,
+              item.quantity,
+              item.priceAtSale * item.quantity,
+              item.costAtSale * item.quantity,
+            );
+          }
+        }
+
+        // 8. Return full sale with items
+        return tx.sale.findUnique({
+          where: { id: sale.id },
+          include: {
+            saleItems: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    categoryId: true,
+                  },
                 },
               },
             },
           },
-        },
-      });
-    }, { timeout: 30000 });
+        });
+      },
+      { timeout: 30000 },
+    );
 
     if (result && result.paymentStatus === "Paid") {
       try {

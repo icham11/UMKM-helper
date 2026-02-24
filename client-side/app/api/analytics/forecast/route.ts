@@ -187,6 +187,7 @@ export async function GET() {
       FROM "SaleItem" si
       JOIN "Sale" s ON s.id = si."saleId"
       WHERE s."businessId" = ${businessId}
+        AND s."paymentStatus" = 'Paid'
         AND s."createdAt" >= ${since}
       GROUP BY si."productId", DATE(s."createdAt")
       ORDER BY si."productId", DATE(s."createdAt")

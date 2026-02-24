@@ -94,11 +94,16 @@ export async function GET() {
     // ─── Metadata  ──────────────────────────────────────────────────────
     const lastComputed = bizForecastRows[0]?.updatedAt ?? null;
 
+    // Check if forecasts were generated from product-level data
+    // If no product forecasts exist, the business forecast is from fallback (historical average)
+    const hasSufficientData = productForecasts.length > 0;
+
     return NextResponse.json({
       success: true,
       cached: true,
       lastComputed: lastComputed ? lastComputed.toISOString() : null,
       modelInfo: { arima: "ARIMA(1,1,1)", lookback: 30, horizon: 7 },
+      hasSufficientData,
       businessForecast,
       productForecasts,
     });

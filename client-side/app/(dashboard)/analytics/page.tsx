@@ -78,7 +78,7 @@ type GrowthComparison = {
   prevProfit: number;
   profitGrowth: number;
 };
-type Granularity = "7d" | "30d" | "6mo";
+type Granularity = "24h" | "7d" | "30d" | "6mo";
 
 type BizForecastDay = {
   date: string;
@@ -144,11 +144,46 @@ type TopDebtor = {
 const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
 
 const SCORE_LINES = [
-  { key: "overallScore", label: "Overall", color: "#6366f1" },
-  { key: "revenueScore", label: "Revenue", color: "#10b981" },
-  { key: "profitScore", label: "Profit", color: "#f59e0b" },
-  { key: "wasteScore", label: "Waste", color: "#ef4444" },
-  { key: "stabilityScore", label: "Stability", color: "#8b5cf6" },
+  {
+    key: "overallScore",
+    label: "Overall",
+    color: "#6366f1",
+    max: 100,
+    description: "Gabungan dari 4 sub-skor di bawah",
+    tip: "💡 Tingkatkan sub-skor yang paling rendah untuk meningkatkan skor keseluruhan",
+  },
+  {
+    key: "revenueScore",
+    label: "Pendapatan",
+    color: "#10b981",
+    max: 25,
+    description: "Target 120% dari rata-rata bulanan Anda",
+    tip: "💡 Capai 120% dari rata-rata pendapatan bulanan Anda untuk skor penuh",
+  },
+  {
+    key: "profitScore",
+    label: "Margin",
+    color: "#f59e0b",
+    max: 25,
+    description: "Berdasarkan target margin 50%",
+    tip: "💡 Target margin profit 50% untuk skor penuh. Evaluasi harga jual dan biaya bahan.",
+  },
+  {
+    key: "wasteScore",
+    label: "Efisiensi",
+    color: "#ef4444",
+    max: 25,
+    description: "Semakin rendah limbah, semakin tinggi skor",
+    tip: "💡 Jaga limbah di bawah 1% dari pendapatan untuk skor penuh. Kelola stok dengan baik.",
+  },
+  {
+    key: "stabilityScore",
+    label: "Stabilitas",
+    color: "#8b5cf6",
+    max: 25,
+    description: "Konsistensi pendapatan harian",
+    tip: "💡 Pendapatan harian yang konsisten = skor lebih tinggi. Hindari fluktuasi ekstrem.",
+  },
 ];
 
 const _now = new Date();
@@ -204,19 +239,34 @@ function ConfidenceBadge({ score }: { score: number }) {
   );
 }
 
-function GaugeBar({ label, value, color }: { label: string; value: number; color: string }) {
+function GaugeBar({
+  label,
+  value,
+  color,
+  max = 100,
+  description,
+  tip,
+}: {
+  label: string;
+  value: number;
+  color: string;
+  max?: number;
+  description?: string;
+  tip?: string;
+}) {
+  const percentage = (value / max) * 100;
   return (
-    <div>
+    <div title={tip || description} className="cursor-help">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-medium text-gray-600">{label}</span>
         <span className="text-xs font-bold" style={{ color }}>
-          {value.toFixed(1)}
+          {value.toFixed(1)}/{max}
         </span>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2">
         <div
           className="h-2 rounded-full transition-all duration-700"
-          style={{ width: `${Math.min(100, value)}%`, backgroundColor: color }}
+          style={{ width: `${Math.min(100, percentage)}%`, backgroundColor: color }}
         />
       </div>
     </div>
@@ -237,12 +287,14 @@ function classColors(cls: string) {
   switch (cls) {
     case "Excellent":
       return "bg-green-100 text-green-700";
-    case "Good":
+    case "Healthy":
       return "bg-blue-100 text-blue-700";
     case "Warning":
       return "bg-yellow-100 text-yellow-700";
-    default:
+    case "Critical":
       return "bg-red-100 text-red-600";
+    default:
+      return "bg-gray-100 text-gray-600";
   }
 }
 
@@ -289,6 +341,33 @@ function AIInsightLabel({ text }: { text?: string }) {
 
 function EmptyAnalytics() {
   const [generating, setGenerating] = useState(false);
+  const [hasProducts, setHasProducts] = useState<boolean | null>(null);
+  const [hasSales, setHasSales] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    async function checkPrerequisites() {
+      try {
+        // Check for products
+        const prodRes = await fetch("/api/products");
+        const prodJson = await prodRes.json();
+        const products = prodJson.data ?? prodJson.products ?? [];
+        setHasProducts(products.length > 0);
+
+        // Check for sales (last 30 days)
+        const now = new Date();
+        const from = new Date(now);
+        from.setDate(from.getDate() - 30);
+        const salesRes = await fetch(`/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`);
+        const salesJson = await salesRes.json();
+        setHasSales((salesJson.data ?? []).some((d: { revenue: number }) => d.revenue > 0));
+      } catch {
+        // On error, allow proceeding
+        setHasProducts(true);
+        setHasSales(false);
+      }
+    }
+    checkPrerequisites();
+  }, []);
 
   async function handleGenerate() {
     setGenerating(true);
@@ -304,6 +383,41 @@ function EmptyAnalytics() {
     }
   }
 
+  // Loading state
+  if (hasProducts === null) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
+  // No products - must add products first
+  if (!hasProducts) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Package className="w-10 h-10 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Tambahkan Produk Terlebih Dahulu</h2>
+          <p className="text-gray-500 mb-6 leading-relaxed">
+            Untuk menggunakan fitur analitik, Anda perlu menambahkan produk terlebih dahulu. Sistem akan menganalisis
+            performa penjualan produk Anda.
+          </p>
+          <a
+            href="/dashboard/products"
+            className="inline-flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-indigo-700 transition"
+          >
+            <Package className="w-5 h-5" />
+            Tambah Produk
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  // Has products, can proceed with analysis
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="text-center max-w-md">
@@ -315,6 +429,13 @@ function EmptyAnalytics() {
           Untuk memulai, jalankan analisis pertama Anda. Sistem akan menghasilkan prediksi penjualan, skor kesehatan
           bisnis, dan wawasan berbasis AI untuk membantu pengambilan keputusan.
         </p>
+        {!hasSales && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6 text-left">
+            <p className="text-sm text-amber-700">
+              <strong>Info:</strong> Belum ada data penjualan. Analisis akan lebih akurat setelah ada transaksi.
+            </p>
+          </div>
+        )}
         <button
           onClick={handleGenerate}
           disabled={generating}
@@ -332,9 +453,7 @@ function EmptyAnalytics() {
             </>
           )}
         </button>
-        <p className="text-xs text-gray-400 mt-4">
-          Pastikan sudah ada data penjualan sebelum memulai. Analisis akan diperbarui otomatis setiap hari.
-        </p>
+        <p className="text-xs text-gray-400 mt-4">Analisis akan diperbarui otomatis setiap hari.</p>
       </div>
     </div>
   );
@@ -623,6 +742,9 @@ function OverviewSection() {
                   label={s.label}
                   value={health[s.key as keyof HealthPoint] as number}
                   color={s.color}
+                  max={s.max}
+                  description={s.description}
+                  tip={s.tip}
                 />
               ))}
             </div>
@@ -789,6 +911,12 @@ function ProductsSection() {
                 <Bar dataKey="revenue" radius={[8, 8, 0, 0]} fill="#6366F1" />
               </BarChart>
             </ResponsiveContainer>
+            {/* AI Insight for products - placed close to relevant chart */}
+            {data.length > 0 && (
+              <div className="mt-4">
+                <AIInsightLabel text={insights.products?.insight} />
+              </div>
+            )}
           </div>
 
           {/* Product table */}
@@ -1028,9 +1156,6 @@ function ProductsSection() {
           </div>
         </>
       )}
-
-      {/* AI Insight for products */}
-      {(data.length > 0 || categoryData.length > 0) && <AIInsightLabel text={insights.products?.insight} />}
     </div>
   );
 }
@@ -1046,18 +1171,25 @@ function rollingAvg(data: { revenue: number }[], window = 7) {
 }
 
 function GrowthSection() {
-  const [granularity, setGranularity] = useState("30d");
+  const [granularity, setGranularity] = useState<Granularity>("30d");
   const [dailyData, setDailyData] = useState<DailyPoint[]>([]);
+  const [hourlyData, setHourlyData] = useState<HourlyPoint[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyPoint[]>([]);
   const [growth, setGrowth] = useState<GrowthComparison | null>(null);
   const [forecastData, setForecastData] = useState<BizForecastDay[]>([]);
+  const [hasSufficientData, setHasSufficientData] = useState(true);
   const [loading, setLoading] = useState(true);
   const insights = useInsights();
 
-  const fetchGranularity = useCallback(async (g: string) => {
+  const fetchGranularity = useCallback(async (g: Granularity) => {
     setLoading(true);
     try {
-      if (g === "7d" || g === "30d") {
+      if (g === "24h") {
+        const res = await fetch("/api/analytics/hourly");
+        const json = await res.json();
+        setHourlyData(json.data ?? []);
+      } else if (g === "7d" || g === "30d") {
+        // 7d = 6 days back, 30d = 29 days back (30 days total)
         const days = g === "7d" ? 6 : 29;
         const now = new Date();
         const from = new Date(now);
@@ -1105,6 +1237,7 @@ function GrowthSection() {
       if (res.ok) {
         const json = await res.json();
         setForecastData(json.businessForecast ?? []);
+        setHasSufficientData(json.hasSufficientData ?? false);
       }
     } catch {
       /* non-critical */
@@ -1123,15 +1256,26 @@ function GrowthSection() {
     fetchGranularity(g);
   }
 
-  // ── Derived KPIs ─────────────────────────────────────────────────────────
-  const totalRevenue = dailyData.reduce((s, d) => s + d.revenue, 0);
-  const totalProfit = dailyData.reduce((s, d) => s + d.profit, 0);
-  const activeDays = dailyData.filter((d) => d.revenue > 0).length;
-  const aov = activeDays > 0 ? Math.round(totalRevenue / activeDays) : 0;
+  // Derived KPIs
+  const totalRevenue =
+    granularity === "24h"
+      ? hourlyData.reduce((s, d) => s + d.revenue, 0)
+      : dailyData.reduce((s, d) => s + d.revenue, 0);
+  const totalProfit =
+    granularity === "24h" ? hourlyData.reduce((s, d) => s + d.profit, 0) : dailyData.reduce((s, d) => s + d.profit, 0);
+  const activeHours = hourlyData.filter((d) => d.revenue > 0).length;
+  const aov =
+    granularity === "24h"
+      ? activeHours > 0
+        ? Math.round(totalRevenue / activeHours)
+        : 0
+      : dailyData.length > 0
+        ? Math.round(totalRevenue / dailyData.length)
+        : 0;
   const last7 = dailyData.slice(-7);
   const avg7rev = last7.length > 0 ? Math.round(last7.reduce((s, d) => s + d.revenue, 0) / last7.length) : 0;
 
-  // ── Chart-ready data with forecast appended ────────────────────────────
+  // Chart-ready data with forecast appended
   const movingAvgValues = rollingAvg(dailyData, 7);
   const dailyChartData = dailyData.map((d, i) => ({
     ...d,
@@ -1142,6 +1286,13 @@ function GrowthSection() {
     predicted: null as number | null,
     predictedRevenue: null as number | null,
     predictedProfit: null as number | null,
+  }));
+
+  // Hourly chart data
+  const hourlyChartData = hourlyData.map((d) => ({
+    ...d,
+    label: d.hour,
+    marginPct: d.revenue > 0 ? Math.round((d.profit / d.revenue) * 1000) / 10 : null,
   }));
 
   // Append forecast points to chart (semi-transparent predicted bars)
@@ -1159,7 +1310,11 @@ function GrowthSection() {
     predictedProfit: f.predictedProfit,
   }));
 
-  const combinedChartData = granularity !== "6mo" ? [...dailyChartData, ...forecastPoints] : dailyChartData;
+  // Include forecast for both 7d and 30d views only when we have sufficient data
+  const combinedChartData =
+    (granularity === "30d" || granularity === "7d") && hasSufficientData
+      ? [...dailyChartData, ...forecastPoints]
+      : dailyChartData;
 
   const avgMargin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 1000) / 10 : 0;
   const monthlyChartData = monthlyData.map((d) => ({
@@ -1167,8 +1322,9 @@ function GrowthSection() {
     label: new Date(d.date + "-01").toLocaleDateString("id-ID", { month: "short", year: "2-digit" }),
   }));
 
+  const isHourly = granularity === "24h";
   const isDaily = granularity === "7d" || granularity === "30d";
-  const xInterval = granularity === "7d" ? 0 : 3;
+  const xInterval = granularity === "24h" ? 2 : granularity === "7d" ? 0 : 3;
 
   return (
     <div className="space-y-8">
@@ -1178,20 +1334,43 @@ function GrowthSection() {
           <TrendingUp className="w-6 h-6" /> Analitik Pertumbuhan
         </h2>
         <p className="text-sm text-gray-500">
-          Batang menunjukkan nilai harian aktual — garis putus-putus oranye adalah rata-rata bergulir 7 hari.
-          {forecastData.length > 0 &&
+          {granularity === "24h"
+            ? "Performa per jam dalam 24 jam terakhir."
+            : `Batang menunjukkan nilai ${granularity === "6mo" ? "bulanan" : "harian"} aktual. Garis putus-putus oranye adalah rata-rata bergulir 7 hari.`}
+          {hasSufficientData &&
+            forecastData.length > 0 &&
+            (granularity === "30d" || granularity === "7d") &&
             " Batang transparan di ujung kanan menunjukkan prediksi AI untuk 7 hari ke depan."}
         </p>
+        {!hasSufficientData && (granularity === "30d" || granularity === "7d") && (
+          <div className="mt-2 flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg px-4 py-2">
+            <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fillRule="evenodd"
+                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                clipRule="evenodd"
+              />
+            </svg>
+            <span className="text-sm font-medium">
+              Data penjualan produk belum cukup untuk membuat prediksi AI. Diperlukan minimal beberapa hari data per
+              produk.
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* ── KPI cards ── only for daily views ──────────────────────── */}
-      {isDaily && dailyData.length > 0 && (
+      {/* KPI cards - for hourly and daily views */}
+      {(isHourly || isDaily) && (hourlyData.length > 0 || dailyData.length > 0) && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
             <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Total Pendapatan</p>
             <p className="text-2xl font-bold text-indigo-600 mt-2">Rp {totalRevenue.toLocaleString("id-ID")}</p>
             <p className="text-xs text-gray-400 mt-1">
-              {granularity === "7d" ? "7 hari terakhir" : "30 hari terakhir"}
+              {granularity === "24h"
+                ? "24 jam terakhir"
+                : granularity === "7d"
+                  ? "7 hari terakhir"
+                  : "30 hari terakhir"}
             </p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
@@ -1202,24 +1381,34 @@ function GrowthSection() {
             </p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Rata-rata Harian</p>
-            <p className="text-2xl font-bold text-gray-800 mt-2">
-              {aov > 0 ? `Rp ${aov.toLocaleString("id-ID")}` : "—"}
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+              {isHourly ? "Rata-rata Per Jam" : "Rata-rata Harian"}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Dari {activeDays} hari aktif</p>
+            <p className="text-2xl font-bold text-gray-800 mt-2">
+              {aov > 0 ? `Rp ${aov.toLocaleString("id-ID")}` : "-"}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {isHourly ? `Dari ${activeHours} jam aktif` : `${dailyData.length} hari terakhir`}
+            </p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">Rata-rata 7 Hari</p>
-            <p className="text-2xl font-bold text-violet-600 mt-2">
-              {avg7rev > 0 ? `Rp ${avg7rev.toLocaleString("id-ID")}` : "—"}
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wide">
+              {isHourly ? "Total Transaksi" : "Rata-rata 7 Hari"}
             </p>
-            <p className="text-xs text-gray-400 mt-1">Rata-rata bergulir (7 hari terakhir)</p>
+            <p className="text-2xl font-bold text-violet-600 mt-2">
+              {isHourly
+                ? hourlyData.reduce((s, d) => s + d.transactions, 0)
+                : avg7rev > 0
+                  ? `Rp ${avg7rev.toLocaleString("id-ID")}`
+                  : "-"}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">{isHourly ? "Dalam 24 jam terakhir" : "Rata-rata bergulir"}</p>
           </div>
         </div>
       )}
 
-      {/* ── MoM comparison strip ─────────────────────────────────────────── */}
-      {growth && (
+      {/* MoM comparison strip */}
+      {growth && !isHourly && (
         <div className="flex flex-wrap gap-3">
           <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3">
             <span className="text-xs text-indigo-600 font-semibold">Pendapatan MoM</span>
@@ -1236,14 +1425,15 @@ function GrowthSection() {
             <GrowthBadge value={growth.profitGrowth} />
           </div>
           <div className="ml-auto flex items-center gap-1.5 text-xs text-gray-400 italic bg-white border border-gray-100 rounded-xl px-4 py-3">
-            <Info className="w-3.5 h-3.5 shrink-0" />% pertumbuhan bermakna jika volume transaksi konsisten
+            <Info className="w-3.5 h-3.5 shrink-0" />
+            Pertumbuhan bermakna jika volume transaksi konsisten
           </div>
         </div>
       )}
 
-      {/* ── View switcher ────────────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        {["7d", "30d", "6mo"].map((g) => (
+      {/* View switcher */}
+      <div className="flex gap-2 flex-wrap">
+        {["24h", "7d", "30d", "6mo"].map((g) => (
           <button
             key={g}
             onClick={() => handleGranularity(g)}
@@ -1253,7 +1443,7 @@ function GrowthSection() {
                 : "bg-white border border-gray-200 text-gray-600 hover:bg-indigo-50"
             }`}
           >
-            {g === "7d" ? "7 Hari Terakhir" : g === "30d" ? "30 Hari Terakhir" : "6 Bulan"}
+            {g === "24h" ? "24 Jam" : g === "7d" ? "7 Hari" : g === "30d" ? "30 Hari" : "6 Bulan"}
           </button>
         ))}
       </div>
@@ -1262,13 +1452,69 @@ function GrowthSection() {
         <div className="bg-white rounded-2xl shadow p-16 flex items-center justify-center">
           <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
         </div>
+      ) : isHourly ? (
+        <>
+          {/* Hourly chart */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="text-base font-bold text-indigo-700">Pendapatan &amp; Laba Per Jam (24 Jam Terakhir)</h3>
+            </div>
+            <div className="flex flex-wrap gap-4 mb-5 mt-1">
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="w-3 h-3 rounded bg-indigo-400 inline-block" />
+                Pendapatan
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                <span className="w-3 h-3 rounded bg-emerald-300 inline-block" />
+                Laba
+              </span>
+            </div>
+            {hourlyChartData.length === 0 ? (
+              <p className="text-center text-gray-400 py-12">Tidak ada data untuk periode ini.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <ComposedChart data={hourlyChartData} barCategoryGap="15%" barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={xInterval}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#9ca3af" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    formatter={(v, name) => {
+                      if (name === "profit") return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Laba"];
+                      return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Pendapatan"];
+                    }}
+                  />
+                  <Bar dataKey="revenue" fill="#818cf8" radius={[4, 4, 0, 0]} name="revenue" />
+                  <Bar dataKey="profit" fill="#6ee7b7" radius={[4, 4, 0, 0]} name="profit" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
+            {/* AI Insight for hourly */}
+            {hourlyData.length > 0 && (
+              <div className="mt-4">
+                <AIInsightLabel text={insights.revenue?.insight} />
+              </div>
+            )}
+          </div>
+        </>
       ) : isDaily ? (
         <>
-          {/* ── Combo chart: Revenue bars + Profit bars + rolling avg line + forecast ── */}
+          {/* Combo chart: Revenue bars + Profit bars + rolling avg line + forecast */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-start justify-between mb-1">
               <h3 className="text-base font-bold text-indigo-700">
-                Pendapatan &amp; Laba Harian — {granularity === "7d" ? "7 Hari Terakhir" : "30 Hari Terakhir"}
+                Pendapatan &amp; Laba Harian (
+                {granularity === "7d" ? "1 Minggu + Prediksi" : "30 Hari + 7 Hari Prediksi"})
               </h3>
             </div>
             {/* Legend */}
@@ -1302,7 +1548,7 @@ function GrowthSection() {
               <p className="text-center text-gray-400 py-12">Tidak ada data untuk periode ini.</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={combinedChartData} barCategoryGap="28%" barGap={3}>
+                <ComposedChart data={combinedChartData} barCategoryGap="15%" barGap={2}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
                   <XAxis
                     dataKey="label"
@@ -1379,11 +1625,17 @@ function GrowthSection() {
                 </ComposedChart>
               </ResponsiveContainer>
             )}
+            {/* AI Insight for revenue - placed close to relevant chart */}
+            {dailyData.length > 0 && (
+              <div className="mt-4">
+                <AIInsightLabel text={insights.revenue?.insight} />
+              </div>
+            )}
           </div>
 
-          {/* ── Forecast summary card ── */}
-          {forecastData.length > 0 && (
-            <div className="bg-gradient-to-r from-violet-50 to-indigo-50 rounded-2xl border border-violet-200 p-5">
+          {/* Forecast summary card */}
+          {forecastData.length > 0 && (granularity === "30d" || granularity === "7d") && (
+            <div className="bg-linear-to-r from-violet-50 to-indigo-50 rounded-2xl border border-violet-200 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-5 h-5 text-violet-600" />
                 <h3 className="text-sm font-bold text-violet-700">Prediksi 7 Hari ke Depan</h3>
@@ -1416,9 +1668,6 @@ function GrowthSection() {
               )}
             </div>
           )}
-
-          {/* AI Insight for revenue */}
-          {dailyData.length > 0 && <AIInsightLabel text={insights.revenue?.insight} />}
 
           {/* ── Sales day frequency strip ──────────────────── */}
           {dailyChartData.length > 0 && (
@@ -1747,7 +1996,9 @@ function HealthSection() {
           <h2 className="text-2xl font-bold text-indigo-700 flex items-center gap-2">
             <HeartPulse className="w-6 h-6" /> Kesehatan Bisnis
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Tren sub-skor dari waktu ke waktu</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Skor dihitung dari pendapatan, margin profit, efisiensi limbah, dan stabilitas penjualan 30 hari terakhir
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {[7, 14, 30].map((d) => (
@@ -1788,6 +2039,9 @@ function HealthSection() {
                   label={s.label}
                   value={latest[s.key as keyof HealthPoint] as number}
                   color={s.color}
+                  max={s.max}
+                  description={s.description}
+                  tip={s.tip}
                 />
               ))}
             </div>
@@ -1795,18 +2049,25 @@ function HealthSection() {
           <div className="grid grid-cols-2 gap-3">
             {SCORE_LINES.map((s) => {
               const val = latest[s.key as keyof HealthPoint] as number;
+              const percentage = (val / s.max) * 100;
               return (
-                <div key={s.key} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                  <p className="text-xs text-gray-500 mb-1">Skor {s.label}</p>
+                <div
+                  key={s.key}
+                  className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 cursor-help"
+                  title={s.tip}
+                >
+                  <p className="text-xs text-gray-500 mb-1">{s.label}</p>
                   <p className="text-2xl font-bold" style={{ color: s.color }}>
                     {val.toFixed(1)}
+                    <span className="text-sm font-normal text-gray-400">/{s.max}</span>
                   </p>
                   <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
                     <div
                       className="h-1.5 rounded-full"
-                      style={{ width: `${Math.min(100, val)}%`, backgroundColor: s.color }}
+                      style={{ width: `${Math.min(100, percentage)}%`, backgroundColor: s.color }}
                     />
                   </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1">{s.description}</p>
                 </div>
               );
             })}
@@ -1847,6 +2108,9 @@ function HealthSection() {
         )}
       </div>
 
+      {/* AI Insight for health - placed after snapshot for relevance */}
+      {series.length > 0 && insights.health?.insight && <AIInsightLabel text={insights.health.insight} />}
+
       {series.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-5 border-b border-gray-100">
@@ -1857,11 +2121,11 @@ function HealthSection() {
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
                   <th className="text-left px-6 py-3">Tanggal</th>
-                  <th className="text-right px-6 py-3">Keseluruhan</th>
-                  <th className="text-right px-6 py-3">Pendapatan</th>
-                  <th className="text-right px-6 py-3">Keuntungan</th>
-                  <th className="text-right px-6 py-3">Limbah</th>
-                  <th className="text-right px-6 py-3">Stabilitas</th>
+                  <th className="text-right px-6 py-3">Overall /100</th>
+                  <th className="text-right px-6 py-3">Pendapatan /25</th>
+                  <th className="text-right px-6 py-3">Margin /25</th>
+                  <th className="text-right px-6 py-3">Efisiensi /25</th>
+                  <th className="text-right px-6 py-3">Stabilitas /25</th>
                   <th className="text-center px-6 py-3">Klasifikasi</th>
                 </tr>
               </thead>
@@ -1901,8 +2165,64 @@ function HealthSection() {
         </div>
       )}
 
-      {/* AI Insight for health */}
-      {series.length > 0 && <AIInsightLabel text={insights.health?.insight} />}
+      {/* Classification Legend */}
+      <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl shadow-sm border border-indigo-100 p-6">
+        <h3 className="font-bold text-indigo-700 mb-4 flex items-center gap-2">
+          <Info className="w-4 h-4" /> Cara Perhitungan Skor
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="font-semibold text-gray-700 mb-2">Sub-Skor (masing-masing 0-25)</h4>
+            <ul className="text-sm text-gray-600 space-y-1.5">
+              <li className="flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5"></span>
+                <span>
+                  <strong>Pendapatan:</strong> Target 120% dari rata-rata bulanan Anda = 25 poin
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5"></span>
+                <span>
+                  <strong>Margin:</strong> Target profit margin 50% = 25 poin
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5"></span>
+                <span>
+                  <strong>Efisiensi:</strong> Limbah &lt;1% dari revenue = 25 poin
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full bg-violet-500 mt-1.5"></span>
+                <span>
+                  <strong>Stabilitas:</strong> Konsistensi pendapatan harian (CoV rendah)
+                </span>
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-700 mb-2">Klasifikasi</h4>
+            <div className="flex flex-wrap gap-2">
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                Excellent (80-100)
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                Healthy (60-79)
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
+                Warning (40-59)
+              </span>
+              <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600">
+                Critical (&lt;40)
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Skor dihitung otomatis setiap hari berdasarkan data 30 hari terakhir. Jalankan analisis untuk memperbarui
+              skor kesehatan bisnis Anda.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -2064,7 +2384,7 @@ function WasteSection() {
       </div>
 
       {/* AI Insight for waste */}
-      {data && <AIInsightLabel text={insights.waste?.insight} />}
+      {insights.waste?.insight && <AIInsightLabel text={insights.waste.insight} />}
     </div>
   );
 }
@@ -2199,6 +2519,12 @@ function KasbonSection() {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+        {/* AI Insight for kasbon - placed close to relevant chart */}
+        {summary && (
+          <div className="mt-4">
+            <AIInsightLabel text={insights.kasbon?.insight} />
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
@@ -2257,9 +2583,6 @@ function KasbonSection() {
           </div>
         )}
       </div>
-
-      {/* AI Insight for kasbon */}
-      {summary && <AIInsightLabel text={insights.kasbon?.insight} />}
     </div>
   );
 }
