@@ -23,7 +23,7 @@ export default function LogoutButton() {
       onClick={async () => {
         try { await fetch("/api/auth/logout", { method: "POST", credentials: "include" }); } catch { /* ok */ }
         clearAllClientState();
-        signOut({ callbackUrl: "/login" });
+        signOut({ callbackUrl: "/" });
       }}
       className="w-full py-2 rounded-lg bg-red-500 text-white font-bold text-base shadow hover:bg-red-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-red-400 mt-4"
     >

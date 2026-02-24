@@ -762,12 +762,12 @@ export default function ProductsPage() {
                             className="w-4 h-4 rounded accent-indigo-600 cursor-pointer"
                           />
                         </td>
-                        <td className="px-4 py-4">
-                          <div className="font-bold text-slate-800">{product.name}</div>
+                        <td className="px-4 py-4 text-center align-middle">
+                          <div className="font-bold text-slate-800 text-center">{product.name}</div>
                         </td>
                         <td className="px-6 py-4">
                           {product.category ? (
-                            <span className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full">
+                            <span className="flex flex-col items-center justify-center bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-1 rounded-full text-center">
                               <Tag size={12} />
                               {product.category.name}
                             </span>
@@ -775,11 +775,11 @@ export default function ProductsPage() {
                             <span className="text-gray-400 text-sm">—</span>
                           )}
                         </td>
-                        <td className="px-6 py-4 text-right">
+                        <td className="px-6 py-4 text-left">
                           <button
                             onClick={() => setEditModal(product)}
                             title="Edit harga jual"
-                            className="group inline-flex items-center gap-1.5 justify-end w-full font-bold text-indigo-700 hover:text-indigo-900 transition"
+                            className="group inline-flex items-center gap-1.5 justify-start w-full font-bold text-indigo-700 hover:text-indigo-900 transition"
                           >
                             <span>{formatCurrency(sp)}</span>
                             <Pencil
@@ -788,7 +788,7 @@ export default function ProductsPage() {
                             />
                           </button>
                         </td>
-                        <td className="px-6 py-4 text-right text-slate-600 font-medium">
+                        <td className="px-6 py-4 text-left text-slate-600 font-medium">
                           {rc > 0 ? formatCurrency(rc) : "—"}
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -821,7 +821,8 @@ export default function ProductsPage() {
                               className="inline-flex items-center gap-1 bg-violet-100 text-violet-700 text-xs font-semibold px-3 py-1 rounded-full hover:bg-violet-200 transition"
                             >
                               <ChefHat size={12} />
-                              {product.recipes.length} bahan
+                              <span>{product.recipes.length} </span>
+                              <span>bahan</span>
                             </button>
                           ) : (
                             <span className="text-gray-300 text-sm">—</span>

@@ -67,25 +67,14 @@ export async function proxy(request: NextRequest) {
           }
         }
 
-        // Authenticated owner on root → redirect to /home
-        if (pathname === "/" && role === "Owner") {
-          return NextResponse.redirect(new URL("/home", request.url));
-        }
-
-        // Authenticated cashier on root → redirect to /pos
-        if (pathname === "/" && role === "Cashier") {
-          return NextResponse.redirect(new URL("/pos", request.url));
-        }
+          // Redirect ke /home dan /pos dari root dihapus, biarkan user tetap di '/'
       }
     } catch {
       // If role check fails, let the page handle it
     }
   }
 
-  // For authenticated users on root `/`, redirect to /home (default)
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
+    // Redirect default ke /home dihapus, biarkan user tetap di '/'
 
   return NextResponse.next();
 }
@@ -100,4 +89,7 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
+
+
+    // Tidak ada logic sisa di bawah, pastikan file ditutup dengan benar
 
