@@ -9,6 +9,7 @@
     "lint": "eslint",
     "fix:schema": "node ./scripts/fix-schema.mjs",
     "seed:mock-sales": "node ./scripts/seed-mock-sales.mjs",
+    "seed:biz11-150": "node ./scripts/seed-biz11-150days.mjs",
     "test:email": "node ./scripts/test-email.mjs",
     "xendit:smoke": "node ./scripts/xendit-invoice-smoke.mjs"
   },

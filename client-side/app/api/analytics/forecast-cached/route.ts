@@ -5,8 +5,14 @@ import { requireAuth, isAuthError } from "@/lib/auth/session";
 /**
  * GET /api/analytics/forecast-cached
  *
- * Returns the LAST computed ARIMA forecast stored in the DB without re-running the model.
- * The client should call POST /api/analytics/forecast to trigger a fresh computation.
+ * Returns the LAST computed forecast stored in the DB without re-running the model.
+ * The client should call POST /api/cron/generate-analytics to trigger a fresh computation.
+ *
+ * REFACTORED v2 - Now includes:
+ * - Adaptive lookback metadata
+ * - Price change detection notes
+ * - Forecast accuracy metrics (MAPE)
+ * - Per-product volatility/buffer info
  *
  * Response shape matches /api/analytics/forecast so the UI can use the same types.
  */
@@ -14,11 +20,29 @@ export async function GET() {
   try {
     const { businessId } = await requireAuth();
 
+    // Only return forecasts for today and the next 7 days (use UTC to avoid timezone issues)
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+    const maxDate = new Date(today);
+    maxDate.setUTCDate(maxDate.getUTCDate() + 8); // next 7 days + today as buffer
+
     // ─── Business forecast ──────────────────────────────────────────────
     const bizForecastRows = await prisma.businessForecast.findMany({
-      where: { businessId },
+      where: {
+        businessId,
+        date: { gte: today, lt: maxDate },
+      },
       orderBy: { date: "asc" },
     });
+
+    // Extract metadata from first forecast (all days share same metadata)
+    const forecastMetadata = bizForecastRows[0]?.metadata as {
+      lookbackDays?: number;
+      productsForecasted?: number;
+      priceChangesDetected?: boolean;
+      priceChangeNotes?: string[];
+      generatedAt?: string;
+    } | null;
 
     const businessForecast = bizForecastRows.map((r) => ({
       date: r.date.toISOString().split("T")[0],
@@ -30,10 +54,10 @@ export async function GET() {
     }));
 
     // ─── Product forecasts ──────────────────────────────────────────────
-    // Fetch all ProductForecast rows for products belonging to this business
     const prodForecastRows = await prisma.productForecast.findMany({
       where: {
         product: { businessId },
+        date: { gte: today, lt: maxDate },
       },
       include: {
         product: { select: { id: true, name: true } },
@@ -54,14 +78,24 @@ export async function GET() {
           upperBound: number;
           confidenceScore: number;
           recommendedProduction: string;
+          metadata?: object;
         }[];
         totalQty: number;
         dayCount: number;
+        volatilityLevel?: string;
+        bufferPercent?: number;
       }
     >();
 
     for (const row of prodForecastRows) {
       const pid = row.product.id;
+      const rowMetadata = row.metadata as {
+        volatilityLevel?: string;
+        bufferPercent?: number;
+        method?: string;
+        seasonalityMultiplier?: number;
+      } | null;
+
       if (!productMap.has(pid)) {
         productMap.set(pid, {
           productId: pid,
@@ -69,6 +103,8 @@ export async function GET() {
           forecast: [],
           totalQty: 0,
           dayCount: 0,
+          volatilityLevel: rowMetadata?.volatilityLevel,
+          bufferPercent: rowMetadata?.bufferPercent,
         });
       }
       const entry = productMap.get(pid)!;
@@ -79,6 +115,7 @@ export async function GET() {
         upperBound: row.upperBound,
         confidenceScore: Number(row.confidenceScore),
         recommendedProduction: row.recommendedProduction ?? "",
+        metadata: rowMetadata ?? undefined,
       });
       entry.totalQty += row.predictedQty;
       entry.dayCount++;
@@ -89,21 +126,52 @@ export async function GET() {
       productName: p.productName,
       forecast: p.forecast,
       avgDailyQty: p.dayCount > 0 ? Math.round(p.totalQty / p.dayCount) : 0,
+      volatilityLevel: p.volatilityLevel,
+      bufferPercent: p.bufferPercent,
     }));
 
-    // ─── Metadata  ──────────────────────────────────────────────────────
-    const lastComputed = bizForecastRows[0]?.updatedAt ?? null;
+    // ─── Forecast Accuracy Metrics ──────────────────────────────────────
+    const accuracyData = await prisma.forecastAccuracy.findUnique({
+      where: { businessId },
+    });
 
-    // Check if forecasts were generated from product-level data
-    // If no product forecasts exist, the business forecast is from fallback (historical average)
+    const accuracy = accuracyData
+      ? {
+          accuracy7d: accuracyData.accuracy7d ? Number(accuracyData.accuracy7d) : null,
+          accuracy30d: accuracyData.accuracy30d ? Number(accuracyData.accuracy30d) : null,
+          mape7d: accuracyData.mape7d ? Number(accuracyData.mape7d) : null,
+          mape30d: accuracyData.mape30d ? Number(accuracyData.mape30d) : null,
+          sampleSize7d: accuracyData.sampleSize7d,
+          sampleSize30d: accuracyData.sampleSize30d,
+          lastEvaluatedAt: accuracyData.lastEvaluatedAt?.toISOString() ?? null,
+        }
+      : null;
+
+    // ─── Metadata ───────────────────────────────────────────────────────
+    const lastComputed = bizForecastRows[0]?.updatedAt ?? null;
     const hasSufficientData = productForecasts.length > 0;
 
     return NextResponse.json({
       success: true,
       cached: true,
       lastComputed: lastComputed ? lastComputed.toISOString() : null,
-      modelInfo: { arima: "ARIMA(1,1,1)", lookback: 30, horizon: 7 },
+      modelInfo: {
+        arima: "ARIMA(auto)",
+        lookback: forecastMetadata?.lookbackDays ?? 30,
+        horizon: 7,
+        features: [
+          "adaptive-lookback",
+          "weekly-seasonality",
+          "price-change-detection",
+          "non-linear-confidence",
+          "dynamic-buffer",
+          "accuracy-tracking",
+        ],
+      },
       hasSufficientData,
+      accuracy,
+      priceChangesDetected: forecastMetadata?.priceChangesDetected ?? false,
+      priceChangeNotes: forecastMetadata?.priceChangeNotes ?? [],
       businessForecast,
       productForecasts,
     });
