@@ -1296,19 +1296,35 @@ function GrowthSection() {
   }));
 
   // Append forecast points to chart (semi-transparent predicted bars)
-  const forecastPoints = forecastData.map((f) => ({
-    date: f.date,
-    revenue: null as number | null,
-    profit: null as number | null,
-    growthRate: 0,
-    label: new Date(f.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
-    movingAvg: null,
-    marginPct: null,
-    isForecast: true,
-    predicted: null as number | null,
-    predictedRevenue: f.predictedRevenue,
-    predictedProfit: f.predictedProfit,
-  }));
+  // Calculate rolling 7-day average for forecast (continuing from actual data)
+  // Combine last 6 actual revenues with forecast revenues for rolling calculation
+  const lastActualRevenues = dailyChartData.slice(-6).map((d) => d.revenue ?? 0);
+  const forecastRevenues = forecastData.map((f) => f.predictedRevenue);
+  const combinedRevenues = [...lastActualRevenues, ...forecastRevenues];
+
+  const forecastPoints = forecastData.map((f, i) => {
+    // For each forecast day, calculate 7-day rolling average
+    // using previous actual data + forecast data up to this point
+    const startIdx = i; // starts at 0 which means lastActualRevenues[0..5] + forecastRevenues[0]
+    const windowValues = combinedRevenues.slice(startIdx, startIdx + 7);
+    const rollingAvg =
+      windowValues.length > 0 ? Math.round(windowValues.reduce((sum, v) => sum + v, 0) / windowValues.length) : 0;
+
+    return {
+      date: f.date,
+      revenue: null as number | null,
+      profit: null as number | null,
+      growthRate: 0,
+      label: new Date(f.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
+      movingAvg: null,
+      marginPct: null,
+      isForecast: true,
+      predicted: null as number | null,
+      predictedRevenue: f.predictedRevenue,
+      predictedProfit: f.predictedProfit,
+      predictedMovingAvg: rollingAvg,
+    };
+  });
 
   // Include forecast for both 7d and 30d views only when we have sufficient data
   const combinedChartData =
@@ -1541,6 +1557,10 @@ function GrowthSection() {
                     <span className="w-3 h-3 rounded bg-emerald-300/50 inline-block border border-dashed border-emerald-400" />
                     Prediksi Laba
                   </span>
+                  <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <span className="inline-block w-6 border-t-2 border-dashed border-violet-500" />
+                    Prediksi Rata-rata 7 hari
+                  </span>
                 </>
               )}
             </div>
@@ -1571,6 +1591,8 @@ function GrowthSection() {
                         return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Prediksi Pendapatan"];
                       if (name === "predictedProfit")
                         return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Prediksi Laba"];
+                      if (name === "predictedMovingAvg")
+                        return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Prediksi Rata-rata 7 hari"];
                       return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Pendapatan"];
                     }}
                   />
@@ -1622,6 +1644,20 @@ function GrowthSection() {
                     connectNulls={false}
                     name="movingAvg"
                   />
+                  {/* Forecast 7-day average line */}
+                  {forecastData.length > 0 && (
+                    <Line
+                      type="monotone"
+                      dataKey="predictedMovingAvg"
+                      stroke="#8b5cf6"
+                      strokeWidth={2}
+                      strokeDasharray="5 3"
+                      dot={false}
+                      activeDot={{ r: 4, fill: "#8b5cf6" }}
+                      connectNulls={false}
+                      name="predictedMovingAvg"
+                    />
+                  )}
                 </ComposedChart>
               </ResponsiveContainer>
             )}
