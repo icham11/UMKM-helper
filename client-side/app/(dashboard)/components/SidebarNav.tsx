@@ -58,12 +58,12 @@ export default function SidebarNav() {
       {/* Section: Analytics — consolidated single page */}
       {isOwner && (
         <div className="mb-6">
-          <div className="text-xs font-semibold text-gray-400 mb-2">Analytics</div>
+          <div className="text-xs font-semibold text-gray-400 mb-2">Analitik</div>
           <Link
             href="/analytics"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-indigo-50 transition"
           >
-            <BarChart3 className="w-4 h-4" /> Analytics
+            <BarChart3 className="w-4 h-4" /> Laporan & Analisa
           </Link>
         </div>
       )}
@@ -71,13 +71,12 @@ export default function SidebarNav() {
       {/* Section: AI Tools — Owner only */}
       {isOwner && (
         <div className="mb-6">
-          <div className="text-xs font-semibold text-gray-400 mb-2">AI Tools</div>
+          <div className="text-xs font-semibold text-gray-400 mb-2">Pusat AI</div>
           <Link
             href="/dashboard/ai-analysis"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-indigo-50 transition"
           >
-            <Bot className="w-5 h-5" /> AI Center
-
+            <Bot className="w-5 h-5" /> Asisten Pintar
           </Link>
         </div>
       )}
@@ -89,20 +88,19 @@ export default function SidebarNav() {
           href="/pos"
           className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-blue-50 transition"
         >
-          <ShoppingCart className="w-5 h-5" /> POS
+          <ShoppingCart className="w-5 h-5" /> Kasir
         </Link>
         <Link
           href="/dashboard/sales-history"
           className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-blue-50 transition"
         >
-          <History className="w-4 h-4" /> Sales History
+          <History className="w-4 h-4" /> Riwayat Penjualan
         </Link>
         <Link
           href="/dashboard/debts"
           className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-amber-50 transition"
         >
-          <BookOpen className="w-4 h-4" /> Kasbon (Paylater)
-
+          <BookOpen className="w-4 h-4" /> Utang Pelanggan
         </Link>
         <Link
           href="/dashboard/shift-history"
@@ -115,7 +113,7 @@ export default function SidebarNav() {
             href="/dashboard/export"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-green-50 transition"
           >
-            <FileDown className="w-4 h-4" /> Export Data
+            <FileDown className="w-4 h-4" /> Unduh Laporan
           </Link>
         )}
       </div>
@@ -128,19 +126,19 @@ export default function SidebarNav() {
             href="/dashboard/products"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <Package className="w-5 h-5" /> Products
+            <Package className="w-5 h-5" /> Daftar Produk
           </Link>
           <Link
             href="/dashboard/production"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
           >
-            <Factory className="w-4 h-4" /> Production
+            <Factory className="w-4 h-4" /> Proses Produksi
           </Link>
           <Link
             href="/dashboard/ingredients"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <Boxes className="w-4 h-4" /> Ingredients
+            <Boxes className="w-4 h-4" /> Bahan Baku
           </Link>
         </div>
       )}
@@ -153,19 +151,19 @@ export default function SidebarNav() {
             href="/dashboard/business"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <Building2 className="w-5 h-5" /> Business
+            <Building2 className="w-5 h-5" /> Data Usaha
           </Link>
           <Link
             href="/dashboard/profile"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <User className="w-4 h-4" /> Profile
+            <User className="w-4 h-4" /> Profile Saya
           </Link>
           <Link
             href="/dashboard/staff"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <Users className="w-4 h-4" /> Staff Management
+            <Users className="w-4 h-4" /> Kelola Pegawai
           </Link>
         </div>
       )}

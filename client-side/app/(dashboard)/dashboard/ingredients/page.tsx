@@ -188,7 +188,7 @@ export default function IngredientsPage() {
       {/* HEADER */}
       <div className="flex justify-between items-center bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
         <div>
-          <h1 className="text-3xl font-bold text-white">Ingredients</h1>
+          <h1 className="text-3xl font-bold text-white">Bahan Baku</h1>
           <p className="text-indigo-100">Kelola stok bahan baku dengan visual & batch tracking.</p>
         </div>
 
