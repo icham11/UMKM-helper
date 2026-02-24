@@ -96,9 +96,7 @@ export default function SidebarNav() {
             className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-linear-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition"
           >
             <Bot className="w-5 h-5" /> AI Center
-            <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">
-              NEW
-            </span>
+
           </Link>
         </div>
       )}
@@ -120,18 +118,16 @@ export default function SidebarNav() {
         </Link>
         <Link
           href="/dashboard/debts"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-amber-700 hover:bg-amber-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-amber-50 transition"
         >
-          <BookOpen className="w-4 h-4" /> Kasbon
-          <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">
-            NEW
-          </span>
+          <BookOpen className="w-4 h-4" /> Kasbon (Paylater)
+
         </Link>
         <Link
           href="/dashboard/shift-history"
           className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
         >
-          <Clock className="w-4 h-4" /> Tutup Kasir
+          <Clock className="w-4 h-4" /> Closing (Cashier)
         </Link>
         {isOwner && (
           <Link
@@ -155,9 +151,9 @@ export default function SidebarNav() {
           </Link>
           <Link
             href="/dashboard/production"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-emerald-700 hover:bg-emerald-50 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
           >
-            <Factory className="w-4 h-4" /> Produksi
+            <Factory className="w-4 h-4" /> Production
           </Link>
           <Link
             href="/dashboard/ingredients"
