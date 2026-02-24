@@ -260,6 +260,7 @@ export default function CreateProductsPage() {
         name: d.name,
         categoryName: d.categoryName,
         sellingPrice: d.sellingPrice,
+        productType: d.productType ?? "PreOrder",
         recipe: d.recipe
           .filter((r) => r.ingredientId > 0)
           .map((r) => ({ ingredientId: r.ingredientId, quantity: r.quantity })),
