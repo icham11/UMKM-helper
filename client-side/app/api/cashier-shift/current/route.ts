@@ -14,7 +14,6 @@ export async function GET() {
   try {
     const auth = await requireAuth();
 
-    // @ts-expect-error CashierShift types pending refresh
     const shift = await prisma.cashierShift.findFirst({
       where: { businessId: auth.businessId, status: "Open" },
       include: {

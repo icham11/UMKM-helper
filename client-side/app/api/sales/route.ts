@@ -194,7 +194,6 @@ export async function POST(request: NextRequest) {
     // Look up active cashier shift (soft guard — don't block if shift feature not used yet)
     let activeShift: { id: number } | null = null;
     try {
-      // @ts-expect-error CashierShift types pending refresh
       activeShift = await prisma.cashierShift.findFirst({
         where: { businessId, status: "Open" },
         select: { id: true },

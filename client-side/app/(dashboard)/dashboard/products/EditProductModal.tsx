@@ -72,7 +72,17 @@ export default function EditProductModal({ product, categories, onClose, onSaved
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Gagal update produk");
+      if (!res.ok) {
+        // Show field-level details if available
+        const details = data.details;
+        if (details && typeof details === "object") {
+          const msgs = Object.entries(details)
+            .map(([field, errs]) => `${field}: ${(errs as string[]).join(", ")}`)
+            .join("; ");
+          throw new Error(msgs || data.error || "Gagal update produk");
+        }
+        throw new Error(data.error ?? "Gagal update produk");
+      }
       onSaved(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal update produk");

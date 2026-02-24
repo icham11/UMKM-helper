@@ -27,7 +27,6 @@ export async function POST(request: NextRequest) {
     const { openingCash } = parsed.data;
 
     // Check if there's already an open shift
-    // @ts-expect-error CashierShift types pending refresh
     const existingShift = await prisma.cashierShift.findFirst({
       where: { businessId: auth.businessId, status: "Open" },
       select: { id: true, openedAt: true, openedBy: { select: { name: true } } },
@@ -42,7 +41,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // @ts-expect-error CashierShift types pending refresh
     const shift = await prisma.cashierShift.create({
       data: {
         businessId: auth.businessId,

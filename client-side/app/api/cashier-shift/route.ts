@@ -26,7 +26,6 @@ export async function GET(request: NextRequest) {
     };
 
     const [shifts, total] = await Promise.all([
-      // @ts-expect-error CashierShift types pending refresh
       prisma.cashierShift.findMany({
         where,
         include: {
@@ -37,7 +36,6 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      // @ts-expect-error CashierShift types pending refresh
       prisma.cashierShift.count({ where }),
     ]);
 

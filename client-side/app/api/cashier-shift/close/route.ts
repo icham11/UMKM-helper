@@ -29,7 +29,6 @@ export async function POST(request: Request) {
     const result = await prisma.$transaction(
       async (tx) => {
         // 1. Find active shift
-        // @ts-expect-error CashierShift types pending refresh
         const shift = await tx.cashierShift.findFirst({
           where: { businessId: auth.businessId, status: "Open" },
         });
@@ -88,7 +87,6 @@ export async function POST(request: Request) {
         const discrepancy = actualCash - expectedCash;
 
         // 4. Close the shift
-        // @ts-expect-error CashierShift types pending refresh
         return tx.cashierShift.update({
           where: { id: shift.id },
           data: {
