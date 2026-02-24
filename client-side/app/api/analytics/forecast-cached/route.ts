@@ -153,9 +153,24 @@ export async function GET() {
         }
       : null;
 
+    // ─── Sufficiency Check ─────────────────────────────────────────────
+    // Require at least 7 distinct days with non-zero revenue in the last 30 days
+    const MIN_DATA_DAYS = 7;
+    const since30d = new Date(today);
+    since30d.setUTCDate(since30d.getUTCDate() - 30);
+    const revenueMetrics = await prisma.businessMetrics.findMany({
+      where: {
+        businessId,
+        date: { gte: since30d, lt: today },
+        totalRevenue: { gt: 0 },
+      },
+      select: { date: true },
+    });
+    const nonZeroRevenueDays = revenueMetrics.length;
+    const hasSufficientData = nonZeroRevenueDays >= MIN_DATA_DAYS;
+
     // ─── Metadata ───────────────────────────────────────────────────────
     const lastComputed = bizForecastRows[0]?.updatedAt ?? null;
-    const hasSufficientData = productForecasts.length > 0;
 
     return NextResponse.json({
       success: true,
@@ -175,11 +190,13 @@ export async function GET() {
         ],
       },
       hasSufficientData,
+      nonZeroRevenueDays,
+      minDataDays: MIN_DATA_DAYS,
       accuracy,
       priceChangesDetected: forecastMetadata?.priceChangesDetected ?? false,
       priceChangeNotes: forecastMetadata?.priceChangeNotes ?? [],
-      businessForecast,
-      productForecasts,
+      businessForecast: hasSufficientData ? businessForecast : [],
+      productForecasts: hasSufficientData ? productForecasts : [],
     });
   } catch (error) {
     if (isAuthError(error)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

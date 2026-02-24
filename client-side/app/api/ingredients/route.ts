@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       }
 
       const results = await prisma.$transaction(async (tx) => {
-        const created = [];
+        const created: Awaited<ReturnType<typeof tx.ingredient.create>>[] = [];
 
         for (const item of parsed.data.ingredients) {
           // Find-or-create to avoid duplicates

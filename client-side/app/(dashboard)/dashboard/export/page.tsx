@@ -166,7 +166,7 @@ export default function ExportPage() {
           <div className="p-2.5 bg-linear-to-br from-green-500 to-emerald-500 rounded-xl text-white">
             <Download className="w-7 h-7" />
           </div>
-          Export Data
+          Unduh Laporan
         </h1>
         <p className="text-gray-500 mt-1">
           Download data transaksi &amp; inventori dalam format CSV atau Excel untuk laporan akhir bulan, pajak, atau pembukuan
@@ -321,7 +321,7 @@ export default function ExportPage() {
               ) : (
                 <>
                   <FileDown className="w-5 h-5" />
-                  Download {format.toUpperCase()}
+                  Unduh {format.toUpperCase()}
                 </>
               )}
             </button>

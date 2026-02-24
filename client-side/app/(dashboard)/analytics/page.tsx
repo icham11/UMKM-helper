@@ -469,6 +469,7 @@ export default function AnalyticsPage() {
   const showDateFilter = activeTab === "overview" || activeTab === "products";
   const [hasData, setHasData] = useState<boolean | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   async function handleManualGenerate() {
     setGenerating(true);
@@ -484,7 +485,7 @@ export default function AnalyticsPage() {
     }
   }
 
-  // Check if business has any metrics data
+  // Check if business has any metrics data + fetch last updated timestamp
   useEffect(() => {
     async function check() {
       try {
@@ -498,7 +499,19 @@ export default function AnalyticsPage() {
         setHasData(true); // assume data exists on error
       }
     }
+    async function fetchLastUpdated() {
+      try {
+        const res = await fetch("/api/analytics/last-updated");
+        if (res.ok) {
+          const json = await res.json();
+          setLastUpdated(json.lastUpdated ?? null);
+        }
+      } catch {
+        /* non-critical */
+      }
+    }
     check();
+    fetchLastUpdated();
   }, []);
 
   if (hasData === null) {
@@ -529,6 +542,25 @@ export default function AnalyticsPage() {
               <BarChart3 className="w-8 h-8" /> Analitik
             </h1>
             <p className="text-sm text-gray-500 mt-1">Wawasan bisnis, performa & prediksi penjualan</p>
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
+              {lastUpdated ? (
+                <span>
+                  Terakhir diperbarui:{" "}
+                  <span className="font-medium text-gray-500">
+                    {new Date(lastUpdated).toLocaleString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </span>
+              ) : (
+                <span>Analytics belum pernah di-generate</span>
+              )}
+            </div>
           </div>
 
           {/* Date range switcher + Generate button */}
@@ -1178,6 +1210,8 @@ function GrowthSection() {
   const [growth, setGrowth] = useState<GrowthComparison | null>(null);
   const [forecastData, setForecastData] = useState<BizForecastDay[]>([]);
   const [hasSufficientData, setHasSufficientData] = useState(true);
+  const [nonZeroRevenueDays, setNonZeroRevenueDays] = useState(0);
+  const [minDataDays, setMinDataDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const insights = useInsights();
 
@@ -1238,6 +1272,8 @@ function GrowthSection() {
         const json = await res.json();
         setForecastData(json.businessForecast ?? []);
         setHasSufficientData(json.hasSufficientData ?? false);
+        setNonZeroRevenueDays(json.nonZeroRevenueDays ?? 0);
+        setMinDataDays(json.minDataDays ?? 7);
       }
     } catch {
       /* non-critical */
@@ -1360,18 +1396,43 @@ function GrowthSection() {
             " Batang transparan di ujung kanan menunjukkan prediksi AI untuk 7 hari ke depan."}
         </p>
         {!hasSufficientData && (granularity === "30d" || granularity === "7d") && (
-          <div className="mt-2 flex items-center gap-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg px-4 py-2">
-            <svg className="w-5 h-5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-              <path
-                fillRule="evenodd"
-                d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span className="text-sm font-medium">
-              Data penjualan produk belum cukup untuk membuat prediksi AI. Diperlukan minimal beberapa hari data per
-              produk.
-            </span>
+          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800">Data belum cukup untuk prediksi AI</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Diperlukan minimal <span className="font-bold">{minDataDays} hari</span> dengan transaksi dalam 30
+                  hari terakhir.
+                </p>
+                {/* Progress bar */}
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-amber-700 mb-1">
+                    <span>Progress data</span>
+                    <span className="font-bold">
+                      {nonZeroRevenueDays} / {minDataDays} hari
+                    </span>
+                  </div>
+                  <div className="w-full bg-amber-200 rounded-full h-2">
+                    <div
+                      className="bg-amber-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min(100, (nonZeroRevenueDays / minDataDays) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-amber-600 mt-1">
+                    {nonZeroRevenueDays === 0
+                      ? "Belum ada transaksi tercatat."
+                      : `Butuh ${Math.max(0, minDataDays - nonZeroRevenueDays)} hari lagi untuk mengaktifkan prediksi.`}
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -1531,7 +1592,14 @@ function GrowthSection() {
             <div className="flex items-start justify-between mb-1">
               <h3 className="text-base font-bold text-indigo-700">
                 Pendapatan &amp; Laba Harian (
-                {granularity === "7d" ? "1 Minggu + Prediksi" : "30 Hari + 7 Hari Prediksi"})
+                {granularity === "7d"
+                  ? hasSufficientData
+                    ? "1 Minggu + Prediksi"
+                    : "1 Minggu"
+                  : hasSufficientData
+                    ? "30 Hari + 7 Hari Prediksi"
+                    : "30 Hari"}
+                )
               </h3>
             </div>
             {/* Legend */}
@@ -1548,7 +1616,7 @@ function GrowthSection() {
                 <span className="inline-block w-6 border-t-2 border-dashed border-orange-400" />
                 Rata-rata 7 hari
               </span>
-              {forecastData.length > 0 && (
+              {hasSufficientData && forecastData.length > 0 && (
                 <>
                   <span className="flex items-center gap-1.5 text-xs text-gray-500">
                     <span className="w-3 h-3 rounded bg-indigo-300/50 inline-block border border-dashed border-indigo-400" />
@@ -1600,7 +1668,7 @@ function GrowthSection() {
                   <Bar dataKey="revenue" fill="#818cf8" radius={[4, 4, 0, 0]} name="revenue" />
                   <Bar dataKey="profit" fill="#6ee7b7" radius={[4, 4, 0, 0]} name="profit" />
                   {/* Forecast bars — semi-transparent, appended after actual data */}
-                  {forecastData.length > 0 && (
+                  {hasSufficientData && forecastData.length > 0 && (
                     <Bar
                       dataKey="predictedRevenue"
                       fill="#818cf8"
@@ -1612,7 +1680,7 @@ function GrowthSection() {
                       strokeWidth={1}
                     />
                   )}
-                  {forecastData.length > 0 && (
+                  {hasSufficientData && forecastData.length > 0 && (
                     <Bar
                       dataKey="predictedProfit"
                       fill="#6ee7b7"
@@ -1625,7 +1693,7 @@ function GrowthSection() {
                     />
                   )}
                   {/* Forecast boundary reference line */}
-                  {forecastData.length > 0 && dailyChartData.length > 0 && (
+                  {hasSufficientData && forecastData.length > 0 && dailyChartData.length > 0 && (
                     <ReferenceLine
                       x={dailyChartData[dailyChartData.length - 1].label}
                       stroke="#8b5cf6"
@@ -1646,7 +1714,7 @@ function GrowthSection() {
                     name="movingAvg"
                   />
                   {/* Forecast 7-day average line */}
-                  {forecastData.length > 0 && (
+                  {hasSufficientData && forecastData.length > 0 && (
                     <Line
                       type="monotone"
                       dataKey="predictedMovingAvg"
@@ -1671,7 +1739,7 @@ function GrowthSection() {
           </div>
 
           {/* Forecast summary card */}
-          {forecastData.length > 0 && (granularity === "30d" || granularity === "7d") && (
+          {hasSufficientData && forecastData.length > 0 && (granularity === "30d" || granularity === "7d") && (
             <div className="bg-linear-to-r from-violet-50 to-indigo-50 rounded-2xl border border-violet-200 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="w-5 h-5 text-violet-600" />

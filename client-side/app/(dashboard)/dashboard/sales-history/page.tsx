@@ -287,8 +287,8 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
               >
-                <option value="All">All Methods</option>
-                <option value="Cash">Cash</option>
+                <option value="All">Metode Pembayaran</option>
+                <option value="Cash">Tunai</option>
                 <option value="QRIS">QRIS</option>
                 <option value="Transfer">Transfer</option>
                 <option value="Digital">Digital</option>
@@ -304,9 +304,9 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
               >
-                <option value="All">All Status</option>
-                <option value="Paid">Paid</option>
-                <option value="Pending">Pending</option>
+                <option value="All">Status Pembayaran</option>
+                <option value="Paid">Lunas</option>
+                <option value="Pending">Belum Lunas</option>
               </select>
             </div>
 
@@ -318,10 +318,10 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
               >
-                <option value="All">All Time</option>
-                <option value="Today">Today</option>
-                <option value="Week">This Week</option>
-                <option value="Month">This Month</option>
+                <option value="All">Hari,Minggu,Bulan</option>
+                <option value="Today">Hari Ini</option>
+                <option value="Week">Minggu Ini</option>
+                <option value="Month">Bulan Ini</option>
               </select>
             </div>
           </div>
@@ -334,28 +334,28 @@ export default function SalesHistoryPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Transaction
+                    Nomor Transaksi
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Customer
+                    Pelanggan
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Items
+                    Item
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Amount
+                    Jumlah
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Payment
+                    Pembayaran
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Date
+                    Tanggal
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
+                    Print Tagihan
                   </th>
                 </tr>
               </thead>
