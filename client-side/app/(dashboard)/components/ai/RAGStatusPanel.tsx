@@ -150,20 +150,24 @@ export default function RAGStatusPanel() {
 
         {/* Status Cards */}
         <div className="p-6">
-          <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className={`text-3xl font-bold ${status?.indexed ? "text-green-600" : "text-red-500"}`}>
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+            <div className="bg-gray-50 rounded-xl p-3 sm:p-4 text-center">
+              <div
+                className={`text-2xl sm:text-3xl font-bold ${status?.indexed ? "text-green-600" : "text-red-500"}`}
+              >
                 {status?.indexed ? "✅" : "❌"}
               </div>
-              <div className="text-xs text-gray-500 mt-1 font-medium">
+              <div className="text-[10px] sm:text-xs text-gray-500 mt-1 font-medium">
                 {status?.indexed ? "Terindeks" : "Belum Terindeks"}
               </div>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-indigo-600">
+            <div className="bg-gray-50 rounded-xl p-3 sm:p-4 text-center">
+              <div className="text-2xl sm:text-3xl font-bold text-indigo-600">
                 {status?.documentCount || 0}
               </div>
-              <div className="text-xs text-gray-500 mt-1 font-medium">Dokumen Vektor</div>
+              <div className="text-xs text-gray-500 mt-1 font-medium">
+                Dokumen Vektor
+              </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 text-center">
               <div className="text-sm font-medium text-gray-700">
@@ -176,7 +180,9 @@ export default function RAGStatusPanel() {
                     })
                   : "—"}
               </div>
-              <div className="text-xs text-gray-500 mt-1 font-medium">Terakhir Update</div>
+              <div className="text-xs text-gray-500 mt-1 font-medium">
+                Terakhir Update
+              </div>
             </div>
           </div>
 
@@ -184,11 +190,25 @@ export default function RAGStatusPanel() {
           <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-800">
             <p className="font-semibold mb-2">🔬 Cara Kerja RAG:</p>
             <ol className="list-decimal list-inside space-y-1 text-xs">
-              <li>Data bisnis (produk, bahan, penjualan, resep) dipecah menjadi dokumen kecil</li>
-              <li>Tiap dokumen dikonversi menjadi vektor 768 dimensi oleh Gemini AI</li>
-              <li>Saat user bertanya, pertanyaan juga dikonversi menjadi vektor</li>
-              <li>Sistem mencari dokumen terdekat (cosine similarity) — bukan SEMUA data</li>
-              <li>Hanya dokumen yang relevan dikirim ke LLM → jawaban lebih akurat & hemat token</li>
+              <li>
+                Data bisnis (produk, bahan, penjualan, resep) dipecah menjadi
+                dokumen kecil
+              </li>
+              <li>
+                Tiap dokumen dikonversi menjadi vektor 768 dimensi oleh Gemini
+                AI
+              </li>
+              <li>
+                Saat user bertanya, pertanyaan juga dikonversi menjadi vektor
+              </li>
+              <li>
+                Sistem mencari dokumen terdekat (cosine similarity) — bukan
+                SEMUA data
+              </li>
+              <li>
+                Hanya dokumen yang relevan dikirim ke LLM → jawaban lebih akurat
+                & hemat token
+              </li>
             </ol>
           </div>
 
@@ -210,7 +230,8 @@ export default function RAGStatusPanel() {
           🔍 Test Pencarian Semantik
         </h3>
         <p className="text-xs text-gray-500 mb-3">
-          Coba ketik pertanyaan dan lihat dokumen mana yang dianggap paling relevan oleh AI.
+          Coba ketik pertanyaan dan lihat dokumen mana yang dianggap paling
+          relevan oleh AI.
         </p>
         <div className="flex gap-2 mb-3">
           <input
@@ -278,7 +299,9 @@ export default function RAGStatusPanel() {
                     <div className="h-1.5 w-16 bg-gray-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-indigo-500 rounded-full"
-                        style={{ width: `${Math.min(r.similarity * 100, 100)}%` }}
+                        style={{
+                          width: `${Math.min(r.similarity * 100, 100)}%`,
+                        }}
                       />
                     </div>
                     <span className="text-xs text-gray-500 font-mono">
@@ -303,4 +326,3 @@ export default function RAGStatusPanel() {
     </div>
   );
 }
-

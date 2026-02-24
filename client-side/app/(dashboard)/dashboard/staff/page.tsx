@@ -92,7 +92,9 @@ export default function StaffPage() {
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
   // Filter
-  const [filterBusinessId, setFilterBusinessId] = useState<number | "all">("all");
+  const [filterBusinessId, setFilterBusinessId] = useState<number | "all">(
+    "all",
+  );
 
   // ── Fetch Staff ──
   const fetchStaff = useCallback(async () => {
@@ -125,7 +127,8 @@ export default function StaffPage() {
   function generatePassword() {
     const chars = "abcdefghijkmnpqrstuvwxyz23456789";
     let pw = "";
-    for (let i = 0; i < 8; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+    for (let i = 0; i < 8; i++)
+      pw += chars[Math.floor(Math.random() * chars.length)];
     setRegPassword(pw);
     setShowPassword(true);
   }
@@ -139,7 +142,8 @@ export default function StaffPage() {
 
   // ── Register new kasir ──
   async function handleRegister() {
-    if (!regName.trim() || !regEmail.trim() || !regPassword || !regBusinessId) return;
+    if (!regName.trim() || !regEmail.trim() || !regPassword || !regBusinessId)
+      return;
     setRegistering(true);
     try {
       const res = await fetch("/api/staff/register", {
@@ -187,7 +191,10 @@ export default function StaffPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: inviteEmail.trim(), businessId: inviteBusinessId }),
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          businessId: inviteBusinessId,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -242,7 +249,11 @@ export default function StaffPage() {
 
   // ── Remove member ──
   async function handleRemove(memberId: number) {
-    if (!confirm("Yakin ingin menghapus staff ini? Mereka tidak bisa mengakses bisnis Anda lagi."))
+    if (
+      !confirm(
+        "Yakin ingin menghapus staff ini? Mereka tidak bisa mengakses bisnis Anda lagi.",
+      )
+    )
       return;
     setDeletingId(memberId);
     try {
@@ -277,7 +288,9 @@ export default function StaffPage() {
       <div className="flex flex-col items-center justify-center py-20 text-gray-400">
         <Shield className="w-16 h-16 mb-4 opacity-40" />
         <h2 className="text-xl font-bold text-gray-600">Akses Ditolak</h2>
-        <p className="text-sm mt-2">Hanya pemilik bisnis yang bisa mengelola staff.</p>
+        <p className="text-sm mt-2">
+          Hanya pemilik bisnis yang bisa mengelola staff.
+        </p>
       </div>
     );
   }
@@ -311,14 +324,17 @@ export default function StaffPage() {
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
       {/* ═══ Header ═══ */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2.5 bg-linear-to-br from-indigo-500 to-purple-500 rounded-xl text-white">
-            <Users className="w-7 h-7" />
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="p-2 sm:p-2.5 bg-linear-to-br from-indigo-500 to-purple-500 rounded-xl text-white">
+            <Users className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           Kelola Staff
         </h1>
-        <p className="text-gray-500 mt-1">
+        <p className="text-gray-500 mt-1 text-sm">
           Daftarkan kasir, atur bisnis penempatan, dan kelola tim Anda.
         </p>
       </motion.div>
@@ -330,12 +346,16 @@ export default function StaffPage() {
         transition={{ delay: 0.05 }}
         className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
       >
-        <h3 className="font-bold text-gray-900 text-sm mb-3">Perbedaan Hak Akses</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <h3 className="font-bold text-gray-900 text-sm mb-3">
+          Perbedaan Hak Akses
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-4 h-4 text-amber-600" />
-              <span className="font-bold text-amber-800 text-sm">Owner (Bos)</span>
+              <span className="font-bold text-amber-800 text-sm">
+                Owner (Bos)
+              </span>
             </div>
             <ul className="text-xs text-amber-700 space-y-1">
               <li>✅ Akses semua fitur</li>
@@ -355,9 +375,15 @@ export default function StaffPage() {
               <li>✅ POS (input transaksi)</li>
               <li>✅ Kasbon (catat piutang)</li>
               <li>✅ Riwayat penjualan</li>
-              <li>❌ <s>Margin & profit</s></li>
-              <li>❌ <s>Kelola produk/stok</s></li>
-              <li>❌ <s>Analytics & AI</s></li>
+              <li>
+                ❌ <s>Margin & profit</s>
+              </li>
+              <li>
+                ❌ <s>Kelola produk/stok</s>
+              </li>
+              <li>
+                ❌ <s>Analytics & AI</s>
+              </li>
             </ul>
           </div>
         </div>
@@ -373,7 +399,10 @@ export default function StaffPage() {
         {/* Tab bar */}
         <div className="flex border-b border-gray-100">
           <button
-            onClick={() => { setTabMode("register"); setNewCashierInfo(null); }}
+            onClick={() => {
+              setTabMode("register");
+              setNewCashierInfo(null);
+            }}
             className={`flex-1 py-3.5 text-sm font-semibold text-center transition cursor-pointer ${
               tabMode === "register"
                 ? "text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50"
@@ -386,7 +415,10 @@ export default function StaffPage() {
             </span>
           </button>
           <button
-            onClick={() => { setTabMode("existing"); setNewCashierInfo(null); }}
+            onClick={() => {
+              setTabMode("existing");
+              setNewCashierInfo(null);
+            }}
             className={`flex-1 py-3.5 text-sm font-semibold text-center transition cursor-pointer ${
               tabMode === "existing"
                 ? "text-indigo-700 border-b-2 border-indigo-600 bg-indigo-50/50"
@@ -405,7 +437,8 @@ export default function StaffPage() {
           {tabMode === "register" && (
             <div className="space-y-4">
               <p className="text-xs text-gray-400">
-                Buat akun baru untuk kasir Anda. Pilih bisnis penempatan, lalu berikan email dan password kepada kasir.
+                Buat akun baru untuk kasir Anda. Pilih bisnis penempatan, lalu
+                berikan email dan password kepada kasir.
               </p>
 
               {/* Success Card */}
@@ -420,45 +453,89 @@ export default function StaffPage() {
                     <div className="flex items-center gap-2">
                       <Check className="w-5 h-5 text-green-600" />
                       <p className="font-bold text-green-800 text-sm">
-                        {newCashierInfo.isNewAccount ? "Akun kasir berhasil dibuat!" : "Kasir berhasil ditambahkan!"}
+                        {newCashierInfo.isNewAccount
+                          ? "Akun kasir berhasil dibuat!"
+                          : "Kasir berhasil ditambahkan!"}
                       </p>
                     </div>
-                    <p className="text-xs text-green-700">Berikan info berikut kepada kasir agar mereka bisa login:</p>
+                    <p className="text-xs text-green-700">
+                      Berikan info berikut kepada kasir agar mereka bisa login:
+                    </p>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-green-200">
                         <div>
-                          <p className="text-[10px] text-gray-400 font-medium">Nama</p>
-                          <p className="text-sm font-semibold text-gray-900">{newCashierInfo.name}</p>
+                          <p className="text-[10px] text-gray-400 font-medium">
+                            Nama
+                          </p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {newCashierInfo.name}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-green-200">
                         <div>
-                          <p className="text-[10px] text-gray-400 font-medium">Ditempatkan di</p>
-                          <p className="text-sm font-semibold text-indigo-700">{newCashierInfo.businessName}</p>
+                          <p className="text-[10px] text-gray-400 font-medium">
+                            Ditempatkan di
+                          </p>
+                          <p className="text-sm font-semibold text-indigo-700">
+                            {newCashierInfo.businessName}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-green-200">
                         <div>
-                          <p className="text-[10px] text-gray-400 font-medium">Email (untuk login)</p>
-                          <p className="text-sm font-semibold text-gray-900">{newCashierInfo.email}</p>
+                          <p className="text-[10px] text-gray-400 font-medium">
+                            Email (untuk login)
+                          </p>
+                          <p className="text-sm font-semibold text-gray-900">
+                            {newCashierInfo.email}
+                          </p>
                         </div>
-                        <button onClick={() => copyToClipboard(newCashierInfo.email, "email")} className="text-green-600 hover:text-green-800 p-1 cursor-pointer">
-                          {copiedField === "email" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        <button
+                          onClick={() =>
+                            copyToClipboard(newCashierInfo.email, "email")
+                          }
+                          className="text-green-600 hover:text-green-800 p-1 cursor-pointer"
+                        >
+                          {copiedField === "email" ? (
+                            <Check className="w-4 h-4" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                       {newCashierInfo.isNewAccount && (
                         <div className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-green-200">
                           <div>
-                            <p className="text-[10px] text-gray-400 font-medium">Password (untuk login)</p>
-                            <p className="text-sm font-mono font-bold text-gray-900">{newCashierInfo.password}</p>
+                            <p className="text-[10px] text-gray-400 font-medium">
+                              Password (untuk login)
+                            </p>
+                            <p className="text-sm font-mono font-bold text-gray-900">
+                              {newCashierInfo.password}
+                            </p>
                           </div>
-                          <button onClick={() => copyToClipboard(newCashierInfo.password, "password")} className="text-green-600 hover:text-green-800 p-1 cursor-pointer">
-                            {copiedField === "password" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                          <button
+                            onClick={() =>
+                              copyToClipboard(
+                                newCashierInfo.password,
+                                "password",
+                              )
+                            }
+                            className="text-green-600 hover:text-green-800 p-1 cursor-pointer"
+                          >
+                            {copiedField === "password" ? (
+                              <Check className="w-4 h-4" />
+                            ) : (
+                              <Copy className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       )}
                     </div>
-                    <button onClick={() => setNewCashierInfo(null)} className="text-xs text-green-600 hover:text-green-800 font-medium mt-2 cursor-pointer">
+                    <button
+                      onClick={() => setNewCashierInfo(null)}
+                      className="text-xs text-green-600 hover:text-green-800 font-medium mt-2 cursor-pointer"
+                    >
                       ✕ Tutup & daftarkan lagi
                     </button>
                   </motion.div>
@@ -471,49 +548,101 @@ export default function StaffPage() {
                   {/* Business selector */}
                   {businesses.length > 1 && (
                     <div>
-                      <label className="text-xs font-semibold text-gray-600 mb-1 block">Penempatan Bisnis</label>
-                      <BusinessSelect value={regBusinessId} onChange={(v) => setRegBusinessId(v)} />
+                      <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                        Penempatan Bisnis
+                      </label>
+                      <BusinessSelect
+                        value={regBusinessId}
+                        onChange={(v) => setRegBusinessId(v)}
+                      />
                     </div>
                   )}
                   {/* Name */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Nama Kasir</label>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                      Nama Kasir
+                    </label>
                     <div className="relative">
                       <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type="text" value={regName} onChange={(e) => setRegName(e.target.value)} placeholder="Contoh: Siti Aisyah" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
+                      <input
+                        type="text"
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
+                        placeholder="Contoh: Siti Aisyah"
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400"
+                      />
                     </div>
                   </div>
                   {/* Email */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Email Kasir</label>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                      Email Kasir
+                    </label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="Contoh: siti@gmail.com" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
+                      <input
+                        type="email"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="Contoh: siti@gmail.com"
+                        className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400"
+                      />
                     </div>
                   </div>
                   {/* Password */}
                   <div>
-                    <label className="text-xs font-semibold text-gray-600 mb-1 block">Password Kasir</label>
+                    <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                      Password Kasir
+                    </label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input type={showPassword ? "text" : "password"} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="Minimal 6 karakter" className="w-full pl-9 pr-20 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Minimal 6 karakter"
+                        className="w-full pl-9 pr-20 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400"
+                      />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer">
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="p-1 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </div>
-                    <button type="button" onClick={generatePassword} className="mt-1.5 text-[11px] text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={generatePassword}
+                      className="mt-1.5 text-[11px] text-indigo-600 hover:text-indigo-800 font-medium cursor-pointer"
+                    >
                       🎲 Generate password otomatis
                     </button>
                   </div>
                   {/* Submit */}
                   <button
                     onClick={handleRegister}
-                    disabled={registering || !regName.trim() || !regEmail.trim() || !regPassword || regPassword.length < 6 || !regBusinessId}
+                    disabled={
+                      registering ||
+                      !regName.trim() ||
+                      !regEmail.trim() ||
+                      !regPassword ||
+                      regPassword.length < 6 ||
+                      !regBusinessId
+                    }
                     className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center gap-2"
                   >
-                    {registering ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                    {registering ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-4 h-4" />
+                    )}
                     Daftarkan Kasir
                   </button>
                 </div>
@@ -525,18 +654,39 @@ export default function StaffPage() {
           {tabMode === "existing" && (
             <div className="space-y-3">
               <p className="text-xs text-gray-400">
-                Tambahkan user yang <strong>sudah punya akun</strong> sebagai kasir. Pilih bisnis penempatannya.
+                Tambahkan user yang <strong>sudah punya akun</strong> sebagai
+                kasir. Pilih bisnis penempatannya.
               </p>
               {businesses.length > 1 && (
-                <BusinessSelect value={inviteBusinessId} onChange={(v) => setInviteBusinessId(v)} />
+                <BusinessSelect
+                  value={inviteBusinessId}
+                  onChange={(v) => setInviteBusinessId(v)}
+                />
               )}
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleInvite()} placeholder="email@kasir.com" className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400" />
+                  <input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleInvite()}
+                    placeholder="email@kasir.com"
+                    className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-300 focus:outline-none text-black placeholder-gray-400"
+                  />
                 </div>
-                <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || !inviteBusinessId} className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-2">
-                  {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                <button
+                  onClick={handleInvite}
+                  disabled={
+                    inviting || !inviteEmail.trim() || !inviteBusinessId
+                  }
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center gap-2"
+                >
+                  {inviting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="w-4 h-4" />
+                  )}
                   Tambahkan
                 </button>
               </div>
@@ -560,12 +710,18 @@ export default function StaffPage() {
           {businesses.length > 1 && (
             <select
               value={filterBusinessId}
-              onChange={(e) => setFilterBusinessId(e.target.value === "all" ? "all" : Number(e.target.value))}
+              onChange={(e) =>
+                setFilterBusinessId(
+                  e.target.value === "all" ? "all" : Number(e.target.value),
+                )
+              }
               className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-50 focus:ring-2 focus:ring-indigo-300 focus:outline-none cursor-pointer"
             >
               <option value="all">Semua Bisnis</option>
               {businesses.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
               ))}
             </select>
           )}
@@ -584,11 +740,16 @@ export default function StaffPage() {
                   <Crown className="w-5 h-5 text-amber-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm">{owner.name}</p>
+                  <p className="font-semibold text-gray-900 text-sm">
+                    {owner.name}
+                  </p>
                   <p className="text-xs text-gray-500">{owner.email}</p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {businesses.map((b) => (
-                      <span key={b.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded-full">
+                      <span
+                        key={b.id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded-full"
+                      >
                         <Building2 className="w-2.5 h-2.5" /> {b.name}
                       </span>
                     ))}
@@ -602,19 +763,26 @@ export default function StaffPage() {
 
             {/* Members */}
             {filteredMembers.map((member) => (
-              <div key={member.id} className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition">
+              <div
+                key={member.id}
+                className="px-5 py-4 flex items-center gap-4 hover:bg-gray-50 transition"
+              >
                 <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
                   <BadgeCheck className="w-5 h-5 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-gray-900 text-sm">{member.name}</p>
+                  <p className="font-semibold text-gray-900 text-sm">
+                    {member.name}
+                  </p>
                   <p className="text-xs text-gray-500">{member.email}</p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-semibold rounded-full">
-                      <Building2 className="w-2.5 h-2.5" /> {member.businessName}
+                      <Building2 className="w-2.5 h-2.5" />{" "}
+                      {member.businessName}
                     </span>
                     <span className="text-[10px] text-gray-400">
-                      Bergabung: {new Date(member.joinedAt).toLocaleDateString("id-ID")}
+                      Bergabung:{" "}
+                      {new Date(member.joinedAt).toLocaleDateString("id-ID")}
                     </span>
                   </div>
                 </div>
@@ -636,7 +804,11 @@ export default function StaffPage() {
                   className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer disabled:opacity-50"
                   title="Hapus staff"
                 >
-                  {deletingId === member.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {deletingId === member.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
                 </button>
               </div>
             ))}
@@ -645,7 +817,9 @@ export default function StaffPage() {
               <div className="px-5 py-8 text-center text-gray-400">
                 <Users className="w-10 h-10 mx-auto mb-2 opacity-40" />
                 <p className="text-sm">
-                  {members.length === 0 ? "Belum ada kasir. Daftarkan kasir pertama Anda!" : "Tidak ada kasir di bisnis ini."}
+                  {members.length === 0
+                    ? "Belum ada kasir. Daftarkan kasir pertama Anda!"
+                    : "Tidak ada kasir di bisnis ini."}
                 </p>
               </div>
             )}
@@ -675,7 +849,10 @@ export default function StaffPage() {
                   <Pencil className="w-4 h-4 text-indigo-600" />
                   Edit Staff
                 </h3>
-                <button onClick={() => setEditMember(null)} className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer">
+                <button
+                  onClick={() => setEditMember(null)}
+                  className="p-1 hover:bg-gray-100 rounded-lg cursor-pointer"
+                >
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
@@ -683,13 +860,23 @@ export default function StaffPage() {
               <div className="space-y-4">
                 {/* Current info */}
                 <div className="p-3 bg-gray-50 rounded-xl text-xs text-gray-500 space-y-1">
-                  <p><span className="font-medium text-gray-700">Email:</span> {editMember.email}</p>
-                  <p><span className="font-medium text-gray-700">Bisnis saat ini:</span> {editMember.businessName}</p>
+                  <p>
+                    <span className="font-medium text-gray-700">Email:</span>{" "}
+                    {editMember.email}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-700">
+                      Bisnis saat ini:
+                    </span>{" "}
+                    {editMember.businessName}
+                  </p>
                 </div>
 
                 {/* Name */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 mb-1 block">Nama</label>
+                  <label className="text-xs font-semibold text-gray-600 mb-1 block">
+                    Nama
+                  </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <input
@@ -708,10 +895,20 @@ export default function StaffPage() {
                       <ArrowRightLeft className="w-3.5 h-3.5" />
                       Pindahkan ke Bisnis
                     </label>
-                    <BusinessSelect value={editBusinessId} onChange={(v) => setEditBusinessId(v)} />
+                    <BusinessSelect
+                      value={editBusinessId}
+                      onChange={(v) => setEditBusinessId(v)}
+                    />
                     {editBusinessId !== editMember.businessId && (
                       <p className="mt-1.5 text-[11px] text-amber-600 font-medium">
-                        ⚠️ Kasir akan dipindahkan dari <strong>{editMember.businessName}</strong> ke <strong>{businesses.find((b) => b.id === editBusinessId)?.name}</strong>
+                        ⚠️ Kasir akan dipindahkan dari{" "}
+                        <strong>{editMember.businessName}</strong> ke{" "}
+                        <strong>
+                          {
+                            businesses.find((b) => b.id === editBusinessId)
+                              ?.name
+                          }
+                        </strong>
                       </p>
                     )}
                   </div>
@@ -731,7 +928,11 @@ export default function StaffPage() {
                   disabled={saving || !editName.trim()}
                   className="flex-1 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer flex items-center justify-center gap-2"
                 >
-                  {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
                   Simpan
                 </button>
               </div>
@@ -742,4 +943,3 @@ export default function StaffPage() {
     </div>
   );
 }
-

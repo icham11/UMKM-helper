@@ -93,7 +93,11 @@ function daysUntilDue(debt: Debt): number | null {
 export default function DebtsPage() {
   const { business } = useBusiness();
   const [debts, setDebts] = useState<Debt[]>([]);
-  const [summary, setSummary] = useState<Summary>({ totalDebt: 0, unpaidCount: 0, totalCount: 0 });
+  const [summary, setSummary] = useState<Summary>({
+    totalDebt: 0,
+    unpaidCount: 0,
+    totalCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -119,13 +123,18 @@ export default function DebtsPage() {
   const fetchDebts = useCallback(async () => {
     try {
       const params = new URLSearchParams();
-      if (statusFilter !== "all" && statusFilter !== "overdue") params.set("status", statusFilter);
+      if (statusFilter !== "all" && statusFilter !== "overdue")
+        params.set("status", statusFilter);
       if (search) params.set("search", search);
-      const res = await fetch(`/api/debts?${params}`, { credentials: "include" });
+      const res = await fetch(`/api/debts?${params}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Gagal memuat");
       const data = await res.json();
       setDebts(data.data || []);
-      setSummary(data.summary || { totalDebt: 0, unpaidCount: 0, totalCount: 0 });
+      setSummary(
+        data.summary || { totalDebt: 0, unpaidCount: 0, totalCount: 0 },
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Gagal memuat kasbon");
     } finally {
@@ -140,7 +149,10 @@ export default function DebtsPage() {
 
   // Computed data
   const overdueDebts = useMemo(() => debts.filter(isOverdue), [debts]);
-  const overdueTotal = useMemo(() => overdueDebts.reduce((s, d) => s + d.remaining, 0), [overdueDebts]);
+  const overdueTotal = useMemo(
+    () => overdueDebts.reduce((s, d) => s + d.remaining, 0),
+    [overdueDebts],
+  );
 
   const filteredDebts = useMemo(() => {
     let result = debts;
@@ -179,7 +191,9 @@ export default function DebtsPage() {
           });
         }
       });
-    return Array.from(map.values()).sort((a, b) => b.totalRemaining - a.totalRemaining);
+    return Array.from(map.values()).sort(
+      (a, b) => b.totalRemaining - a.totalRemaining,
+    );
   }, [debts]);
 
   async function handlePay() {
@@ -190,7 +204,10 @@ export default function DebtsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ amount: Number(payAmount), notes: payNotes || undefined }),
+        body: JSON.stringify({
+          amount: Number(payAmount),
+          notes: payNotes || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal");
@@ -210,7 +227,9 @@ export default function DebtsPage() {
       setPayNotes("");
       fetchDebts();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Gagal memproses pembayaran");
+      toast.error(
+        e instanceof Error ? e.message : "Gagal memproses pembayaran",
+      );
     } finally {
       setPaying(false);
     }
@@ -279,14 +298,19 @@ export default function DebtsPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2.5 bg-linear-to-br from-amber-500 to-orange-500 rounded-xl text-white">
-            <BookOpen className="w-7 h-7" />
+      <motion.div
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="p-2 sm:p-2.5 bg-linear-to-br from-amber-500 to-orange-500 rounded-xl text-white">
+            <BookOpen className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           Kasbon (Piutang)
         </h1>
-        <p className="text-gray-500 mt-1">Catat dan kelola piutang pelanggan. Bayar sebagian atau lunas.</p>
+        <p className="text-gray-500 mt-1 text-sm">
+          Catat dan kelola piutang pelanggan. Bayar sebagian atau lunas.
+        </p>
       </motion.div>
 
       {/* ══ Overdue Warning Banner ══ */}
@@ -301,8 +325,12 @@ export default function DebtsPage() {
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="font-bold text-red-800 text-sm">{overdueDebts.length} kasbon sudah jatuh tempo!</p>
-              <p className="text-xs text-red-600">Total piutang lewat tempo: {formatRupiah(overdueTotal)}</p>
+              <p className="font-bold text-red-800 text-sm">
+                {overdueDebts.length} kasbon sudah jatuh tempo!
+              </p>
+              <p className="text-xs text-red-600">
+                Total piutang lewat tempo: {formatRupiah(overdueTotal)}
+              </p>
             </div>
           </div>
           <button
@@ -323,19 +351,27 @@ export default function DebtsPage() {
       >
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 font-medium">Total Piutang</p>
-          <p className="text-xl font-extrabold text-red-600 mt-1">{formatRupiah(summary.totalDebt)}</p>
+          <p className="text-xl font-extrabold text-red-600 mt-1">
+            {formatRupiah(summary.totalDebt)}
+          </p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 font-medium">Belum Lunas</p>
-          <p className="text-xl font-extrabold text-amber-600 mt-1">{summary.unpaidCount}</p>
+          <p className="text-xl font-extrabold text-amber-600 mt-1">
+            {summary.unpaidCount}
+          </p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 font-medium">Jatuh Tempo</p>
-          <p className="text-xl font-extrabold text-red-600 mt-1">{overdueDebts.length}</p>
+          <p className="text-xl font-extrabold text-red-600 mt-1">
+            {overdueDebts.length}
+          </p>
         </div>
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 font-medium">Total Kasbon</p>
-          <p className="text-xl font-extrabold text-gray-700 mt-1">{summary.totalCount}</p>
+          <p className="text-xl font-extrabold text-gray-700 mt-1">
+            {summary.totalCount}
+          </p>
         </div>
       </motion.div>
 
@@ -347,8 +383,11 @@ export default function DebtsPage() {
             className="flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900 cursor-pointer transition"
           >
             <Users className="w-4 h-4" />
-            {showCustomerSummary ? "Sembunyikan" : "Lihat"} Ringkasan per Pelanggan ({customerSummaries.length})
-            <ChevronDown className={`w-4 h-4 transition ${showCustomerSummary ? "rotate-180" : ""}`} />
+            {showCustomerSummary ? "Sembunyikan" : "Lihat"} Ringkasan per
+            Pelanggan ({customerSummaries.length})
+            <ChevronDown
+              className={`w-4 h-4 transition ${showCustomerSummary ? "rotate-180" : ""}`}
+            />
           </button>
           <AnimatePresence>
             {showCustomerSummary && (
@@ -368,13 +407,20 @@ export default function DebtsPage() {
                         <User className="w-4 h-4 text-amber-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-sm text-gray-900 truncate">{c.name}</p>
+                        <p className="font-semibold text-sm text-gray-900 truncate">
+                          {c.name}
+                        </p>
                         <p className="text-[10px] text-gray-400">
-                          {c.count} kasbon{c.overdueCount > 0 ? ` · ${c.overdueCount} jatuh tempo` : ""}
+                          {c.count} kasbon
+                          {c.overdueCount > 0
+                            ? ` · ${c.overdueCount} jatuh tempo`
+                            : ""}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-red-600">{formatRupiah(c.totalRemaining)}</p>
+                        <p className="text-sm font-bold text-red-600">
+                          {formatRupiah(c.totalRemaining)}
+                        </p>
                         <button
                           onClick={() => {
                             setSearch(c.name);
@@ -440,9 +486,14 @@ export default function DebtsPage() {
         <div className="flex flex-col items-center justify-center py-20 text-gray-400">
           <BookOpen className="w-16 h-16 mb-4 opacity-40" />
           <p className="text-lg font-medium text-gray-500">
-            {statusFilter === "overdue" ? "Tidak ada kasbon jatuh tempo 🎉" : "Belum ada kasbon"}
+            {statusFilter === "overdue"
+              ? "Tidak ada kasbon jatuh tempo 🎉"
+              : "Belum ada kasbon"}
           </p>
-          <p className="text-sm">Kasbon akan muncul saat transaksi dengan metode &quot;Kasbon&quot; di POS</p>
+          <p className="text-sm">
+            Kasbon akan muncul saat transaksi dengan metode &quot;Kasbon&quot;
+            di POS
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -461,13 +512,17 @@ export default function DebtsPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className={`bg-white rounded-xl border shadow-sm overflow-hidden ${
-                  overdue ? "border-red-300 ring-1 ring-red-200" : "border-gray-100"
+                  overdue
+                    ? "border-red-300 ring-1 ring-red-200"
+                    : "border-gray-100"
                 }`}
               >
                 {/* Main row */}
                 <div
                   className={`px-5 py-4 flex items-center gap-4 cursor-pointer transition ${
-                    overdue ? "bg-red-50/50 hover:bg-red-50" : "hover:bg-gray-50/50"
+                    overdue
+                      ? "bg-red-50/50 hover:bg-red-50"
+                      : "hover:bg-gray-50/50"
                   }`}
                   onClick={() => setExpandedId(isExp ? null : debt.id)}
                 >
@@ -499,7 +554,9 @@ export default function DebtsPage() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-gray-900 text-sm">{debt.customerName}</p>
+                      <p className="font-semibold text-gray-900 text-sm">
+                        {debt.customerName}
+                      </p>
                       <span
                         className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           overdue
@@ -513,11 +570,14 @@ export default function DebtsPage() {
                       >
                         {overdue ? `LEWAT ${overdueDays} HARI` : cfg.label}
                       </span>
-                      {daysLeft !== null && daysLeft > 0 && daysLeft <= 3 && !overdue && (
-                        <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
-                          ⏰ {daysLeft} hari lagi
-                        </span>
-                      )}
+                      {daysLeft !== null &&
+                        daysLeft > 0 &&
+                        daysLeft <= 3 &&
+                        !overdue && (
+                          <span className="text-[10px] font-medium text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">
+                            ⏰ {daysLeft} hari lagi
+                          </span>
+                        )}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5 truncate">
                       {debt.transactionNumber} · {debt.items}
@@ -525,15 +585,21 @@ export default function DebtsPage() {
                   </div>
 
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-gray-900">{formatRupiah(debt.totalAmount)}</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {formatRupiah(debt.totalAmount)}
+                    </p>
                     {debt.remaining > 0 && (
-                      <p className={`text-xs font-medium ${overdue ? "text-red-700" : "text-red-500"}`}>
+                      <p
+                        className={`text-xs font-medium ${overdue ? "text-red-700" : "text-red-500"}`}
+                      >
                         Sisa: {formatRupiah(debt.remaining)}
                       </p>
                     )}
                   </div>
 
-                  <ChevronDown className={`w-4 h-4 text-gray-400 transition shrink-0 ${isExp ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 text-gray-400 transition shrink-0 ${isExp ? "rotate-180" : ""}`}
+                  />
                 </div>
 
                 {/* Expanded detail */}
@@ -553,18 +619,25 @@ export default function DebtsPage() {
                           </div>
                           {debt.customerPhone && (
                             <div className="flex items-center gap-1.5 text-gray-500">
-                              <Phone className="w-3.5 h-3.5" /> {debt.customerPhone}
+                              <Phone className="w-3.5 h-3.5" />{" "}
+                              {debt.customerPhone}
                             </div>
                           )}
                           <div className="flex items-center gap-1.5 text-gray-500">
-                            <Calendar className="w-3.5 h-3.5" /> {new Date(debt.createdAt).toLocaleDateString("id-ID")}
+                            <Calendar className="w-3.5 h-3.5" />{" "}
+                            {new Date(debt.createdAt).toLocaleDateString(
+                              "id-ID",
+                            )}
                           </div>
                           {debt.dueDate && (
                             <div
                               className={`flex items-center gap-1.5 ${overdue ? "text-red-600 font-semibold" : "text-gray-500"}`}
                             >
                               <Clock className="w-3.5 h-3.5" />
-                              {overdue ? "⚠️ " : ""}Jatuh tempo: {new Date(debt.dueDate).toLocaleDateString("id-ID")}
+                              {overdue ? "⚠️ " : ""}Jatuh tempo:{" "}
+                              {new Date(debt.dueDate).toLocaleDateString(
+                                "id-ID",
+                              )}
                             </div>
                           )}
                         </div>
@@ -572,15 +645,28 @@ export default function DebtsPage() {
                         {/* Progress bar */}
                         <div>
                           <div className="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>Sudah bayar: {formatRupiah(debt.paidAmount)}</span>
-                            <span>{Math.round((debt.paidAmount / debt.totalAmount) * 100)}%</span>
+                            <span>
+                              Sudah bayar: {formatRupiah(debt.paidAmount)}
+                            </span>
+                            <span>
+                              {Math.round(
+                                (debt.paidAmount / debt.totalAmount) * 100,
+                              )}
+                              %
+                            </span>
                           </div>
                           <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all ${
-                                debt.status === "Paid" ? "bg-green-500" : overdue ? "bg-red-500" : "bg-amber-500"
+                                debt.status === "Paid"
+                                  ? "bg-green-500"
+                                  : overdue
+                                    ? "bg-red-500"
+                                    : "bg-amber-500"
                               }`}
-                              style={{ width: `${Math.min(100, (debt.paidAmount / debt.totalAmount) * 100)}%` }}
+                              style={{
+                                width: `${Math.min(100, (debt.paidAmount / debt.totalAmount) * 100)}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -588,7 +674,9 @@ export default function DebtsPage() {
                         {/* Payment history */}
                         {debt.payments.length > 0 && (
                           <div>
-                            <p className="text-xs font-semibold text-gray-600 mb-1.5">Riwayat Pembayaran</p>
+                            <p className="text-xs font-semibold text-gray-600 mb-1.5">
+                              Riwayat Pembayaran
+                            </p>
                             <div className="space-y-1">
                               {debt.payments.map((p) => (
                                 <div
@@ -597,11 +685,19 @@ export default function DebtsPage() {
                                 >
                                   <div className="flex items-center gap-2">
                                     <DollarSign className="w-3 h-3 text-green-500" />
-                                    <span className="font-medium text-green-700">{formatRupiah(p.amount)}</span>
-                                    {p.notes && <span className="text-gray-400">— {p.notes}</span>}
+                                    <span className="font-medium text-green-700">
+                                      {formatRupiah(p.amount)}
+                                    </span>
+                                    {p.notes && (
+                                      <span className="text-gray-400">
+                                        — {p.notes}
+                                      </span>
+                                    )}
                                   </div>
                                   <span className="text-gray-400">
-                                    {new Date(p.createdAt).toLocaleDateString("id-ID")}
+                                    {new Date(p.createdAt).toLocaleDateString(
+                                      "id-ID",
+                                    )}
                                   </span>
                                 </div>
                               ))}
@@ -609,7 +705,11 @@ export default function DebtsPage() {
                           </div>
                         )}
 
-                        {debt.notes && <p className="text-xs text-gray-400 italic">Catatan: {debt.notes}</p>}
+                        {debt.notes && (
+                          <p className="text-xs text-gray-400 italic">
+                            Catatan: {debt.notes}
+                          </p>
+                        )}
 
                         {/* Action buttons */}
                         <div className="flex gap-2 flex-wrap">
@@ -685,19 +785,29 @@ export default function DebtsPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900">
-                      {paySuccess.isFullyPaid ? "🎉 Kasbon Lunas!" : "Pembayaran Berhasil"}
+                      {paySuccess.isFullyPaid
+                        ? "🎉 Kasbon Lunas!"
+                        : "Pembayaran Berhasil"}
                     </h3>
-                    <p className="text-sm text-gray-500 mt-1">{paySuccess.customerName}</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {paySuccess.customerName}
+                    </p>
                   </div>
                   <div className="bg-gray-50 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Dibayar:</span>
-                      <span className="font-bold text-green-600">{formatRupiah(paySuccess.amount)}</span>
+                      <span className="font-bold text-green-600">
+                        {formatRupiah(paySuccess.amount)}
+                      </span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-500">Sisa:</span>
-                      <span className={`font-bold ${paySuccess.remaining > 0 ? "text-red-600" : "text-green-600"}`}>
-                        {paySuccess.remaining > 0 ? formatRupiah(paySuccess.remaining) : "Rp 0 (Lunas)"}
+                      <span
+                        className={`font-bold ${paySuccess.remaining > 0 ? "text-red-600" : "text-green-600"}`}
+                      >
+                        {paySuccess.remaining > 0
+                          ? formatRupiah(paySuccess.remaining)
+                          : "Rp 0 (Lunas)"}
                       </span>
                     </div>
                   </div>
@@ -724,7 +834,8 @@ export default function DebtsPage() {
                 <>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
-                      <Receipt className="w-5 h-5 text-green-600" /> Bayar Kasbon
+                      <Receipt className="w-5 h-5 text-green-600" /> Bayar
+                      Kasbon
                     </h3>
                     <button
                       onClick={() => setPayDebt(null)}
@@ -739,7 +850,9 @@ export default function DebtsPage() {
                       className={`rounded-xl p-3 ${isOverdue(payDebt) ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}
                     >
                       <div className="flex items-center justify-between">
-                        <p className="font-semibold text-sm">{payDebt.customerName}</p>
+                        <p className="font-semibold text-sm">
+                          {payDebt.customerName}
+                        </p>
                         {isOverdue(payDebt) && (
                           <span className="text-[10px] bg-red-200 text-red-800 font-bold px-2 py-0.5 rounded-full">
                             LEWAT {daysOverdue(payDebt)} HARI
@@ -749,12 +862,16 @@ export default function DebtsPage() {
                       <p className="text-xs text-gray-500">{payDebt.items}</p>
                       <div className="flex justify-between mt-2 text-sm">
                         <span className="text-gray-500">Sisa hutang:</span>
-                        <span className="font-bold text-red-600">{formatRupiah(payDebt.remaining)}</span>
+                        <span className="font-bold text-red-600">
+                          {formatRupiah(payDebt.remaining)}
+                        </span>
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Jumlah Bayar (Rp)</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Jumlah Bayar (Rp)
+                      </label>
                       <input
                         type="number"
                         value={payAmount}
@@ -764,10 +881,13 @@ export default function DebtsPage() {
                         placeholder="0"
                       />
                       {/* Quick-pay presets */}
-                      <div className="grid grid-cols-4 gap-1.5 mt-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2">
                         {[
                           { label: "Lunas", value: payDebt.remaining },
-                          { label: "½", value: Math.round(payDebt.remaining / 2) },
+                          {
+                            label: "½",
+                            value: Math.round(payDebt.remaining / 2),
+                          },
                           ...[10000, 20000, 50000, 100000, 200000, 500000]
                             .filter(
                               (v) =>
@@ -778,7 +898,11 @@ export default function DebtsPage() {
                             .slice(0, 6)
                             .map((v) => ({ label: `${v / 1000}rb`, value: v })),
                         ]
-                          .filter((v, i, a) => a.findIndex((x) => x.value === v.value) === i && v.value > 0)
+                          .filter(
+                            (v, i, a) =>
+                              a.findIndex((x) => x.value === v.value) === i &&
+                              v.value > 0,
+                          )
                           .slice(0, 4)
                           .map((preset) => (
                             <button
@@ -797,7 +921,9 @@ export default function DebtsPage() {
                     </div>
 
                     <div>
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">Catatan (opsional)</label>
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Catatan (opsional)
+                      </label>
                       <input
                         type="text"
                         value={payNotes}
@@ -817,7 +943,8 @@ export default function DebtsPage() {
                       ) : (
                         <>
                           <CheckCircle2 className="w-5 h-5" />
-                          Bayar {payAmount ? formatRupiah(Number(payAmount)) : ""}
+                          Bayar{" "}
+                          {payAmount ? formatRupiah(Number(payAmount)) : ""}
                         </>
                       )}
                     </button>

@@ -90,13 +90,18 @@ export default function IngredientSelectorRow({
 
   // Filter by search query AND exclude ingredients already used in other rows
   const filtered = ingredientOptions.filter(
-    (opt) => opt.name.toLowerCase().includes(query.toLowerCase()) && !usedIngredientIds?.has(opt.id),
+    (opt) =>
+      opt.name.toLowerCase().includes(query.toLowerCase()) &&
+      !usedIngredientIds?.has(opt.id),
   );
 
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
@@ -129,7 +134,9 @@ export default function IngredientSelectorRow({
 
   const handleNameBlur = () => {
     if (!isNew || phase !== "naming") return;
-    const match = ingredientOptions.find((o) => o.name.toLowerCase() === query.toLowerCase());
+    const match = ingredientOptions.find(
+      (o) => o.name.toLowerCase() === query.toLowerCase(),
+    );
     if (match) {
       handleSelect(match);
     } else if (query.trim()) {
@@ -160,7 +167,8 @@ export default function IngredientSelectorRow({
   // The user edits them exclusively in the top "New Ingredients" panel.
   const readOnly = !isNew || localConfirmed || managedCentrally === true;
   // Whether we're in the unit/cost-edit phase (new, named, but not yet confirmed, NOT centrally managed)
-  const inEditPhase = isNew && !localConfirmed && phase === "editing" && !managedCentrally;
+  const inEditPhase =
+    isNew && !localConfirmed && phase === "editing" && !managedCentrally;
 
   return (
     <div
@@ -172,9 +180,9 @@ export default function IngredientSelectorRow({
             : "bg-white border-gray-100 hover:border-indigo-200"
       }`}
     >
-      <div className="grid grid-cols-12 gap-2 items-start py-3 px-3">
-        {/* ── Name (col 4) ─────────────────────────────── */}
-        <div className="col-span-4 relative" ref={containerRef}>
+      <div className="flex flex-col sm:grid sm:grid-cols-12 gap-2 items-start py-3 px-3">
+        {/* ── Name (full on mobile, col 4 on sm+) ───────────────────── */}
+        <div className="w-full sm:col-span-4 relative" ref={containerRef}>
           {readOnly ? (
             /* Confirmed / existing ingredient — read-only name.
              Centrally-managed AI-new rows show an "AI NEW" badge instead of a lock. */
@@ -186,7 +194,9 @@ export default function IngredientSelectorRow({
               ) : (
                 <Lock size={11} className="text-gray-300 shrink-0" />
               )}
-              <span className="text-sm font-semibold text-slate-700 truncate leading-tight">{row.ingredientName}</span>
+              <span className="text-sm font-semibold text-slate-700 truncate leading-tight">
+                {row.ingredientName}
+              </span>
             </div>
           ) : inEditPhase ? (
             /* Edit phase — plain text input (no dropdown), NEW badge below */
@@ -255,7 +265,9 @@ export default function IngredientSelectorRow({
                         className="flex justify-between items-center px-3 py-2 hover:bg-amber-50 cursor-pointer"
                       >
                         <span className="font-medium">{opt.name}</span>
-                        <span className="text-xs text-gray-400">{opt.unit}</span>
+                        <span className="text-xs text-gray-400">
+                          {opt.unit}
+                        </span>
                       </li>
                     ))
                   )}
@@ -266,118 +278,146 @@ export default function IngredientSelectorRow({
         </div>
 
         {/* ── Qty (col 2) ──────────────────────────────── */}
-        <div className="col-span-2">
-          <input
-            type="number"
-            min={0}
-            step="any"
-            value={row.quantity}
-            onChange={(e) => onChange({ ...row, quantity: Number(e.target.value) })}
-            placeholder="Qty"
-            className="w-full border border-indigo-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
-          />
-        </div>
+        <div className="flex sm:contents items-center gap-2 w-full">
+          <div className="flex-1 sm:col-span-2">
+            <input
+              type="number"
+              min={0}
+              step="any"
+              value={row.quantity}
+              onChange={(e) =>
+                onChange({ ...row, quantity: Number(e.target.value) })
+              }
+              placeholder="Qty"
+              className="w-full border border-indigo-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+            />
+          </div>
 
-        {/* ── Unit (col 2) ─────────────────────────────── */}
-        <div className="col-span-2">
-          {inEditPhase ? (
-            <>
-              <input
-                value={row.unit}
-                onChange={(e) => onChange({ ...row, unit: e.target.value })}
-                placeholder="Satuan"
-                className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
-                  (rowTouched || unitError) && !row.unit?.trim()
-                    ? "border-red-400 focus:ring-red-300"
-                    : "border-amber-300 focus:ring-amber-400"
-                } text-slate-700`}
-              />
-              {(rowTouched || unitError) && !row.unit?.trim() && (
-                <p className="text-[10px] text-red-500 font-semibold mt-0.5">Wajib diisi</p>
-              )}
-            </>
-          ) : (
-            <div className="py-1.5">
-              <span className="text-sm text-gray-500 font-medium">{row.unit || "—"}</span>
-            </div>
-          )}
-        </div>
+          {/* ── Unit (col 2) ─────────────────────────────── */}
+          <div className="flex-1 sm:col-span-2">
+            {inEditPhase ? (
+              <>
+                <input
+                  value={row.unit}
+                  onChange={(e) => onChange({ ...row, unit: e.target.value })}
+                  placeholder="Satuan"
+                  className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+                    (rowTouched || unitError) && !row.unit?.trim()
+                      ? "border-red-400 focus:ring-red-300"
+                      : "border-amber-300 focus:ring-amber-400"
+                  } text-slate-700`}
+                />
+                {(rowTouched || unitError) && !row.unit?.trim() && (
+                  <p className="text-[10px] text-red-500 font-semibold mt-0.5">
+                    Wajib diisi
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="py-1.5">
+                <span className="text-sm text-gray-500 font-medium">
+                  {row.unit || "—"}
+                </span>
+              </div>
+            )}
+          </div>
 
-        {/* ── Cost / unit (col 2) ──────────────────────── */}
-        <div className="col-span-2">
-          {inEditPhase ? (
-            <>
-              <input
-                type="number"
-                min={0}
-                value={row.costPerUnit ?? ""}
-                onChange={(e) =>
-                  onChange({
-                    ...row,
-                    costPerUnit: e.target.value === "" ? null : Number(e.target.value),
-                  })
-                }
-                placeholder="Biaya/satuan"
-                className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
-                  (rowTouched || costError) && row.costPerUnit == null
-                    ? "border-red-400 focus:ring-red-300"
-                    : "border-amber-300 focus:ring-amber-400"
-                } text-slate-700`}
-              />
-              {(rowTouched || costError) && row.costPerUnit == null && (
-                <p className="text-[10px] text-red-500 font-semibold mt-0.5">Wajib diisi</p>
-              )}
-            </>
-          ) : (
-            <div className="py-1.5">
-              <span className="text-xs text-indigo-600 font-semibold">
-                {row.costPerUnit != null && row.costPerUnit > 0 ? formatCurrency(row.costPerUnit) : "—"}
+          {/* ── Cost / unit (col 2) ──────────────────────── */}
+          <div className="flex-1 sm:col-span-2">
+            {inEditPhase ? (
+              <>
+                <input
+                  type="number"
+                  min={0}
+                  value={row.costPerUnit ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      ...row,
+                      costPerUnit:
+                        e.target.value === "" ? null : Number(e.target.value),
+                    })
+                  }
+                  placeholder="Biaya/satuan"
+                  className={`w-full border rounded-lg px-3 py-1.5 text-sm focus:ring-2 outline-none bg-white ${
+                    (rowTouched || costError) && row.costPerUnit == null
+                      ? "border-red-400 focus:ring-red-300"
+                      : "border-amber-300 focus:ring-amber-400"
+                  } text-slate-700`}
+                />
+                {(rowTouched || costError) && row.costPerUnit == null && (
+                  <p className="text-[10px] text-red-500 font-semibold mt-0.5">
+                    Wajib diisi
+                  </p>
+                )}
+              </>
+            ) : (
+              <div className="py-1.5">
+                <span className="text-xs text-indigo-600 font-semibold">
+                  {row.costPerUnit != null && row.costPerUnit > 0
+                    ? formatCurrency(row.costPerUnit)
+                    : "—"}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* ── Subtotal / actions (col 2) ───────────────── */}
+          <div className="flex-1 sm:col-span-2 flex items-center justify-between gap-1 py-1.5">
+            {inEditPhase ? (
+              /* Edit phase: confirm + expand toggle */
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  title="Konfirmasi satuan & biaya"
+                  className="flex items-center gap-1 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition"
+                >
+                  <Check size={12} />
+                  Selesai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  title={
+                    expanded
+                      ? "Sembunyikan field opsional"
+                      : "Atur stok awal & kadaluarsa"
+                  }
+                  className="p-1 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition"
+                >
+                  {expanded ? (
+                    <ChevronUp size={13} />
+                  ) : (
+                    <ChevronDown size={13} />
+                  )}
+                </button>
+              </div>
+            ) : (
+              <span
+                className={`text-xs font-bold truncate ${subtotal > 0 ? "text-indigo-700" : "text-gray-300"}`}
+              >
+                {subtotal > 0 ? formatCurrency(subtotal) : "—"}
               </span>
-            </div>
-          )}
+            )}
+            <button
+              type="button"
+              onClick={onRemove}
+              title={
+                willDeleteFromDB
+                  ? "Hapus bahan AI ini dari database"
+                  : "Hapus dari resep"
+              }
+              className={`p-1.5 rounded-full transition shrink-0 ${
+                willDeleteFromDB
+                  ? "hover:bg-red-100 text-red-400 hover:text-red-600"
+                  : "hover:bg-red-50 text-red-300 hover:text-red-500"
+              }`}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
-
-        {/* ── Subtotal / actions (col 2) ───────────────── */}
-        <div className="col-span-2 flex items-center justify-between gap-1 py-1.5">
-          {inEditPhase ? (
-            /* Edit phase: confirm + expand toggle */
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={handleConfirm}
-                title="Konfirmasi satuan & biaya"
-                className="flex items-center gap-1 px-2 py-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition"
-              >
-                <Check size={12} />
-                Selesai
-              </button>
-              <button
-                type="button"
-                onClick={() => setExpanded((v) => !v)}
-                title={expanded ? "Sembunyikan field opsional" : "Atur stok awal & kadaluarsa"}
-                className="p-1 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition"
-              >
-                {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-              </button>
-            </div>
-          ) : (
-            <span className={`text-xs font-bold truncate ${subtotal > 0 ? "text-indigo-700" : "text-gray-300"}`}>
-              {subtotal > 0 ? formatCurrency(subtotal) : "—"}
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={onRemove}
-            title={willDeleteFromDB ? "Hapus bahan AI ini dari database" : "Hapus dari resep"}
-            className={`p-1.5 rounded-full transition shrink-0 ${
-              willDeleteFromDB
-                ? "hover:bg-red-100 text-red-400 hover:text-red-600"
-                : "hover:bg-red-50 text-red-300 hover:text-red-500"
-            }`}
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
+        {/* close mobile flex wrapper */}
       </div>
 
       {/* ── Expandable: Initial stock & Expiry date (only in edit phase) ── */}
@@ -385,7 +425,9 @@ export default function IngredientSelectorRow({
         <div className="grid grid-cols-2 gap-3 px-3 pb-3 pt-0">
           {/* Qty on-hand */}
           <div>
-            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Stok Awal</label>
+            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">
+              Stok Awal
+            </label>
             <div className="flex items-center gap-1.5">
               <input
                 type="number"
@@ -395,13 +437,20 @@ export default function IngredientSelectorRow({
                 onChange={(e) =>
                   onChange({
                     ...row,
-                    initialStock: e.target.value === "" ? undefined : Number(e.target.value),
+                    initialStock:
+                      e.target.value === ""
+                        ? undefined
+                        : Number(e.target.value),
                   })
                 }
                 placeholder={`0${row.unit ? ` ${row.unit}` : ""}`}
                 className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 focus:ring-amber-400 outline-none bg-white"
               />
-              {row.unit && <span className="text-xs text-gray-400 shrink-0">{row.unit}</span>}
+              {row.unit && (
+                <span className="text-xs text-gray-400 shrink-0">
+                  {row.unit}
+                </span>
+              )}
             </div>
           </div>
 
@@ -413,7 +462,12 @@ export default function IngredientSelectorRow({
             <input
               type="date"
               value={row.expirationDate ?? ""}
-              onChange={(e) => onChange({ ...row, expirationDate: e.target.value || undefined })}
+              onChange={(e) =>
+                onChange({
+                  ...row,
+                  expirationDate: e.target.value || undefined,
+                })
+              }
               className="w-full border border-amber-200 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-amber-400 outline-none bg-white text-slate-700"
             />
           </div>

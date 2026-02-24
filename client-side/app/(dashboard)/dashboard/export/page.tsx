@@ -34,7 +34,8 @@ const EXPORT_OPTIONS: ExportOption[] = [
   {
     id: "sales",
     title: "Data Penjualan",
-    description: "Semua transaksi dengan detail produk, pendapatan, HPP, profit, dan margin",
+    description:
+      "Semua transaksi dengan detail produk, pendapatan, HPP, profit, dan margin",
     icon: ShoppingCart,
     color: "indigo",
     endpoint: "/api/export/sales",
@@ -42,7 +43,8 @@ const EXPORT_OPTIONS: ExportOption[] = [
   {
     id: "stock",
     title: "Stok Inventori",
-    description: "Daftar bahan, stok saat ini, status, dan nilai total inventori",
+    description:
+      "Daftar bahan, stok saat ini, status, dan nilai total inventori",
     icon: Boxes,
     color: "emerald",
     endpoint: "/api/export/inventory?type=stock",
@@ -65,7 +67,10 @@ const EXPORT_OPTIONS: ExportOption[] = [
   },
 ];
 
-const COLOR_MAP: Record<string, { bg: string; border: string; icon: string; text: string; ring: string }> = {
+const COLOR_MAP: Record<
+  string,
+  { bg: string; border: string; icon: string; text: string; ring: string }
+> = {
   indigo: {
     bg: "bg-indigo-50",
     border: "border-indigo-100 hover:border-indigo-300",
@@ -162,14 +167,15 @@ export default function ExportPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2.5 bg-linear-to-br from-green-500 to-emerald-500 rounded-xl text-white">
-            <Download className="w-7 h-7" />
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="p-2 sm:p-2.5 bg-linear-to-br from-green-500 to-emerald-500 rounded-xl text-white">
+            <Download className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           Unduh Laporan
         </h1>
-        <p className="text-gray-500 mt-1">
-          Download data transaksi &amp; inventori dalam format CSV atau Excel untuk laporan akhir bulan, pajak, atau pembukuan
+        <p className="text-gray-500 mt-1 text-sm">
+          Download data transaksi &amp; inventori dalam format CSV atau Excel
+          untuk laporan akhir bulan, pajak, atau pembukuan
         </p>
       </motion.div>
 
@@ -201,11 +207,15 @@ export default function ExportPage() {
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isActive ? c.icon : "bg-gray-100 text-gray-400"}`}>
+                  <div
+                    className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isActive ? c.icon : "bg-gray-100 text-gray-400"}`}
+                  >
                     <opt.icon className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
-                    <p className={`font-semibold ${isActive ? c.text : "text-gray-700"}`}>
+                    <p
+                      className={`font-semibold ${isActive ? c.text : "text-gray-700"}`}
+                    >
                       {opt.title}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5 line-clamp-2">
@@ -233,7 +243,9 @@ export default function ExportPage() {
         <div className="p-6 space-y-6">
           {/* Format Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Format File</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Format File
+            </label>
             <div className="flex gap-3">
               <button
                 onClick={() => setFormat("xlsx")}
@@ -247,7 +259,9 @@ export default function ExportPage() {
                 <FileSpreadsheet className="w-5 h-5" />
                 <div className="text-left">
                   <p className="font-semibold text-sm">Excel (.xlsx)</p>
-                  <p className="text-xs opacity-70">Kompatibel dengan Excel &amp; Google Sheets</p>
+                  <p className="text-xs opacity-70">
+                    Kompatibel dengan Excel &amp; Google Sheets
+                  </p>
                 </div>
               </button>
               <button
@@ -262,7 +276,9 @@ export default function ExportPage() {
                 <FileText className="w-5 h-5" />
                 <div className="text-left">
                   <p className="font-semibold text-sm">CSV (.csv)</p>
-                  <p className="text-xs opacity-70">Format universal, ukuran kecil</p>
+                  <p className="text-xs opacity-70">
+                    Format universal, ukuran kecil
+                  </p>
                 </div>
               </button>
             </div>
@@ -277,7 +293,9 @@ export default function ExportPage() {
               </label>
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
-                  <label className="block text-xs text-gray-400 mb-1">Dari</label>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Dari
+                  </label>
                   <input
                     type="date"
                     value={startDate}
@@ -289,7 +307,9 @@ export default function ExportPage() {
                   <ArrowRight className="w-4 h-4 text-gray-300" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs text-gray-400 mb-1">Sampai</label>
+                  <label className="block text-xs text-gray-400 mb-1">
+                    Sampai
+                  </label>
                   <input
                     type="date"
                     value={endDate}
@@ -367,7 +387,15 @@ export default function ExportPage() {
   );
 }
 
-function InfoCard({ icon, title, description }: { icon: string; title: string; description: string }) {
+function InfoCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: string;
+  title: string;
+  description: string;
+}) {
   return (
     <div className="p-4 bg-white rounded-xl border border-gray-100">
       <span className="text-2xl">{icon}</span>
@@ -376,4 +404,3 @@ function InfoCard({ icon, title, description }: { icon: string; title: string; d
     </div>
   );
 }
-
