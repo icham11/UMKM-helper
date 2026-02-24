@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, PackageOpen, X, History, RefreshCw, AlertTriangle, Trash2, Loader2 } from "lucide-react";
+import { Plus, PackageOpen, X, History, RefreshCw, AlertTriangle, Trash2, Loader2, Pencil } from "lucide-react";
 import IngredientStatusBadge from "./components/IngredientStatusBadge";
 import { getIngredients, deleteIngredient, bulkDeleteIngredients, type Ingredient } from "@/lib/api/ingredients";
 import { INGREDIENT_UNITS } from "@/lib/validations/product";
@@ -34,6 +34,7 @@ export default function IngredientsPage() {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
 
   const { business, loading: businessLoading } = useBusiness();
 
@@ -375,12 +376,32 @@ export default function IngredientsPage() {
                     >
                       <Trash2 size={18} />
                     </button>
+                    <button
+                      onClick={() => {
+                        setSelectedIngredient(ingredient);
+                        setIsEditOpen(true);
+                      }}
+                      className="text-blue-600 hover:text-blue-800 p-1 rounded-full transition"
+                      title="Edit"
+                    >
+                      <Pencil size={18} />
+                    </button>
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        {isEditOpen && selectedIngredient && (
+          <EditIngredientModal
+            ingredient={selectedIngredient}
+            onClose={() => setIsEditOpen(false)}
+            onSuccess={() => {
+              setIsEditOpen(false);
+              fetchData();
+            }}
+          />
+        )}
       </div>
       {/* PAGINATION BAR */}
       {totalPages > 1 && (
@@ -840,6 +861,137 @@ function AddIngredientModal({ onClose, onSuccess }: AddIngredientModalProps) {
             className="bg-linear-to-r from-indigo-500 to-violet-500 text-white px-7 py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
           >
             {loading ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </form>
+    </ModalWrapper>
+  );
+}
+
+interface EditIngredientModalProps {
+  ingredient: Ingredient;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const [form, setForm] = useState({
+    name: ingredient.name,
+    unit: ingredient.unit,
+    minStock: ingredient.minStock,
+  });
+
+  const handleSubmit = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      // Only send fields that are supported by PATCH endpoint
+      const payload = {
+        name: form.name,
+        unit: form.unit,
+        minStock: form.minStock,
+      };
+
+      const res = await fetch(`/api/ingredients/${ingredient.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      // Try to parse JSON only if response has content
+      let data = null;
+      const text = await res.text();
+      if (text) {
+        data = JSON.parse(text);
+      }
+
+      if (!res.ok) {
+        throw new Error((data && data.error) || "Failed to update ingredient");
+      }
+
+      onSuccess();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalWrapper onClose={onClose} title={
+      <span className="flex items-center gap-2 text-indigo-700">
+        <Pencil size={20} />
+        <span className="font-bold">Edit Bahan Baku</span>
+      </span>
+    }>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSubmit();
+        }}
+        className="space-y-6"
+      >
+        {error && <div className="text-red-600 text-sm font-semibold px-2 py-1 bg-red-50 rounded-lg border border-red-200">{error}</div>}
+
+        <div className="space-y-1">
+          <label className="block text-sm font-semibold text-indigo-700 mb-0.5">Nama</label>
+          <input
+            className="w-full border-2 border-indigo-300 rounded-xl px-4 py-2 text-base text-black focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition placeholder:text-gray-400 bg-white shadow-sm"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            placeholder="Nama bahan baku"
+            autoFocus
+          />
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-semibold text-indigo-700 mb-0.5">Satuan</label>
+          <select
+            className="w-full border-2 border-indigo-300 rounded-xl px-4 py-2 text-base text-black focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition bg-white shadow-sm"
+            value={form.unit}
+            onChange={(e) => setForm({ ...form, unit: e.target.value })}
+            required
+          >
+            {INGREDIENT_UNITS.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-semibold text-indigo-700 mb-0.5">Minimum Stock</label>
+          <input
+            type="number"
+            min={0}
+            className="w-full border-2 border-indigo-300 rounded-xl px-4 py-2 text-base text-black focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition placeholder:text-gray-400 bg-white shadow-sm"
+            value={form.minStock}
+            onChange={(e) => setForm({ ...form, minStock: Number(e.target.value) })}
+            placeholder="Masukkan stok minimum"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-6">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-base hover:bg-gray-50 transition disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-base rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 shadow"
+          >
+            {loading ? <Loader2 size={18} className="animate-spin" /> : <Pencil size={18} />}
+            {loading ? "Saving..." : "Save Changes"}
           </button>
         </div>
       </form>
