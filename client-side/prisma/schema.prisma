@@ -94,6 +94,7 @@ model Business {
   businessMetrics      BusinessMetrics[]
   businessHealthScores BusinessHealthScores[]
   businessForecasts    BusinessForecast[]
+  forecastAccuracy     ForecastAccuracy?
   analyticsInsights    AnalyticsInsight[]
   chatMessages         ChatMessage[]
   chatSessions         ChatSession[]
@@ -526,6 +527,8 @@ model ProductForecast {
   upperBound            Int      @default(0)
   recommendedProduction String?
   confidenceScore       Decimal  @db.Decimal(5, 2)
+  // Refactored forecast improvements
+  metadata              Json?    // Volatility level, buffer %, seasonality multiplier
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
@@ -544,6 +547,8 @@ model BusinessForecast {
   lowerBound       Decimal  @db.Decimal(14, 2)
   upperBound       Decimal  @db.Decimal(14, 2)
   confidenceScore  Decimal  @db.Decimal(5, 2)
+  // Refactored forecast improvements
+  metadata         Json?    // Price change notes, seasonality info
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -551,6 +556,25 @@ model BusinessForecast {
 
   @@unique([businessId, date])
   @@index([businessId, date(sort: Desc)])
+}
+
+// Tracks rolling forecast accuracy (MAPE) for each business
+model ForecastAccuracy {
+  id                Int      @id @default(autoincrement())
+  businessId        Int      @unique
+  accuracy7d        Decimal? @db.Decimal(5, 2) // Rolling 7-day accuracy (100 - MAPE)
+  accuracy30d       Decimal? @db.Decimal(5, 2) // Rolling 30-day accuracy
+  mape7d            Decimal? @db.Decimal(5, 2) // Mean Absolute Percentage Error 7d
+  mape30d           Decimal? @db.Decimal(5, 2) // Mean Absolute Percentage Error 30d
+  sampleSize7d      Int      @default(0)       // Number of data points for 7d calc
+  sampleSize30d     Int      @default(0)       // Number of data points for 30d calc
+  lastEvaluatedAt   DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
 }
 
 model AnalyticsInsight {

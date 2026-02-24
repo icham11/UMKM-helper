@@ -4,6 +4,21 @@ import prisma from "@/lib/prisma";
 import ARIMA from "arima";
 import { groq, GROQ_MODELS } from "@/lib/groq";
 import { requireAuth } from "@/lib/auth/session";
+import {
+  calculateAdaptiveLookback,
+  generateLookbackDates,
+  calculateWeekdayMultipliers,
+  applySeasonalityAdjustment,
+  detectPriceChange,
+  calculateNonLinearConfidence,
+  calculateVolatilityAndBuffer,
+  generateProductionRecommendation,
+  calculateMAPE,
+  mapeToAccuracy,
+  toDateString,
+  type DailySalesEntry,
+  type VolatilityInfo,
+} from "@/lib/forecasting/utils";
 
 /**
  * POST /api/cron/generate-analytics
@@ -11,34 +26,161 @@ import { requireAuth } from "@/lib/auth/session";
  * Daily cron job that generates forecasts + health scores for ALL businesses.
  * Designed to be called by an external scheduler (Vercel Cron, GitHub Actions, etc.)
  *
+ * REFACTORED FORECAST SYSTEM v2:
+ * - Adaptive lookback window (up to 60 days)
+ * - Weekly seasonality adjustment
+ * - Price change detection
+ * - Non-linear confidence decay
+ * - Dynamic production buffer based on volatility
+ * - Forecast accuracy tracking (MAPE)
+ *
  * Security: requires CRON_SECRET header to prevent unauthorized calls.
  *
  * Headers:
  *   Authorization: Bearer <CRON_SECRET>
  */
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FORECAST ACCURACY EVALUATION — runs as background evaluation
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function evaluateForecastAccuracy(businessId: number) {
+  try {
+    const now = new Date();
+    const since7d = new Date(now);
+    since7d.setDate(since7d.getDate() - 7);
+    const since30d = new Date(now);
+    since30d.setDate(since30d.getDate() - 30);
+
+    // Get past forecasts that we can now evaluate (predicted dates that have passed)
+    const pastForecasts = await prisma.businessForecast.findMany({
+      where: {
+        businessId,
+        date: { lt: now, gte: since30d },
+      },
+      orderBy: { date: "asc" },
+    });
+
+    // Get actual revenue from BusinessMetrics for those dates
+    const actualMetrics = await prisma.businessMetrics.findMany({
+      where: {
+        businessId,
+        date: { gte: since30d, lt: now },
+      },
+    });
+
+    const actualByDate = new Map<string, number>();
+    for (const m of actualMetrics) {
+      actualByDate.set(toDateString(m.date), Number(m.totalRevenue));
+    }
+
+    // Match forecasts with actuals
+    const comparisons: { predicted: number; actual: number; daysAgo: number }[] = [];
+    for (const fc of pastForecasts) {
+      const dateStr = toDateString(fc.date);
+      const actual = actualByDate.get(dateStr);
+      if (actual !== undefined && actual > 0) {
+        const daysAgo = Math.floor((now.getTime() - fc.date.getTime()) / (1000 * 60 * 60 * 24));
+        comparisons.push({
+          predicted: Number(fc.predictedRevenue),
+          actual,
+          daysAgo,
+        });
+      }
+    }
+
+    // Calculate 7-day and 30-day MAPE
+    const last7d = comparisons.filter((c) => c.daysAgo <= 7);
+    const last30d = comparisons;
+
+    const mape7d = calculateMAPE(last7d);
+    const mape30d = calculateMAPE(last30d);
+    const accuracy7d = mapeToAccuracy(mape7d);
+    const accuracy30d = mapeToAccuracy(mape30d);
+
+    // Store accuracy metrics
+    await prisma.forecastAccuracy.upsert({
+      where: { businessId },
+      update: {
+        mape7d,
+        mape30d,
+        accuracy7d,
+        accuracy30d,
+        sampleSize7d: last7d.length,
+        sampleSize30d: last30d.length,
+        lastEvaluatedAt: now,
+      },
+      create: {
+        businessId,
+        mape7d,
+        mape30d,
+        accuracy7d,
+        accuracy30d,
+        sampleSize7d: last7d.length,
+        sampleSize30d: last30d.length,
+        lastEvaluatedAt: now,
+      },
+    });
+
+    console.log(
+      `[ACCURACY] Business ${businessId}: 7d accuracy=${accuracy7d?.toFixed(1) ?? "N/A"}% (n=${last7d.length}), ` +
+        `30d accuracy=${accuracy30d?.toFixed(1) ?? "N/A"}% (n=${last30d.length})`,
+    );
+  } catch (err) {
+    console.error(`[ACCURACY] Failed for business ${businessId}:`, err);
+    // Non-critical - don't fail the entire job
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN FORECAST GENERATION — refactored with all improvements
+// ═══════════════════════════════════════════════════════════════════════════════
+
 async function generateForecastForBusiness(businessId: number) {
   const now = new Date();
-  const since = new Date(now);
-  since.setDate(since.getDate() - 30);
-  since.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  const allDates: string[] = [];
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    allDates.push(d.toISOString().split("T")[0]);
+  // ─── Cleanup: Delete old forecasts (before today) ──────────────────────
+  await Promise.all([
+    prisma.businessForecast.deleteMany({
+      where: { businessId, date: { lt: today } },
+    }),
+    prisma.productForecast.deleteMany({
+      where: { product: { businessId }, date: { lt: today } },
+    }),
+  ]);
+
+  // ─── Step 1: Determine Adaptive Lookback Window ────────────────────────
+  // Query to find earliest sale date for this business
+  const earliestSale = await prisma.sale.findFirst({
+    where: { businessId, paymentStatus: "Paid" },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+
+  let lookbackDays = 30; // Default fallback
+  if (earliestSale) {
+    const daysSinceFirst = Math.floor((now.getTime() - earliestSale.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+    lookbackDays = calculateAdaptiveLookback(daysSinceFirst);
   }
 
-  // ─── Step 1: Generate Product Demand Forecasts ─────────────────────────
-  // We generate product-level predictions FIRST, then aggregate them for business forecast
+  const since = new Date(now);
+  since.setDate(since.getDate() - lookbackDays);
+  since.setHours(0, 0, 0, 0);
 
-  type DailyQtyRow = { productId: number; date: string; qty: number };
+  const allDates = generateLookbackDates(lookbackDays, now);
+
+  console.log(`[FORECAST] Business ${businessId}: Using ${lookbackDays}-day adaptive lookback`);
+
+  // ─── Step 2: Fetch Product Sales Data with Prices ──────────────────────
+  type DailyQtyRow = { productId: number; date: string; qty: number; avgPrice: number };
   const rawRows = await prisma.$queryRaw<DailyQtyRow[]>`
     SELECT
       si."productId"::int AS "productId",
       DATE(s."createdAt") AS "date",
-      SUM(si.quantity)::int AS qty
+      SUM(si.quantity)::int AS qty,
+      AVG(si."priceAtSale")::numeric AS "avgPrice"
     FROM "SaleItem" si
     JOIN "Sale" s ON s.id = si."saleId"
     WHERE s."businessId" = ${businessId}
@@ -48,56 +190,77 @@ async function generateForecastForBusiness(businessId: number) {
     ORDER BY si."productId", DATE(s."createdAt")
   `;
 
-  const byProduct = new Map<number, { date: string; qty: number }[]>();
+  // Group by product
+  const byProduct = new Map<number, { entries: DailySalesEntry[]; historicalPrices: number[] }>();
   for (const row of rawRows) {
     const pid = Number(row.productId);
-    if (!byProduct.has(pid)) byProduct.set(pid, []);
-    // Normalize date to YYYY-MM-DD string format
+    if (!byProduct.has(pid)) {
+      byProduct.set(pid, { entries: [], historicalPrices: [] });
+    }
     const dateStr =
       typeof row.date === "string" ? row.date.split("T")[0] : new Date(row.date).toISOString().split("T")[0];
-    byProduct.get(pid)!.push({ date: dateStr, qty: Number(row.qty) });
+    byProduct.get(pid)!.entries.push({ date: dateStr, qty: Number(row.qty) });
+    byProduct.get(pid)!.historicalPrices.push(Number(row.avgPrice));
   }
 
-  // Debug: log first few entries to check date format
-  if (byProduct.size > 0) {
-    const firstProduct = byProduct.entries().next().value;
-    if (firstProduct) {
-      console.log(
-        `[FORECAST] Business ${businessId}: Sample date entries for product ${firstProduct[0]}:`,
-        firstProduct[1].slice(0, 3).map((e: { date: string; qty: number }) => e.date),
-      );
-      console.log(`[FORECAST] Business ${businessId}: Sample allDates:`, allDates.slice(0, 3));
-    }
+  console.log(`[FORECAST] Business ${businessId}: ${byProduct.size} products with sales data`);
+
+  // ─── Step 3: Get Current Product Prices ────────────────────────────────
+  const products = await prisma.product.findMany({
+    where: { businessId, deletedAt: null, isActive: true },
+    select: { id: true, sellingPrice: true, recipeCost: true },
+  });
+
+  const productPriceMap = new Map<number, { sellingPrice: number; recipeCost: number }>();
+  for (const p of products) {
+    productPriceMap.set(p.id, {
+      sellingPrice: Number(p.sellingPrice),
+      recipeCost: Number(p.recipeCost),
+    });
   }
 
-  console.log(`[FORECAST] Business ${businessId}: ${byProduct.size} products with sales data in last 30 days`);
-
-  // Store product forecasts for later aggregation: Map<productId, Array<{date, qty, lower, upper}>>
-  const productForecastMap = new Map<number, { date: string; qty: number; lower: number; upper: number }[]>();
+  // ─── Step 4: Generate Product-Level Forecasts ──────────────────────────
+  const productForecastMap = new Map<
+    number,
+    { date: string; qty: number; lower: number; upper: number; metadata: object }[]
+  >();
   let skippedProducts = 0;
+  const priceChangeNotes: string[] = [];
 
-  for (const [productId, entries] of byProduct) {
+  for (const [productId, data] of byProduct) {
+    const { entries, historicalPrices } = data;
+
+    // Build time series with zero-fill for missing days
     const series = allDates.map((d) => {
       const found = entries.find((e) => e.date === d);
       return found ? found.qty : 0;
     });
     const nonZero = series.filter((v) => v > 0).length;
 
-    // Debug for first product
-    if (productForecastMap.size === 0 && skippedProducts === 0) {
-      console.log(`[FORECAST] Product ${productId}: entries count=${entries.length}, series nonZero=${nonZero}`);
-    }
-
-    // Lower threshold: only skip if absolutely no data (at least 1 day of sales needed)
     if (nonZero < 1) {
       skippedProducts++;
       continue;
     }
 
+    // ─── 4a: Calculate Weekday Multipliers (Seasonality) ─────────────────
+    const weekdayMultipliers = calculateWeekdayMultipliers(entries);
+
+    // ─── 4b: Calculate Volatility and Dynamic Buffer ─────────────────────
+    const volatility = calculateVolatilityAndBuffer(series);
+
+    // ─── 4c: Detect Price Changes ────────────────────────────────────────
+    const currentPrice = productPriceMap.get(productId)?.sellingPrice ?? 0;
+    const priceChangeInfo = detectPriceChange(historicalPrices, currentPrice);
+    if (priceChangeInfo.detected) {
+      const productName = (await prisma.product.findUnique({ where: { id: productId }, select: { name: true } }))?.name;
+      priceChangeNotes.push(`${productName}: ${priceChangeInfo.note}`);
+    }
+
+    // ─── 4d: Generate Base Forecast (ARIMA or WMA) ───────────────────────
     let preds: number[];
     let errs: number[];
+    let method: "ARIMA" | "WMA" = "WMA";
 
-    // Use ARIMA only if we have sufficient data (5+ days), otherwise use WMA
     if (nonZero >= 5) {
       try {
         const arima = new ARIMA({ auto: true, verbose: false });
@@ -105,6 +268,7 @@ async function generateForecastForBusiness(businessId: number) {
         const [p, e] = arima.predict(7) as [number[], number[]];
         preds = p;
         errs = e;
+        method = "ARIMA";
       } catch {
         // Fallback to WMA
         const window = Math.min(series.length, 14);
@@ -120,7 +284,7 @@ async function generateForecastForBusiness(businessId: number) {
         errs = Array(7).fill(1);
       }
     } else {
-      // Not enough data for ARIMA - use simple weighted moving average
+      // Not enough data - use WMA
       const window = Math.min(series.length, 14);
       const recent = series.slice(-window);
       let wSum = 0,
@@ -132,30 +296,48 @@ async function generateForecastForBusiness(businessId: number) {
       });
       const wma = wTotal > 0 ? Math.round(wSum / wTotal) : 0;
       preds = Array(7).fill(wma);
-      errs = Array(7).fill(Math.max(1, wma * 0.3)); // Wider error bands for limited data
+      errs = Array(7).fill(Math.max(1, wma * 0.3));
     }
 
+    // ─── 4e: Apply Seasonality Adjustment ────────────────────────────────
+    preds = applySeasonalityAdjustment(preds, now, weekdayMultipliers);
+
+    // ─── 4f: Cap predictions to reasonable bounds ────────────────────────
     const maxQty = Math.max(...series, 1);
     preds = preds.map((v) => Math.max(0, Math.min(v, maxQty * 2)));
-    const avgQty = series.reduce((s, v) => s + v, 0) / nonZero;
+    const avgQty = series.reduce((s, v) => s + v, 0) / Math.max(nonZero, 1);
     const qtyCap = Math.max(avgQty * 3, 1);
 
-    const forecastsForProduct: { date: string; qty: number; lower: number; upper: number }[] = [];
+    // ─── 4g: Save Product Forecasts ──────────────────────────────────────
+    const forecastsForProduct: { date: string; qty: number; lower: number; upper: number; metadata: object }[] = [];
 
     await Promise.all(
       preds.map((val, i) => {
-        const date = new Date(now);
-        date.setDate(date.getDate() + i + 1);
-        const dateStr = date.toISOString().split("T")[0];
+        const forecastDate = new Date(now);
+        forecastDate.setDate(forecastDate.getDate() + i + 1);
+        const dateStr = forecastDate.toISOString().split("T")[0];
         const se = errs?.[i] ?? Math.abs(val) * 0.2;
         const qty = Math.max(0, Math.round(val));
         const lower = Math.max(0, Math.round(val - 1.96 * se));
         const rawUpper = Math.round(val + 1.96 * se);
         const upper = Math.max(qty, Math.min(rawUpper, Math.round(qty + qtyCap)));
-        const confidence = Math.max(0, Math.min(100, 90 - i * 4));
-        const rec = qty === 0 ? "Tidak perlu produksi" : `Produksi ~${Math.ceil(qty * 1.1)} unit (buffer 10%)`;
 
-        forecastsForProduct.push({ date: dateStr, qty, lower, upper });
+        // Non-linear confidence decay
+        const confidence = calculateNonLinearConfidence(i);
+
+        // Dynamic production recommendation
+        const rec = generateProductionRecommendation(qty, volatility);
+
+        // Metadata for transparency
+        const metadata = {
+          method,
+          volatilityLevel: volatility.level,
+          bufferPercent: volatility.bufferPercentage,
+          seasonalityMultiplier: weekdayMultipliers[forecastDate.getDay()],
+          priceChangeDetected: priceChangeInfo.detected,
+        };
+
+        forecastsForProduct.push({ date: dateStr, qty, lower, upper, metadata });
 
         return prisma.productForecast.upsert({
           where: { productId_date: { productId, date: new Date(dateStr) } },
@@ -165,6 +347,7 @@ async function generateForecastForBusiness(businessId: number) {
             upperBound: upper,
             confidenceScore: confidence,
             recommendedProduction: rec,
+            metadata,
           },
           create: {
             productId,
@@ -174,6 +357,7 @@ async function generateForecastForBusiness(businessId: number) {
             upperBound: upper,
             confidenceScore: confidence,
             recommendedProduction: rec,
+            metadata,
           },
         });
       }),
@@ -183,33 +367,11 @@ async function generateForecastForBusiness(businessId: number) {
   }
 
   console.log(
-    `[FORECAST] Business ${businessId}: Generated forecasts for ${productForecastMap.size} products, skipped ${skippedProducts} (insufficient data)`,
+    `[FORECAST] Business ${businessId}: Generated forecasts for ${productForecastMap.size} products, ` +
+      `skipped ${skippedProducts} (insufficient data)`,
   );
 
-  // ─── Step 2: Calculate Business Forecast from Product Forecasts ────────
-  // Aggregate: predictedRevenue = Σ(predictedQty × sellingPrice)
-  //            predictedCost = Σ(predictedQty × recipeCost)
-  //            predictedProfit = predictedRevenue - predictedCost
-
-  console.log(`[FORECAST] Business ${businessId}: ${productForecastMap.size} products with forecasts`);
-
-  // Get all products with their prices for this business
-  const products = await prisma.product.findMany({
-    where: { businessId, deletedAt: null, isActive: true },
-    select: { id: true, sellingPrice: true, recipeCost: true },
-  });
-
-  console.log(`[FORECAST] Business ${businessId}: ${products.length} active products with prices`);
-
-  const productPriceMap = new Map<number, { sellingPrice: number; recipeCost: number }>();
-  for (const p of products) {
-    productPriceMap.set(p.id, {
-      sellingPrice: Number(p.sellingPrice),
-      recipeCost: Number(p.recipeCost),
-    });
-  }
-
-  // Generate forecast dates
+  // ─── Step 5: Aggregate to Business Forecast ────────────────────────────
   const forecastDates: string[] = [];
   for (let i = 1; i <= 7; i++) {
     const d = new Date(now);
@@ -217,7 +379,6 @@ async function generateForecastForBusiness(businessId: number) {
     forecastDates.push(d.toISOString().split("T")[0]);
   }
 
-  // Aggregate daily forecasts
   const dailyAggregates: {
     date: string;
     predictedRevenue: number;
@@ -254,10 +415,9 @@ async function generateForecastForBusiness(businessId: number) {
     });
   }
 
-  // If no product forecasts available, fall back to historical average
+  // ─── Fallback: Use Historical Average if No Product Forecasts ──────────
   if (dailyAggregates.length === 0 || dailyAggregates.every((d) => d.predictedRevenue === 0)) {
-    console.log(`[FORECAST] Business ${businessId}: Using fallback (no product forecasts aggregated)`);
-    // Fallback: use historical BusinessMetrics average
+    console.log(`[FORECAST] Business ${businessId}: Using historical average fallback`);
     const bizMetrics = await prisma.businessMetrics.findMany({
       where: { businessId, date: { gte: since } },
       orderBy: { date: "asc" },
@@ -279,15 +439,26 @@ async function generateForecastForBusiness(businessId: number) {
     }
   }
 
-  // Save business forecasts
+  // ─── Step 6: Save Business Forecasts with Metadata ─────────────────────
   if (dailyAggregates.length > 0) {
     console.log(
-      `[FORECAST] Business ${businessId}: Saving ${dailyAggregates.length} days, first day revenue = ${dailyAggregates[0]?.predictedRevenue}`,
+      `[FORECAST] Business ${businessId}: Saving ${dailyAggregates.length} days, ` +
+        `first day revenue = Rp ${dailyAggregates[0]?.predictedRevenue.toLocaleString()}`,
     );
+
+    // Build metadata for business forecast
+    const businessMetadata = {
+      lookbackDays,
+      productsForecasted: productForecastMap.size,
+      priceChangesDetected: priceChangeNotes.length > 0,
+      priceChangeNotes: priceChangeNotes.slice(0, 5), // Limit to first 5
+      generatedAt: now.toISOString(),
+    };
+
     await Promise.all(
       dailyAggregates.map((agg, i) => {
         const predictedProfit = agg.predictedRevenue - agg.predictedCost;
-        const confidence = Math.max(0, Math.min(100, 95 - i * 3));
+        const confidence = calculateNonLinearConfidence(i);
 
         return prisma.businessForecast.upsert({
           where: { businessId_date: { businessId, date: new Date(agg.date) } },
@@ -297,6 +468,7 @@ async function generateForecastForBusiness(businessId: number) {
             lowerBound: agg.lowerRevenue,
             upperBound: agg.upperRevenue,
             confidenceScore: confidence,
+            metadata: businessMetadata,
           },
           create: {
             businessId,
@@ -306,11 +478,16 @@ async function generateForecastForBusiness(businessId: number) {
             lowerBound: agg.lowerRevenue,
             upperBound: agg.upperRevenue,
             confidenceScore: confidence,
+            metadata: businessMetadata,
           },
         });
       }),
     );
   }
+
+  // ─── Step 7: Evaluate Forecast Accuracy (Background) ───────────────────
+  // This runs after forecast generation and doesn't block the main flow
+  await evaluateForecastAccuracy(businessId);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -432,15 +609,34 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
     key: "revenue",
     prompt: "Berikan 1-2 kalimat ringkas tentang tren pendapatan harian bisnis ini. Sebutkan pola kunci.",
     gather: async (bid) => {
-      const since = new Date();
-      since.setDate(since.getDate() - 30);
-      const m = await prisma.businessMetrics.findMany({
-        where: { businessId: bid, date: { gte: since } },
+      // Match EXACTLY what frontend /api/analytics/daily returns:
+      // Use UTC boundaries to match database DATE type (stored as midnight UTC)
+      const now = new Date();
+      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+      const fromUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29, 0, 0, 0, 0));
+
+      const metrics = await prisma.businessMetrics.findMany({
+        where: { businessId: bid, date: { gte: fromUTC, lte: todayUTC } },
         orderBy: { date: "asc" },
       });
-      const total = m.reduce((s, x) => s + Number(x.totalRevenue), 0);
-      const avg = Math.round(total / 30);
-      return `Pendapatan 30 hari: Rp ${total.toLocaleString("id-ID")}, rata-rata harian Rp ${avg.toLocaleString("id-ID")}.`;
+
+      // Zero-fill: build contiguous day array (same as /api/analytics/daily)
+      const cursor = new Date(fromUTC);
+      const end = new Date(todayUTC);
+      end.setUTCHours(0, 0, 0, 0);
+      let dayCount = 0;
+      let total = 0;
+
+      while (cursor <= end) {
+        const iso = cursor.toISOString().split("T")[0];
+        const found = metrics.find((m) => m.date.toISOString().split("T")[0] === iso);
+        total += Number(found?.totalRevenue ?? 0);
+        dayCount++;
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+      }
+
+      const avg = dayCount > 0 ? Math.round(total / dayCount) : 0;
+      return `Pendapatan ${dayCount} hari terakhir: Rp ${total.toLocaleString("id-ID")}, rata-rata harian Rp ${avg.toLocaleString("id-ID")}.`;
     },
   },
   {
@@ -497,11 +693,12 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
       const since = new Date();
       since.setDate(since.getDate() - 30);
       const wasteMoves = await prisma.$queryRaw<{ totalWaste: number }[]>`
-        SELECT COALESCE(SUM(ABS(im.quantity) * ib."costPerUnit"), 0)::numeric AS "totalWaste"
+        SELECT COALESCE(SUM(ABS(im.quantity) * im."costPerUnit"), 0)::numeric AS "totalWaste"
         FROM "InventoryMovement" im
-        JOIN "InventoryBatch" ib ON ib.id = im."batchId"
-        JOIN "Ingredient" ing ON ing.id = im."ingredientId"
-        WHERE ing."businessId" = ${bid} AND im.type = 'waste' AND im."createdAt" >= ${since}
+        JOIN "StockDocument" sd ON sd.id = im."stockDocumentId"
+        WHERE sd."businessId" = ${bid}
+          AND sd.type = 'Waste'
+          AND im."createdAt" >= ${since}
       `;
       const waste = Number(wasteMoves[0]?.totalWaste ?? 0);
       const metrics = await prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: since } } });
@@ -527,19 +724,70 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "forecast",
-    prompt: "Berikan 1-2 kalimat ringkas tentang prediksi pendapatan dan laba 7 hari ke depan berdasarkan data ini.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas tentang prediksi pendapatan dan laba 7 hari ke depan. Bandingkan dengan rata-rata aktual minggu lalu. Perhatikan tren naik/turun dan hari-hari penting.",
     gather: async (bid) => {
+      const now = new Date();
       const fc = await prisma.businessForecast.findMany({
         where: { businessId: bid },
         orderBy: { date: "asc" },
       });
       if (fc.length === 0) return "Belum ada data prediksi.";
-      return fc
-        .map(
-          (f) =>
-            `${f.date.toISOString().split("T")[0]}: rev Rp ${Number(f.predictedRevenue).toLocaleString("id-ID")}, profit Rp ${Number(f.predictedProfit).toLocaleString("id-ID")}, keyakinan ${Number(f.confidenceScore)}%`,
-        )
+
+      // Get last 7 days actual data for comparison
+      const since7d = new Date(now);
+      since7d.setDate(since7d.getDate() - 7);
+      const recentMetrics = await prisma.businessMetrics.findMany({
+        where: { businessId: bid, date: { gte: since7d } },
+        orderBy: { date: "asc" },
+      });
+
+      const actualAvg =
+        recentMetrics.length > 0
+          ? Math.round(recentMetrics.reduce((s, m) => s + Number(m.totalRevenue), 0) / recentMetrics.length)
+          : 0;
+      const actualProfitAvg =
+        recentMetrics.length > 0
+          ? Math.round(recentMetrics.reduce((s, m) => s + Number(m.totalProfit), 0) / recentMetrics.length)
+          : 0;
+
+      const forecastAvg = Math.round(fc.reduce((s, f) => s + Number(f.predictedRevenue), 0) / fc.length);
+      const forecastProfitAvg = Math.round(fc.reduce((s, f) => s + Number(f.predictedProfit), 0) / fc.length);
+
+      const revenueChange = actualAvg > 0 ? (((forecastAvg - actualAvg) / actualAvg) * 100).toFixed(1) : "N/A";
+      const profitChange =
+        actualProfitAvg > 0 ? (((forecastProfitAvg - actualProfitAvg) / actualProfitAvg) * 100).toFixed(1) : "N/A";
+
+      // Calendar context - Indonesian holidays and weekends
+      const dateStr = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+      const weekendDays = fc.filter((f) => {
+        const day = new Date(f.date).getDay();
+        return day === 0 || day === 6;
+      }).length;
+
+      // Build context string
+      let context = `Tanggal hari ini: ${dateStr}.\n`;
+      context += `\nRata-rata AKTUAL 7 hari terakhir: Pendapatan Rp ${actualAvg.toLocaleString("id-ID")}, Laba Rp ${actualProfitAvg.toLocaleString("id-ID")}.`;
+      context += `\nRata-rata PREDIKSI 7 hari ke depan: Pendapatan Rp ${forecastAvg.toLocaleString("id-ID")} (${revenueChange}%), Laba Rp ${forecastProfitAvg.toLocaleString("id-ID")} (${profitChange}%).`;
+      context += `\nJumlah hari weekend dalam prediksi: ${weekendDays} hari.`;
+      context += `\n\nDetail prediksi harian:\n`;
+      context += fc
+        .map((f) => {
+          const dayName = new Date(f.date).toLocaleDateString("id-ID", {
+            weekday: "short",
+            day: "numeric",
+            month: "short",
+          });
+          return `${dayName}: rev Rp ${Number(f.predictedRevenue).toLocaleString("id-ID")}, profit Rp ${Number(f.predictedProfit).toLocaleString("id-ID")}, keyakinan ${Number(f.confidenceScore)}%`;
+        })
         .join("; ");
+
+      return context;
     },
   },
 ];
@@ -553,12 +801,25 @@ async function generateInsightsForBusiness(businessId: number) {
         continue;
       }
 
+      // Build calendar-aware system prompt
+      const now = new Date();
+      const dateContext = now.toLocaleDateString("id-ID", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
       const completion = await groq.chat.completions.create({
         messages: [
           {
             role: "system",
             content:
-              "Kamu adalah konsultan bisnis AI untuk UMKM Indonesia. Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia. Jangan gunakan markdown. Langsung ke poin utama.",
+              `Kamu adalah konsultan bisnis AI untuk UMKM Indonesia. Hari ini ${dateContext}. ` +
+              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia. ` +
+              `PENTING: Gunakan ANGKA PERSIS yang diberikan dalam data, JANGAN menghitung ulang atau memperkirakan. ` +
+              `Perhatikan pola hari kerja vs weekend dan hari besar Indonesia jika relevan. ` +
+              `Jangan gunakan markdown. Langsung ke poin utama.`,
           },
           {
             role: "user",
@@ -566,7 +827,7 @@ async function generateInsightsForBusiness(businessId: number) {
           },
         ],
         model: GROQ_MODELS.text.primary,
-        temperature: 0.3,
+        temperature: 0.1,
         max_tokens: 150,
       });
 
