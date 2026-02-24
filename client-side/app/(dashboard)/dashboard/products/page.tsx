@@ -763,7 +763,14 @@ export default function ProductsPage() {
                           />
                         </td>
                         <td className="px-4 py-4">
-                          <div className="font-bold text-slate-800">{product.name}</div>
+                          <div className="flex items-center gap-2">
+                            <div className="font-bold text-slate-800">{product.name}</div>
+                            {product.productType === "ReadyStock" && (
+                              <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                                📦 Ready
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4">
                           {product.category ? (

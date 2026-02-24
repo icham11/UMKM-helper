@@ -40,9 +40,11 @@ interface RecipeIngredient {
 interface Product {
   id: number;
   name: string;
-  sellingPrice: number | string; // Prisma Decimal → string in JSON
+  sellingPrice: number | string;
   categoryId: number | null;
   isActive: boolean;
+  productType?: "ReadyStock" | "PreOrder";
+  availableStock?: number; // for ReadyStock products
   category?: { id: number; name: string } | null;
   recipes?: RecipeIngredient[];
   recipeCost?: number | string;
@@ -73,6 +75,20 @@ function getProductAvailability(
   product: Product,
   reservedByOthers?: Map<number, number>,
 ): { available: boolean; maxQty: number; missingIngredients: string[] } {
+  // ReadyStock: availability based on produced quantity, not ingredients
+  if (product.productType === "ReadyStock") {
+    const stock = product.availableStock ?? 0;
+    // reservedByOthers uses productId as key for ReadyStock
+    const reserved = reservedByOthers?.get(product.id) ?? 0;
+    const effectiveStock = Math.max(0, stock - reserved);
+    return {
+      available: effectiveStock > 0,
+      maxQty: effectiveStock,
+      missingIngredients: effectiveStock <= 0 ? ["Stok produksi habis"] : [],
+    };
+  }
+
+  // PreOrder: availability based on ingredient stock (current behavior)
   if (!product.recipes || product.recipes.length === 0) {
     return { available: true, maxQty: 999, missingIngredients: [] };
   }
@@ -81,7 +97,6 @@ function getProductAvailability(
   let maxQty = Infinity;
 
   for (const recipe of product.recipes) {
-    // CRITICAL: Prisma Decimal serializes to string in JSON — must Number() everything
     const realStock = Number(recipe.ingredient.currentStock) || 0;
     const reservedByOther = reservedByOthers?.get(recipe.ingredient.id) ?? 0;
     const effectiveStock = Math.max(0, realStock - reservedByOther);
@@ -104,8 +119,10 @@ function getProductAvailability(
 }
 
 /**
- * Build a map of ingredientId → total qty reserved by cart items,
- * optionally EXCLUDING a specific product (so we can compute that product's max).
+ * Build a map of ingredientId/productId → total qty reserved by cart items,
+ * optionally EXCLUDING a specific product.
+ * ReadyStock products: reserve by productId (from availableStock)
+ * PreOrder products: reserve by ingredientId (from ingredient stock)
  */
 function buildReservedStock(
   cart: CartItem[],
@@ -116,11 +133,19 @@ function buildReservedStock(
   for (const cartItem of cart) {
     if (cartItem.productId === excludeProductId) continue;
     const product = products.find((p) => p.id === cartItem.productId);
-    if (!product?.recipes) continue;
-    for (const recipe of product.recipes) {
-      const current = reserved.get(recipe.ingredient.id) ?? 0;
-      // CRITICAL: recipe.quantity is Prisma Decimal → string in JSON
-      reserved.set(recipe.ingredient.id, current + Number(recipe.quantity) * cartItem.quantity);
+    if (!product) continue;
+
+    if (product.productType === "ReadyStock") {
+      // Reserve by productId for ReadyStock
+      const current = reserved.get(product.id) ?? 0;
+      reserved.set(product.id, current + cartItem.quantity);
+    } else {
+      // Reserve by ingredientId for PreOrder
+      if (!product.recipes) continue;
+      for (const recipe of product.recipes) {
+        const current = reserved.get(recipe.ingredient.id) ?? 0;
+        reserved.set(recipe.ingredient.id, current + Number(recipe.quantity) * cartItem.quantity);
+      }
     }
   }
   return reserved;
@@ -678,12 +703,19 @@ export default function POSPage() {
                         </div>
                       )}
 
-                      {/* Category */}
-                      {product.category && (
-                        <span className="text-[10px] font-medium text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
-                          {product.category.name}
-                        </span>
-                      )}
+                      {/* Category + Product Type Badge */}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {product.category && (
+                          <span className="text-[10px] font-medium text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
+                            {product.category.name}
+                          </span>
+                        )}
+                        {product.productType === "ReadyStock" && (
+                          <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            📦 Ready
+                          </span>
+                        )}
+                      </div>
 
                       {/* Name */}
                       <h3 className={`font-semibold mt-2 text-sm leading-tight ${!available ? "text-gray-400" : "text-gray-900"}`}>
@@ -695,8 +727,20 @@ export default function POSPage() {
                         {formatRupiah(Number(product.sellingPrice))}
                       </p>
 
-                      {/* ── Ingredient stock indicators (real-time) ── */}
-                      {ingredientStocks.length > 0 ? (
+                      {/* ── Stock indicators — ReadyStock vs PreOrder ── */}
+                      {product.productType === "ReadyStock" ? (
+                        <div className="mt-1.5">
+                          <span className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-md font-semibold ${
+                            (product.availableStock ?? 0) <= 0
+                              ? "bg-red-100 text-red-600"
+                              : (product.availableStock ?? 0) <= 5
+                              ? "bg-amber-50 text-amber-700"
+                              : "bg-emerald-50 text-emerald-700"
+                          }`}>
+                            📦 Stok: {product.availableStock ?? 0}
+                          </span>
+                        </div>
+                      ) : ingredientStocks.length > 0 ? (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {ingredientStocks.slice(0, 3).map((ing) => (
                             <span

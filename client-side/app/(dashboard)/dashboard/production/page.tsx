@@ -1,0 +1,286 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Factory, Package, Plus, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+
+interface ReadyStockProduct {
+  productId: number;
+  productName: string;
+  sellingPrice: string | number;
+  recipeCost: string | number;
+  availableStock: number;
+}
+
+interface ProductionBatch {
+  id: number;
+  productId: number;
+  quantity: number;
+  remainingQty: number;
+  costPerUnit: string | number;
+  producedAt: string;
+  product: { id: number; name: string; sellingPrice: string | number };
+}
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(val);
+
+export default function ProductionPage() {
+  const [summary, setSummary] = useState<ReadyStockProduct[]>([]);
+  const [batches, setBatches] = useState<ProductionBatch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [producing, setProducing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Produce modal state
+  const [showModal, setShowModal] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<ReadyStockProduct | null>(null);
+  const [produceQty, setProduceQty] = useState(1);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/production?limit=50", { credentials: "include" });
+      const data = await res.json();
+      if (data.success) {
+        setSummary(data.summary ?? []);
+        setBatches(data.data ?? []);
+      }
+    } catch {
+      setError("Gagal memuat data produksi");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const handleProduce = async () => {
+    if (!selectedProduct || produceQty <= 0) return;
+    setProducing(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const res = await fetch("/api/production", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ productId: selectedProduct.productId, quantity: produceQty }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Gagal produksi");
+      setSuccess(`Berhasil produksi ${produceQty}x ${selectedProduct.productName}. Biaya: ${formatRupiah(data.data.totalCost)}`);
+      setShowModal(false);
+      setProduceQty(1);
+      fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memproses produksi");
+    } finally {
+      setProducing(false);
+    }
+  };
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-3">
+            <div className="p-2 bg-emerald-100 rounded-xl">
+              <Factory className="w-6 h-6 text-emerald-600" />
+            </div>
+            Produksi
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
+          </p>
+        </div>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Alerts */}
+      {error && (
+        <div className="flex items-center gap-2 bg-red-50 text-red-600 rounded-xl p-4 mb-6 text-sm">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 rounded-xl p-4 mb-6 text-sm">
+          <CheckCircle2 className="w-4 h-4 shrink-0" />
+          {success}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+        </div>
+      ) : (
+        <>
+          {/* Ready Stock Products Summary */}
+          <div className="mb-8">
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Produk Ready Stock</h2>
+            {summary.length === 0 ? (
+              <div className="bg-gray-50 rounded-2xl p-8 text-center text-gray-400">
+                <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                <p className="text-sm font-medium">Belum ada produk Ready Stock.</p>
+                <p className="text-xs mt-1">Ubah tipe produk ke &quot;Ready Stock&quot; di halaman Products.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {summary.map((p) => (
+                  <div
+                    key={p.productId}
+                    className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="font-bold text-gray-900">{p.productName}</h3>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Harga jual: {formatRupiah(Number(p.sellingPrice))}
+                        </p>
+                      </div>
+                      <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                        p.availableStock <= 0
+                          ? "bg-red-100 text-red-600"
+                          : p.availableStock <= 5
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}>
+                        {p.availableStock}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400">
+                        Biaya resep: {formatRupiah(Number(p.recipeCost))}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setSelectedProduct(p);
+                          setProduceQty(1);
+                          setShowModal(true);
+                          setError(null);
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Produksi
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Production History */}
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Riwayat Produksi</h2>
+            {batches.length === 0 ? (
+              <div className="bg-gray-50 rounded-2xl p-8 text-center text-gray-400">
+                <p className="text-sm">Belum ada riwayat produksi.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase">
+                      <th className="px-5 py-3 text-left">Produk</th>
+                      <th className="px-5 py-3 text-center">Qty Produksi</th>
+                      <th className="px-5 py-3 text-center">Sisa</th>
+                      <th className="px-5 py-3 text-right">Biaya/unit</th>
+                      <th className="px-5 py-3 text-right">Tanggal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {batches.map((b) => (
+                      <tr key={b.id} className="hover:bg-gray-50 transition">
+                        <td className="px-5 py-3 font-medium text-gray-900">{b.product.name}</td>
+                        <td className="px-5 py-3 text-center">{b.quantity}</td>
+                        <td className="px-5 py-3 text-center">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                            b.remainingQty <= 0
+                              ? "bg-gray-100 text-gray-400"
+                              : "bg-emerald-100 text-emerald-700"
+                          }`}>
+                            {b.remainingQty}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3 text-right text-gray-600">{formatRupiah(Number(b.costPerUnit))}</td>
+                        <td className="px-5 py-3 text-right text-gray-500">
+                          {new Date(b.producedAt).toLocaleDateString("id-ID", {
+                            day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+                          })}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Produce Modal */}
+      {showModal && selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">
+              Produksi: {selectedProduct.productName}
+            </h3>
+            <p className="text-xs text-gray-500 mb-5">
+              Bahan baku akan dikurangi otomatis sesuai resep produk.
+            </p>
+
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Jumlah Produksi</label>
+            <input
+              type="number"
+              min={1}
+              max={999}
+              value={produceQty}
+              onChange={(e) => setProduceQty(Math.max(1, Number(e.target.value)))}
+              className="w-full border border-emerald-200 rounded-xl px-4 py-3 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-emerald-400 outline-none mb-2"
+            />
+            <p className="text-xs text-gray-400 mb-5">
+              Estimasi biaya: {formatRupiah(Number(selectedProduct.recipeCost) * produceQty)}
+            </p>
+
+            {error && (
+              <div className="flex items-center gap-2 bg-red-50 text-red-600 rounded-lg p-3 mb-4 text-xs">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowModal(false); setError(null); }}
+                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleProduce}
+                disabled={producing || produceQty <= 0}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
+              >
+                {producing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Factory className="w-4 h-4" />}
+                Produksi {produceQty}x
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+

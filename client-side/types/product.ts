@@ -32,6 +32,8 @@ export type Product = {
   businessId: number;
   categoryId: number | null;
   sellingPrice: number;
+  productType?: "ReadyStock" | "PreOrder";
+  availableStock?: number; // for ReadyStock: sum of production batch remaining
   createdAt?: string;
   category: ProductCategory | null;
   recipes: ProductRecipeItem[];
@@ -77,5 +79,6 @@ export type CreateProductInput = {
   name: string;
   categoryName: string;
   sellingPrice: number;
+  productType?: "ReadyStock" | "PreOrder";
   recipe: RecipeItemInput[];
 };

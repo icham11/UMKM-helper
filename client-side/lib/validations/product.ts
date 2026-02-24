@@ -85,6 +85,7 @@ export const createProductSchema = z.object({
   name: z.string().min(1, "Product name is required").max(200),
   categoryName: z.string().min(1, "Category is required").max(100),
   sellingPrice: z.number().positive("Selling price must be positive"),
+  productType: z.enum(["ReadyStock", "PreOrder"]).optional().default("PreOrder"),
   recipe: z.array(recipeItemSchema).optional().default([]),
 });
 

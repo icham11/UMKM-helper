@@ -31,11 +31,17 @@ enum StockDocumentType {
   Purchase
   Sale
   Waste
+  Production
 }
 
 enum InventoryMovementType {
   In
   Out
+}
+
+enum ProductType {
+  ReadyStock
+  PreOrder
 }
 
 enum UserRole {
@@ -94,6 +100,7 @@ model Business {
   documents            BusinessDocument[]
   debts                Debt[]
   cashierShifts        CashierShift[]
+  productionBatches    ProductionBatch[]
 
   // requireAuth: findFirst where userId, orderBy createdAt
   // GET /api/businesses: findMany where userId
@@ -273,30 +280,52 @@ model Category {
 }
 
 model Product {
-  id           Int      @id @default(autoincrement())
+  id           Int         @id @default(autoincrement())
   businessId   Int
   categoryId   Int?
   name         String
-  sellingPrice Decimal  @db.Decimal(12, 2)
-  recipeCost   Decimal  @default(0) @db.Decimal(12, 2)
-  isActive     Boolean  @default(true)
+  sellingPrice Decimal     @db.Decimal(12, 2)
+  recipeCost   Decimal     @default(0) @db.Decimal(12, 2)
+  productType  ProductType @default(PreOrder)
+  isActive     Boolean     @default(true)
   deletedAt    DateTime?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  business       Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  category       Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  recipes        Recipe[]
-  saleItems      SaleItem[]
-  productMetrics ProductMetrics[]
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  category         Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  recipes          Recipe[]
+  saleItems        SaleItem[]
+  productMetrics   ProductMetrics[]
   productForecasts ProductForecast[]
+  productionBatches ProductionBatch[]
 
-  // GET /api/products: findMany where businessId + deletedAt: null
-  // AI chat: findMany where businessId + isActive
   @@index([businessId, isActive])
   @@index([businessId, deletedAt])
   @@index([businessId, categoryId])
   @@index([categoryId])
+}
+
+// ==================== PRODUCTION LAYER ====================
+
+model ProductionBatch {
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  businessId      Int
+  quantity         Int      // total produced
+  remainingQty     Int      // unsold quantity (FIFO deduction on sale)
+  costPerUnit      Decimal  @db.Decimal(12, 2) // ingredient cost per unit at production time
+  stockDocumentId  Int?
+  producedAt       DateTime @default(now())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  business       Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  stockDocument  StockDocument? @relation(fields: [stockDocumentId], references: [id])
+
+  @@index([productId, remainingQty])
+  @@index([businessId, producedAt(sort: Desc)])
 }
 
 // ==================== INVENTORY LAYER ====================
@@ -348,8 +377,8 @@ model StockDocument {
   business           Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
   inventoryMovements InventoryMovement[]
   sales              Sale[]
+  productionBatches  ProductionBatch[]
 
-  // Created during sales and restocks, queried by businessId
   @@index([businessId, type])
 }
 

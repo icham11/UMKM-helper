@@ -10,6 +10,7 @@ import {
   updateProductMetrics,
   recomputeRecipeCost,
 } from "@/lib/services/saleHelpers";
+import { deductProductionBatch } from "@/lib/inventory/production-engine";
 import {
   withIdempotency,
   buildMidtransEventId,
@@ -116,7 +117,24 @@ export async function POST(request: NextRequest) {
 
             // 5b. Calculate cost + deduct inventory for each item
             for (const item of sale.saleItems) {
-              const cost = await calculateProductCost(tx, item.productId, item.quantity);
+              // Check product type
+              const product = await tx.product.findUnique({
+                where: { id: item.productId },
+                select: { productType: true },
+              });
+
+              let cost: number;
+
+              if (product?.productType === "ReadyStock") {
+                // ReadyStock: deduct from production batches
+                const result = await deductProductionBatch(tx, item.productId, item.quantity);
+                cost = result.totalCost;
+              } else {
+                // PreOrder: deduct from ingredient inventory
+                cost = await calculateProductCost(tx, item.productId, item.quantity);
+                await deductInventory(tx, item.productId, item.quantity, stockDocument.id);
+              }
+
               totalCost += cost;
 
               const unitCost = item.quantity > 0 ? cost / item.quantity : 0;
@@ -126,7 +144,6 @@ export async function POST(request: NextRequest) {
                 data: { costAtSale: unitCost },
               });
 
-              await deductInventory(tx, item.productId, item.quantity, stockDocument.id);
 
               saleItemDetails.push({
                 productId: item.productId,

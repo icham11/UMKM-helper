@@ -16,6 +16,7 @@ const patchSchema = z.object({
   categoryId: z.coerce.number().int().optional(),
   categoryName: z.string().min(1).max(100).optional(),
   sellingPrice: z.coerce.number().positive("Selling price must be positive").optional(),
+  productType: z.enum(["ReadyStock", "PreOrder"]).optional(),
   createdAt: z.string().datetime().optional(),
   recipe: z.array(recipeItemSchema).optional(),
 });
@@ -63,10 +64,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     // Prepare update data
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
     if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (parsed.data.sellingPrice !== undefined) updateData.sellingPrice = parsed.data.sellingPrice;
+    if (parsed.data.productType !== undefined) updateData.productType = parsed.data.productType;
     if (parsed.data.createdAt !== undefined) updateData.createdAt = new Date(parsed.data.createdAt);
 
     // Update product main fields
