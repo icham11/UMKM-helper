@@ -24,13 +24,19 @@ export async function generateEmbedding(text: string): Promise<number[]> {
     throw new Error("GEMINI_API_KEY is not set. Required for RAG embeddings.");
   }
 
+  // Sanitize — remove null bytes and limit
+  const safeText = text.replace(/\0/g, "").slice(0, 10000);
+  if (!safeText.trim()) {
+    throw new Error("Input text kosong — tidak bisa menghasilkan embedding.");
+  }
+
   const response = await fetch(`${GEMINI_EMBEDDING_URL}?key=${GEMINI_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: `models/${GEMINI_EMBEDDING_MODEL}`,
       content: {
-        parts: [{ text: text.slice(0, 10000) }], // Gemini limit
+        parts: [{ text: safeText }],
       },
       taskType: "RETRIEVAL_DOCUMENT",
       outputDimensionality: EMBEDDING_DIMENSIONS,
@@ -43,7 +49,13 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   }
 
   const data = await response.json();
-  return data.embedding.values as number[];
+  const values = data?.embedding?.values;
+  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `Gemini returned invalid embedding: expected ${EMBEDDING_DIMENSIONS} dimensions, got ${Array.isArray(values) ? values.length : "null"}`
+    );
+  }
+  return values as number[];
 }
 
 /**
@@ -54,13 +66,19 @@ export async function generateQueryEmbedding(query: string): Promise<number[]> {
     throw new Error("GEMINI_API_KEY is not set.");
   }
 
+  // Sanitize query — remove null bytes and limit length
+  const safeQuery = query.replace(/\0/g, "").slice(0, 10000);
+  if (!safeQuery.trim()) {
+    throw new Error("Query kosong — tidak bisa menghasilkan embedding.");
+  }
+
   const response = await fetch(`${GEMINI_EMBEDDING_URL}?key=${GEMINI_API_KEY}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model: `models/${GEMINI_EMBEDDING_MODEL}`,
       content: {
-        parts: [{ text: query.slice(0, 10000) }],
+        parts: [{ text: safeQuery }],
       },
       taskType: "RETRIEVAL_QUERY",
       outputDimensionality: EMBEDDING_DIMENSIONS,
@@ -73,7 +91,13 @@ export async function generateQueryEmbedding(query: string): Promise<number[]> {
   }
 
   const data = await response.json();
-  return data.embedding.values as number[];
+  const values = data?.embedding?.values;
+  if (!Array.isArray(values) || values.length !== EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `Gemini returned invalid query embedding: expected ${EMBEDDING_DIMENSIONS} dimensions, got ${Array.isArray(values) ? values.length : "null"}`
+    );
+  }
+  return values as number[];
 }
 
 /**
@@ -93,15 +117,20 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
     throw new Error("GEMINI_API_KEY is not set.");
   }
 
+  if (texts.length === 0) return [];
+
+  // Sanitize all texts — remove null bytes and limit
+  const safeTexts = texts.map((t) => t.replace(/\0/g, "").slice(0, 10000));
+
   const BATCH_SIZE = 20;  // 20 items per API call → 5 calls = 100 items/min (safe)
   const DELAY_MS = 1500;  // 1.5s between batches → ~13 batches/min × 20 = 260 items/min headroom
   const MAX_RETRIES = 3;
   const allEmbeddings: number[][] = [];
 
-  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
-    const batch = texts.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < safeTexts.length; i += BATCH_SIZE) {
+    const batch = safeTexts.slice(i, i + BATCH_SIZE);
     const batchNum = Math.floor(i / BATCH_SIZE) + 1;
-    const totalBatches = Math.ceil(texts.length / BATCH_SIZE);
+    const totalBatches = Math.ceil(safeTexts.length / BATCH_SIZE);
 
     console.log(`[Embedding] Batch ${batchNum}/${totalBatches} (${batch.length} items)`);
 
@@ -146,6 +175,16 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
         const embeddings = data.embeddings.map(
           (e: { values: number[] }) => e.values
         );
+
+        // Validate dimensions
+        for (let j = 0; j < embeddings.length; j++) {
+          if (!Array.isArray(embeddings[j]) || embeddings[j].length !== EMBEDDING_DIMENSIONS) {
+            throw new Error(
+              `Batch embedding ${j} has invalid dimensions: expected ${EMBEDDING_DIMENSIONS}, got ${Array.isArray(embeddings[j]) ? embeddings[j].length : "null"}`
+            );
+          }
+        }
+
         allEmbeddings.push(...embeddings);
         lastError = null;
         break; // success — exit retry loop
@@ -165,7 +204,7 @@ export async function generateEmbeddingsBatch(texts: string[]): Promise<number[]
     }
 
     // Pause between batches to respect rate limits
-    if (i + BATCH_SIZE < texts.length) {
+    if (i + BATCH_SIZE < safeTexts.length) {
       await sleep(DELAY_MS);
     }
   }

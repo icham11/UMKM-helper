@@ -22,10 +22,12 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       return NextResponse.json({ error: "Invalid ingredient ID" }, { status: 400 });
     }
 
+
     const body = await request.json();
-    const { name, unit, costPerUnit, initialStock, expirationDate } = body as {
+    const { name, unit, minStock, costPerUnit, initialStock, expirationDate } = body as {
       name?: string;
       unit?: string;
+      minStock?: number;
       costPerUnit?: number;
       /** Quantity to set on the initial batch (replaces the AI placeholder qty=0) */
       initialStock?: number;
@@ -46,13 +48,14 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
     }
 
-    // Update name / unit directly on the ingredient
-    if (name !== undefined || unit !== undefined) {
+    // Update name / unit / minStock directly on the ingredient
+    if (name !== undefined || unit !== undefined || minStock !== undefined) {
       await prisma.ingredient.update({
         where: { id: ingredientId },
         data: {
           ...(name !== undefined ? { name } : {}),
           ...(unit !== undefined ? { unit } : {}),
+          ...(minStock !== undefined ? { minStock } : {}),
         },
       });
     }
