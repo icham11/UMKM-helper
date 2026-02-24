@@ -58,10 +58,10 @@ export default function LogoutButton() {
 
     if (session) {
       // NextAuth (Google) — signOut will redirect
-      await signOut({ callbackUrl: "/login" })
+      await signOut({ callbackUrl: "/" })
     } else {
       // JWT (email/password) — hard redirect
-      window.location.replace("/login")
+      window.location.replace("/")
     }
   }
 

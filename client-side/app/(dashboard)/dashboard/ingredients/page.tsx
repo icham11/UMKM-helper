@@ -668,36 +668,54 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
     fetchHistory();
   }, [ingredient.id]);
 
+  // Helper to determine batch status
+  const getBatchStatus = (batch: Batch) => {
+    const today = new Date();
+    const expDate = new Date(batch.expirationDate);
+    if (expDate < today) return { label: "Expired", color: "bg-red-100 text-red-700" };
+    if (batch.remainingQty < 50) return { label: "Hampir Habis", color: "bg-orange-100 text-orange-700" };
+    return { label: "Aktif", color: "bg-green-100 text-green-700" };
+  };
+
   return (
     <ModalWrapper onClose={onClose} title={<span className="text-indigo-700 font-bold text-lg">Batch History</span>}>
+      <div className="mb-4">
+        <span className="font-semibold text-indigo-700 text-base">Ingredient: {ingredient.name}</span>
+      </div>
       <div className="space-y-4">
         {batches.length === 0 ? (
           <div className="text-center text-slate-400 py-6">Belum ada batch untuk bahan baku ini.</div>
         ) : (
-          batches.map((batch, idx) => (
-            <div
-              key={batch.id}
-              className="rounded-xl border border-indigo-100 bg-linear-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
-            >
-              <div className="flex flex-col md:flex-row md:items-center gap-2">
-                <span className="font-semibold text-indigo-800">Batch #{idx + 1}</span>
-                <span className="text-xs text-slate-500">ID: {batch.id}</span>
-              </div>
-              <div className="flex flex-wrap gap-4 text-sm mt-2 md:mt-0">
-                <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">
-                  Qty: {batch.remainingQty}
-                </span>
-                <span className="inline-block bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-semibold">
-                  Cost: Rp {batch.costPerUnit?.toLocaleString("id-ID")}
-                </span>
-                {batch.expirationDate && (
-                  <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
-                    Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID")}
+          batches.map((batch, idx) => {
+            const status = getBatchStatus(batch);
+            return (
+              <div
+                key={batch.id}
+                className="rounded-xl border border-indigo-100 bg-linear-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
+              >
+                <div className="flex flex-col md:flex-row md:items-center gap-2">
+                  <span className="font-semibold text-indigo-800">Batch #{idx + 1}</span>
+                  <span className="text-xs text-slate-500">ID: {batch.id}</span>
+                </div>
+                <div className="flex flex-wrap gap-4 text-sm mt-2 md:mt-0">
+                  <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">
+                    Qty: {batch.remainingQty}
                   </span>
-                )}
+                  <span className="inline-block bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-semibold">
+                    Cost: Rp {batch.costPerUnit?.toLocaleString("id-ID")}
+                  </span>
+                  {batch.expirationDate && (
+                    <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
+                      Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID")}
+                    </span>
+                  )}
+                  <span className={`inline-block px-3 py-1 rounded-full font-semibold ${status.color}`}>
+                    Status: {status.label}
+                  </span>
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </ModalWrapper>

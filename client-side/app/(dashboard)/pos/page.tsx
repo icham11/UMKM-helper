@@ -686,7 +686,7 @@ export default function POSPage() {
                       key={product.id}
                       onClick={() => available && !isMaxed && addToCart(product)}
                       disabled={!available || isMaxed}
-                      className={`relative text-left rounded-xl p-4 transition-all duration-200 border ${
+                      className={`relative text-left rounded-xl p-4 transition-all duration-200 border min-h-65 flex flex-col justify-start ${
                         !available
                           ? "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
                           : isMaxed
