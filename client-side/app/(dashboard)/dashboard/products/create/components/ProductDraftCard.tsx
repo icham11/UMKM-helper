@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useState } from "react";
 import { ChefHat, Sparkles, Trash2, ChevronDown, ChevronUp, Edit3, Tag, Plus } from "lucide-react";
@@ -103,6 +103,24 @@ export default function ProductDraftCard({
               <Tag size={10} />
               {draft.categoryName || "Uncategorised"}
             </span>
+            {/* Product Type Badge (clickable to toggle) */}
+            <button
+              type="button"
+              onClick={() =>
+                onChange({
+                  ...draft,
+                  productType: draft.productType === "ReadyStock" ? "PreOrder" : "ReadyStock",
+                })
+              }
+              className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                draft.productType === "ReadyStock"
+                  ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                  : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+              }`}
+              title="Klik untuk ganti tipe produk"
+            >
+              {draft.productType === "ReadyStock" ? "📦 Ready Stock" : "🍳 Made to Order"}
+            </button>
             <span className="text-indigo-700 font-semibold text-sm">{formatCurrency(draft.sellingPrice)}</span>
             <span className="text-gray-400 text-xs">cost {recipeCost > 0 ? formatCurrency(recipeCost) : "—"}</span>
             {draft.sellingPrice > 0 && (
@@ -170,6 +188,35 @@ export default function ProductDraftCard({
                 onChange={(e) => onChange({ ...draft, sellingPrice: Number(e.target.value) })}
                 className="mt-1 w-full border border-indigo-200 rounded-lg px-3 py-2 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
               />
+            </div>
+          </div>
+
+          {/* Product Type */}
+          <div>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipe Produk</label>
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => onChange({ ...draft, productType: "PreOrder" })}
+                className={`flex-1 py-2 px-3 rounded-lg border-2 text-xs font-semibold transition-all ${
+                  draft.productType !== "ReadyStock"
+                    ? "border-blue-400 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                🍳 Made to Order
+              </button>
+              <button
+                type="button"
+                onClick={() => onChange({ ...draft, productType: "ReadyStock" })}
+                className={`flex-1 py-2 px-3 rounded-lg border-2 text-xs font-semibold transition-all ${
+                  draft.productType === "ReadyStock"
+                    ? "border-emerald-400 bg-emerald-50 text-emerald-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                }`}
+              >
+                📦 Ready Stock
+              </button>
             </div>
           </div>
 

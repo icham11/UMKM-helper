@@ -63,6 +63,7 @@ export type ProductDraft = {
   name: string;
   categoryName: string;
   sellingPrice: number;
+  productType?: "ReadyStock" | "PreOrder";
   recipe: DraftRecipeRow[];
   /** Flag set when populated by AI */
   aiGenerated?: boolean;

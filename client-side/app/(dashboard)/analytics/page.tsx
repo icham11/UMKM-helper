@@ -1449,7 +1449,7 @@ function GrowthSection() {
 
       {/* View switcher */}
       <div className="flex gap-2 flex-wrap">
-        {["24h", "7d", "30d", "6mo"].map((g) => (
+        {(["24h", "7d", "30d", "6mo"] as Granularity[]).map((g) => (
           <button
             key={g}
             onClick={() => handleGranularity(g)}

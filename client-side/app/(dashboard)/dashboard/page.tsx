@@ -39,6 +39,7 @@ interface Ingredient {
 export default function DashboardPage() {
   // const router = useRouter(); // Unused, remove
 
+  const [greeting, setGreeting] = useState("");
   const [todayRevenue, setTodayRevenue] = useState<number>(0);
   const [todayTransactions, setTodayTransactions] = useState<number>(0);
   const [monthProfit, setMonthProfit] = useState<number>(0);
@@ -82,6 +83,11 @@ export default function DashboardPage() {
 
     return { start, end };
   }
+
+  // Set greeting on client only to avoid hydration mismatch
+  useEffect(() => {
+    setGreeting(getGreeting());
+  }, []);
 
   useEffect(() => {
     const loadDashboardData = async () => {
@@ -172,7 +178,7 @@ export default function DashboardPage() {
         <div className="bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-3xl p-8 shadow-xl">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Smile className="text-yellow-300" size={30} />
-            Good {getGreeting()}, Polo
+            Good {greeting || "..."}, Polo
           </h1>
           <p className="text-white/80 mt-2 text-sm">Here’s your business performance overview.</p>
         </div>

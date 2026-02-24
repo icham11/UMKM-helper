@@ -149,6 +149,28 @@ export default function SalesHistoryPage() {
   );
   const paidSales = filteredSales.filter((sale) => sale.paymentStatus === "Paid").length;
 
+  // Pending breakdown
+  const pendingSales = filteredSales.filter((sale) => sale.paymentStatus === "Pending");
+  const pendingCount = pendingSales.length;
+  const pendingRevenue = pendingSales.reduce((sum, sale) => sum + Number(sale.totalRevenue), 0);
+  const pendingProfit = pendingSales.reduce(
+    (sum, sale) => sum + (Number(sale.totalRevenue) - Number(sale.totalCost)),
+    0
+  );
+  const paidProfit = totalProfit - pendingProfit;
+
+  // Pending grouped by payment method
+  const pendingByMethod = pendingSales.reduce<Record<string, { count: number; amount: number }>>(
+    (acc, sale) => {
+      const method = sale.paymentMethod || "Unknown";
+      if (!acc[method]) acc[method] = { count: 0, amount: 0 };
+      acc[method].count += 1;
+      acc[method].amount += Number(sale.totalRevenue);
+      return acc;
+    },
+    {}
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -192,7 +214,7 @@ export default function SalesHistoryPage() {
           </div>
 
           {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             <div className="bg-linear-to-br from-blue-500 to-blue-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -213,16 +235,6 @@ export default function SalesHistoryPage() {
               </div>
             </div>
 
-            <div className="bg-linear-to-br from-purple-500 to-purple-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Total Profit</p>
-                  <p className="text-2xl font-bold">Rp {totalProfit.toLocaleString("id-ID")}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
-            </div>
-
             <div className="bg-linear-to-br from-orange-500 to-orange-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
@@ -233,6 +245,66 @@ export default function SalesHistoryPage() {
               </div>
             </div>
           </div>
+
+          {/* Profit breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div className="bg-linear-to-br from-purple-500 to-purple-600 p-4 rounded-lg text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm">Total Profit</p>
+                  <p className="text-2xl font-bold">Rp {totalProfit.toLocaleString("id-ID")}</p>
+                </div>
+                <DollarSign className="w-10 h-10 opacity-50" />
+              </div>
+            </div>
+
+            <div className="bg-linear-to-br from-emerald-500 to-emerald-600 p-4 rounded-lg text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-sm">Profit Lunas</p>
+                  <p className="text-2xl font-bold">Rp {paidProfit.toLocaleString("id-ID")}</p>
+                </div>
+                <DollarSign className="w-10 h-10 opacity-50" />
+              </div>
+            </div>
+
+            <div className="bg-linear-to-br from-amber-500 to-amber-600 p-4 rounded-lg text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-amber-100 text-sm">Profit Pending</p>
+                  <p className="text-2xl font-bold">Rp {pendingProfit.toLocaleString("id-ID")}</p>
+                </div>
+                <DollarSign className="w-10 h-10 opacity-50" />
+              </div>
+            </div>
+          </div>
+
+          {/* Pending detail breakdown */}
+          {pendingCount > 0 && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-amber-800 mb-2">
+                ⏳ Detail Pending — {pendingCount} transaksi (Rp {pendingRevenue.toLocaleString("id-ID")})
+              </h3>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(pendingByMethod).map(([method, info]) => (
+                  <div
+                    key={method}
+                    className="flex items-center gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2"
+                  >
+                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
+                      {method}
+                    </span>
+                    <span className="text-sm font-semibold text-gray-800">
+                      {info.count}x
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      (Rp {info.amount.toLocaleString("id-ID")})
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Filters */}
@@ -263,6 +335,7 @@ export default function SalesHistoryPage() {
                 <option value="QRIS">QRIS</option>
                 <option value="Transfer">Transfer</option>
                 <option value="Digital">Digital</option>
+                <option value="Kasbon">Kasbon</option>
               </select>
             </div>
 

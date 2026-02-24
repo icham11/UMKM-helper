@@ -95,6 +95,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
         const d = result.data;
         if (d.categoryName) setCategoryName(d.categoryName);
         if (d.sellingPrice) setSellingPrice(d.sellingPrice);
+        if (d.productType) setProductType(d.productType === "ReadyStock" ? "ReadyStock" : "PreOrder");
         if (d.recipe?.length) {
           setRecipe(
             d.recipe.map(

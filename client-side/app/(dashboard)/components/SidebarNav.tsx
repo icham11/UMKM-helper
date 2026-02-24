@@ -77,6 +77,7 @@ export default function SidebarNav() {
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-indigo-50 transition"
           >
             <Bot className="w-5 h-5" /> AI Center
+
           </Link>
         </div>
       )}
@@ -98,15 +99,16 @@ export default function SidebarNav() {
         </Link>
         <Link
           href="/dashboard/debts"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-amber-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-amber-50 transition"
         >
-          <BookOpen className="w-4 h-4" /> Kasbon
+          <BookOpen className="w-4 h-4" /> Kasbon (Paylater)
+
         </Link>
         <Link
           href="/dashboard/shift-history"
           className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-emerald-50 transition"
         >
-          <Clock className="w-4 h-4" /> Tutup Kasir
+          <Clock className="w-4 h-4" /> Closing (Cashier)
         </Link>
         {isOwner && (
           <Link
@@ -130,9 +132,9 @@ export default function SidebarNav() {
           </Link>
           <Link
             href="/dashboard/production"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-emerald-50 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
           >
-            <Factory className="w-4 h-4" /> Produksi
+            <Factory className="w-4 h-4" /> Production
           </Link>
           <Link
             href="/dashboard/ingredients"
@@ -163,7 +165,7 @@ export default function SidebarNav() {
             href="/dashboard/staff"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <Users className="w-4 h-4" /> Kelola Staff
+            <Users className="w-4 h-4" /> Staff Management
           </Link>
         </div>
       )}

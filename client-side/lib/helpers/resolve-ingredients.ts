@@ -15,6 +15,7 @@ export interface ResolvedProduct {
   name: string;
   categoryName: string;
   sellingPrice: number;
+  productType?: "ReadyStock" | "PreOrder";
   recipe: ResolvedRecipeItem[];
 }
 
@@ -145,6 +146,7 @@ export async function resolveIngredients(
       name: product.name,
       categoryName: product.categoryName,
       sellingPrice: product.sellingPrice,
+      productType: product.productType,
       recipe: resolvedRecipe,
     });
   }
