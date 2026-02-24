@@ -59,6 +59,7 @@ Respond with a SINGLE JSON object (NOT an array) in this exact format:
   "name": "product name",
   "categoryName": "one of the existing categories above, or suggest a new one if none fit",
   "sellingPrice": 25000,
+  "productType": "PreOrder",
   "recipe": [
     {
       "ingredientId": 101,
@@ -78,6 +79,9 @@ Respond with a SINGLE JSON object (NOT an array) in this exact format:
 }
 
 Rules:
+- "productType" MUST be one of: "ReadyStock" or "PreOrder".
+  - Use "ReadyStock" for products that are typically pre-made in batches and stored before selling (e.g., bottled drinks, packaged snacks, kue kering, roti, kerupuk, sambal kemasan, pre-packaged items).
+  - Use "PreOrder" (Made to Order) for products that are freshly prepared when a customer orders (e.g., kopi, jus, nasi goreng, mie ayam, fresh beverages, cooked-to-order food).
 - If an ingredient exists in the database, include its "ingredientId" and use its costPerUnit from the data above. If it does NOT exist, omit "ingredientId" and estimate a realistic costPerUnit in IDR.
 - "unit" MUST be one of: ${ALLOWED_UNITS}. Choose the most appropriate one — prefer gram/ml for bulk ingredients, pcs for whole items, sachet/botol/kaleng for packaged goods.
 - "costPerUnit" is the cost per 1 unit in IDR. Use the pricing guidance in the system prompt as a soft reference.
@@ -145,6 +149,7 @@ If the image IS a product list, respond with this exact JSON format:
       "name": "Product Name",
       "categoryName": "Category",
       "sellingPrice": 25000,
+      "productType": "PreOrder",
       "recipe": [
         {
           "ingredientId": 101,
@@ -168,6 +173,9 @@ If the image IS a product list, respond with this exact JSON format:
 Rules:
 - Extract ALL products visible in the image.
 - If prices are visible, use them. Otherwise estimate realistic IDR prices.
+- "productType" MUST be one of: "ReadyStock" or "PreOrder".
+  - Use "ReadyStock" for products that are typically pre-made in batches and stored before selling (e.g., bottled drinks, packaged snacks, kue kering, roti, kerupuk, sambal kemasan, pre-packaged items).
+  - Use "PreOrder" (Made to Order) for products that are freshly prepared when a customer orders (e.g., kopi, jus, nasi goreng, mie ayam, fresh beverages, cooked-to-order food).
 - For recipes: generate a realistic recipe for each product. Use existing ingredients when possible (include ingredientId and their costPerUnit from the data). For new ingredients, omit ingredientId and estimate costPerUnit.
 - "unit" MUST be one of: ${ALLOWED_UNITS}. Choose the most appropriate one — prefer gram/ml for bulk ingredients, pcs for whole items, sachet/botol/kaleng for packaged goods.
 - "costPerUnit" is the cost per 1 unit in IDR. Use the pricing guidance in the system prompt as a soft reference.
@@ -338,6 +346,7 @@ interface RawAIProductResponse {
   name?: string;
   categoryName?: string;
   sellingPrice?: number;
+  productType?: string;
   recipe?: RawAIRecipeItem[];
 }
 
@@ -362,6 +371,7 @@ function parseAIProductResponse(raw: string): AIGeneratedProduct {
       name: String(parsed.name),
       categoryName: String(parsed.categoryName),
       sellingPrice: Number(parsed.sellingPrice),
+      productType: parsed.productType === "ReadyStock" ? "ReadyStock" : "PreOrder",
       recipe: Array.isArray(parsed.recipe)
         ? parsed.recipe.map((r: RawAIRecipeItem) => ({
             ...(r.ingredientId ? { ingredientId: Number(r.ingredientId) } : {}),

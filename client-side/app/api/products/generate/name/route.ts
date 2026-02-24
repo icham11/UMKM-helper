@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
       name: resolvedProduct.name,
       categoryName: resolvedProduct.categoryName,
       sellingPrice: resolvedProduct.sellingPrice,
+      productType: resolvedProduct.productType ?? "PreOrder",
       recipe: resolvedProduct.recipe.map((r) => ({
         ingredientId: r.ingredientId,
         quantity: r.quantity,

@@ -98,7 +98,7 @@ export default function SidebarNav() {
         </Link>
         <Link
           href="/dashboard/debts"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-amber-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-amber-50 transition"
         >
           <BookOpen className="w-4 h-4" /> Utang Pelanggan
         </Link>
@@ -106,7 +106,7 @@ export default function SidebarNav() {
           href="/dashboard/shift-history"
           className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-emerald-50 transition"
         >
-          <Clock className="w-4 h-4" /> Tutup Kasir
+          <Clock className="w-4 h-4" /> Closing (Cashier)
         </Link>
         {isOwner && (
           <Link
@@ -130,7 +130,7 @@ export default function SidebarNav() {
           </Link>
           <Link
             href="/dashboard/production"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-emerald-50 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
           >
             <Factory className="w-4 h-4" /> Proses Produksi
           </Link>

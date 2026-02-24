@@ -645,7 +645,7 @@ export default function POSPage() {
           <div className="flex-1 overflow-y-auto min-h-0">
             {productsLoading ? (
               <div className="flex items-center justify-center h-full">
-                <div className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                <div className="w-8 h-8 border-[3px] border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
               </div>
             ) : filteredProducts.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">

@@ -153,6 +153,7 @@ export interface AIGeneratedProduct {
   name: string;
   categoryName: string;
   sellingPrice: number;
+  productType?: "ReadyStock" | "PreOrder";
   recipeCost?: number; // computed: sum(quantity * costPerUnit)
   recipe: {
     ingredientId?: number; // existing ingredient

@@ -7,7 +7,7 @@ import prisma from "@/lib/prisma";
 import { BusinessProvider } from "@/context/BusinessContext";
 import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info";
 import SidebarNav from "@/app/(dashboard)/components/SidebarNav";
-import AIChatWidget from "./components/ai/AIChatWidget";
+import AIChatWidgetLoader from "./components/ai/AIChatWidgetLoader";
 import { ShoppingCart } from "lucide-react";
 import DashboardClientLayout from "./DashboardClientLayout";
 
@@ -97,7 +97,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </main>
           </div>
           {/* Floating AI Chat Widget - available on all dashboard pages */}
-          <AIChatWidget />
+          <AIChatWidgetLoader />
         </div>
       </DashboardClientLayout>
     </BusinessProvider>
