@@ -691,7 +691,7 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
             return (
               <div
                 key={batch.id}
-                className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
+                className="rounded-xl border border-indigo-100 bg-linear-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
               >
                 <div className="flex flex-col md:flex-row md:items-center gap-2">
                   <span className="font-semibold text-indigo-800">Batch #{idx + 1}</span>
