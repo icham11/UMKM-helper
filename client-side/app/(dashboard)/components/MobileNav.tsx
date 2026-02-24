@@ -133,11 +133,11 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
             <div className="flex-1 px-4 py-4 space-y-1">
               {isOwner && (
                 <>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">
-                    Dashboard
-                  </p>
-                  <NavLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} onClick={() => setIsDrawerOpen(false)} />
-                  <NavLink href="/dashboard/analytics" icon={BarChart3} label="Analytics" active={isActive("/dashboard/analytics")} onClick={() => setIsDrawerOpen(false)} />
+                  {/*<p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">*/}
+                  {/*  Dashboard*/}
+                  {/*</p>*/}
+                  {/*<NavLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} onClick={() => setIsDrawerOpen(false)} />*/}
+                  <NavLink href="/analytics" icon={BarChart3} label="Analytics" active={isActive("/analytics")} onClick={() => setIsDrawerOpen(false)} />
                 </>
               )}
 

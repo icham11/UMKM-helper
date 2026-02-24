@@ -70,7 +70,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <BusinessProvider>
       <DashboardClientLayout>
-        <div className="relative min-h-screen bg-gradient-to-br from-indigo-50/40 via-white to-purple-50/40">
+        <div className="relative min-h-screen bg-white">
           <div className="flex h-full relative z-10">
             {/* ═══ Desktop Sidebar — visible from md (768px) ═══ */}
             <aside

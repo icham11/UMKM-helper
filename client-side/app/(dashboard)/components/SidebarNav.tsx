@@ -59,7 +59,7 @@ export default function SidebarNav() {
             Dashboard
           </p>
           {/*<SidebarLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} />*/}
-          <SidebarLink href="/analytics" icon={BarChart3} label="Analytics Pro" active={isActive("/analytics")}  />
+          <SidebarLink href="/analytics" icon={BarChart3} label="Analytics Pro" active={isActive("/dashboard/analytics")} />
         </div>
       )}
 
