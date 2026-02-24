@@ -184,7 +184,7 @@ export default function SidebarNav() {
             href="/dashboard/staff"
             className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
           >
-            <Users className="w-4 h-4" /> Kelola Staff
+            <Users className="w-4 h-4" /> Staff Management
           </Link>
         </div>
       )}
