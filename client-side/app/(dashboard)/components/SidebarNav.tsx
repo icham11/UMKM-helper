@@ -58,9 +58,8 @@ export default function SidebarNav() {
           <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">
             Dashboard
           </p>
-          <SidebarLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} />
-          <SidebarLink href="/dashboard/analytics" icon={BarChart3} label="Analytics" active={isActive("/dashboard/analytics")} />
-          <SidebarLink href="/analytics" icon={BarChart3} label="Analytics Pro" active={isActive("/analytics")} badge="New" />
+          {/*<SidebarLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} />*/}
+          <SidebarLink href="/analytics" icon={BarChart3} label="Analytics Pro" active={isActive("/analytics")}  />
         </div>
       )}
 

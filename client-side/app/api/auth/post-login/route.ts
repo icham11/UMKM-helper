@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL("/pos", baseUrl));
     }
 
-    return NextResponse.redirect(new URL("/dashboard", baseUrl));
+    return NextResponse.redirect(new URL("/dashboard/business", baseUrl));
   } catch (error) {
     if (error instanceof AuthError) {
       // No business found → onboarding
