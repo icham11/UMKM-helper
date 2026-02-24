@@ -53,23 +53,7 @@ export default function SidebarNav() {
         </div>
       )}
       {/* Section: Dashboard — Owner only */}
-      {isOwner && (
-        <div className="mb-6">
-          <div className="text-xs font-semibold text-gray-400 mb-2">Dashboard</div>
-          <Link
-            href="/dashboard"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition"
-          >
-            <BarChart3 className="w-5 h-5" /> Overview
-          </Link>
-          <Link
-            href="/dashboard/analytics"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
-          >
-            <BarChart3 className="w-4 h-4" /> Analytics
-          </Link>
-        </div>
-      )}
+      {/* Overview & Analytics removed as requested */}
 
       {/* Section: Analytics — consolidated single page */}
       {isOwner && (
@@ -77,12 +61,9 @@ export default function SidebarNav() {
           <div className="text-xs font-semibold text-gray-400 mb-2">Analytics</div>
           <Link
             href="/analytics"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-indigo-700 hover:bg-indigo-50 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-indigo-50 transition"
           >
             <BarChart3 className="w-4 h-4" /> Analytics
-            <span className="ml-auto text-[10px] bg-indigo-200 text-indigo-800 px-1.5 py-0.5 rounded-full font-bold">
-              New
-            </span>
           </Link>
         </div>
       )}
@@ -93,12 +74,9 @@ export default function SidebarNav() {
           <div className="text-xs font-semibold text-gray-400 mb-2">AI Tools</div>
           <Link
             href="/dashboard/ai-analysis"
-            className="flex items-center gap-2 py-2.5 px-3 rounded-xl font-semibold text-purple-700 bg-linear-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 border border-purple-200 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-indigo-50 transition"
           >
             <Bot className="w-5 h-5" /> AI Center
-            <span className="ml-auto text-[10px] bg-purple-200 text-purple-800 px-1.5 py-0.5 rounded-full font-bold">
-              NEW
-            </span>
           </Link>
         </div>
       )}
@@ -108,35 +86,32 @@ export default function SidebarNav() {
         <div className="text-xs font-semibold text-gray-400 mb-2">Sales</div>
         <Link
           href="/pos"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-blue-50 transition"
         >
           <ShoppingCart className="w-5 h-5" /> POS
         </Link>
         <Link
           href="/dashboard/sales-history"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-blue-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-blue-50 transition"
         >
           <History className="w-4 h-4" /> Sales History
         </Link>
         <Link
           href="/dashboard/debts"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-amber-700 hover:bg-amber-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-amber-50 transition"
         >
           <BookOpen className="w-4 h-4" /> Kasbon
-          <span className="ml-auto text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full font-bold">
-            NEW
-          </span>
         </Link>
         <Link
           href="/dashboard/shift-history"
-          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-emerald-50 transition"
+          className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-emerald-50 transition"
         >
           <Clock className="w-4 h-4" /> Tutup Kasir
         </Link>
         {isOwner && (
           <Link
             href="/dashboard/export"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-gray-700 hover:bg-green-50 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-green-50 transition"
           >
             <FileDown className="w-4 h-4" /> Export Data
           </Link>
@@ -155,7 +130,7 @@ export default function SidebarNav() {
           </Link>
           <Link
             href="/dashboard/production"
-            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-emerald-700 hover:bg-emerald-50 transition"
+            className="flex items-center gap-2 py-1.5 px-3 rounded-lg font-medium text-black hover:bg-emerald-50 transition"
           >
             <Factory className="w-4 h-4" /> Produksi
           </Link>
