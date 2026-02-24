@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
     if (auth.role === "Cashier") {
       return NextResponse.redirect(new URL("/pos", baseUrl));
     }
-    // Default fallback for other roles
-    return NextResponse.redirect(new URL("/dashboard", baseUrl));
+
+    return NextResponse.redirect(new URL("/dashboard/business", baseUrl));
   } catch (error) {
     if (error instanceof AuthError) {
       // No business found → onboarding

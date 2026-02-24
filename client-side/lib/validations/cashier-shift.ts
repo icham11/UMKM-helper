@@ -2,13 +2,13 @@ import { z } from "zod";
 
 export const openShiftSchema = z.object({
   openingCash: z
-    .number({ required_error: "Modal awal wajib diisi" })
+    .number({ error: "Modal awal wajib diisi" })
     .min(0, "Modal awal tidak boleh negatif"),
 });
 
 export const closeShiftSchema = z.object({
   actualCash: z
-    .number({ required_error: "Jumlah uang cash aktual wajib diisi" })
+    .number({ error: "Jumlah uang cash aktual wajib diisi" })
     .min(0, "Jumlah tidak boleh negatif"),
   notes: z.string().max(500).optional(),
 });

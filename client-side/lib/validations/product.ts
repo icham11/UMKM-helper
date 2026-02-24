@@ -38,7 +38,7 @@ export type IngredientUnit = (typeof INGREDIENT_UNITS)[number];
 
 export const createIngredientSchema = z.object({
   name: z.string().min(1, "Ingredient name is required").max(200),
-  unit: z.enum(INGREDIENT_UNITS, { errorMap: () => ({ message: "Pilih satuan yang valid" }) }),
+  unit: z.enum(INGREDIENT_UNITS, { error: "Pilih satuan yang valid" }),
   minStock: z.number().int().min(0).default(0),
   initialBatch: z
     .object({

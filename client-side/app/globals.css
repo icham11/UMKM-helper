@@ -26,11 +26,29 @@
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.25s ease-out;
+}
+
+/* Safe area for bottom nav on notched devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Cuanify Design System */
+  --cuanify-primary: #4f46e5;
+  --cuanify-primary-dark: #4338ca;
+  --cuanify-accent: #7c3aed;
+  --cuanify-surface: #f8fafc;
 }
 
 @theme inline {

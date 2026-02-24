@@ -1288,8 +1288,9 @@ function GrowthSection() {
   }, []);
 
   function handleGranularity(g: string) {
-    setGranularity(g);
-    fetchGranularity(g);
+    const gran = g as Granularity;
+    setGranularity(gran);
+    fetchGranularity(gran);
   }
 
   // Derived KPIs

@@ -332,7 +332,7 @@ export default function AIChatWidget() {
       {/* ─── Floating Button ─── */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-shadow"
+        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-shadow"
         style={{
           background: "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
           boxShadow: isOpen ? "0 8px 25px rgba(99, 102, 241, 0.3)" : "0 4px 15px rgba(99, 102, 241, 0.25)",
@@ -363,7 +363,7 @@ export default function AIChatWidget() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.92 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-24 right-6 z-50 w-[400px] h-[600px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 flex flex-col overflow-hidden"
+            className="fixed bottom-40 md:bottom-24 right-3 md:right-6 z-40 w-[calc(100vw-24px)] sm:w-[400px] h-[60vh] md:h-[600px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 flex flex-col overflow-hidden"
             style={{ boxShadow: "0 25px 50px -12px rgba(99, 102, 241, 0.15), 0 12px 24px -8px rgba(0, 0, 0, 0.1)" }}
             onDragOver={(e) => { e.preventDefault(); if (view === "chat") setShowUploadArea(true); }}
             onDragLeave={(e) => { e.preventDefault(); setShowUploadArea(false); }}

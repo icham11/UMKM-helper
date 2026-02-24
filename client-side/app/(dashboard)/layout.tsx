@@ -8,7 +8,8 @@ import { BusinessProvider } from "@/context/BusinessContext";
 import SidebarUserInfo from "@/app/(dashboard)/components/sidebar_user_info";
 import SidebarNav from "@/app/(dashboard)/components/SidebarNav";
 import AIChatWidgetLoader from "./components/ai/AIChatWidgetLoader";
-import { ShoppingCart } from "lucide-react";
+import MobileNavLoader from "./components/MobileNavLoader";
+import { TrendingUp } from "lucide-react";
 import DashboardClientLayout from "./DashboardClientLayout";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -69,35 +70,52 @@ export default async function DashboardLayout({ children }: { children: React.Re
   return (
     <BusinessProvider>
       <DashboardClientLayout>
-        <div className="relative min-h-screen bg-linear-to-br from-slate-50 via-indigo-50 to-purple-50">
-          <div className="flex flex-col md:flex-row h-full relative z-10">
+        <div className="relative min-h-screen bg-white">
+          <div className="flex h-full relative z-10">
+            {/* ═══ Desktop Sidebar — visible from md (768px) ═══ */}
             <aside
-              className="w-full md:w-72 flex flex-col py-6 px-4 md:px-7 shadow-xl rounded-3xl border border-gray-200 mt-4 md:mt-6 mb-4 md:mb-6 mx-0 md:ml-20 min-h-[calc(100vh-2rem)] md:min-h-[calc(100vh-3rem)] bg-white relative md:sticky md:top-4 md:h-[calc(100vh-2rem)] md:overflow-y-auto custom-scrollbar"
-              style={{ background: "linear-gradient(135deg, #f5f7fa 60%, #e0e7ff 100%)" }}
+              className="hidden md:flex w-60 lg:w-64 xl:w-72 flex-col py-5 px-4 lg:px-5 xl:px-7 shrink-0 border-r border-indigo-100/60 min-h-screen sticky top-0 h-screen overflow-y-auto custom-scrollbar"
+              style={{ background: "linear-gradient(180deg, #f8faff 0%, #eef2ff 50%, #e8e0ff 100%)" }}
             >
-              {/* Sidebar Modern Style */}
-              <div className="flex-1 flex flex-col">
-                {/* Header */}
-                <div className="flex items-center gap-3 mb-8">
-                  <span className="bg-indigo-100 p-3 rounded-xl text-2xl text-indigo-600">
-                    <ShoppingCart className="w-7 h-7" />
-                  </span>
-                  <span className="font-bold text-lg text-indigo-700 tracking-wide">{jwtUserName || "User"}</span>
+              {/* Logo */}
+              <div className="flex items-center gap-2.5 mb-8 px-1">
+                <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200/50">
+                  <TrendingUp className="w-5 h-5 text-white" />
                 </div>
-              {/* ...existing sidebar sections — now RBAC-aware... */}
+                <div className="flex flex-col">
+                  <span className="font-extrabold text-lg bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent tracking-tight leading-tight">
+                    Cuanify
+                  </span>
+                  <span className="text-[10px] text-indigo-400 font-medium leading-tight">
+                    {jwtUserName || "User"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Navigation */}
+              <div className="flex-1">
                 <SidebarNav />
               </div>
+
               {/* User Info & Logout */}
-              <div className="flex flex-col items-center justify-end pt-4 pb-8">
+              <div className="pt-4 border-t border-indigo-100/60">
                 <SidebarUserInfo jwtUserName={jwtUserName} jwtUserEmail={jwtUserEmail} />
               </div>
             </aside>
-            <main className="flex-1 px-2 md:px-6 overflow-y-auto">
-              <div className="max-w-6xl mx-auto py-6">{children}</div>
+
+            {/* ═══ Main Content ═══ */}
+            <main className="flex-1 min-w-0 pb-20 md:pb-0">
+              <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6 py-4 sm:py-6">
+                {children}
+              </div>
             </main>
           </div>
-          {/* Floating AI Chat Widget - available on all dashboard pages */}
+
+          {/* Floating AI Chat Widget */}
           <AIChatWidgetLoader />
+
+          {/* Mobile bottom nav + drawer — only on mobile (<md) */}
+          <MobileNavLoader jwtUserName={jwtUserName} jwtUserEmail={jwtUserEmail} />
         </div>
       </DashboardClientLayout>
     </BusinessProvider>

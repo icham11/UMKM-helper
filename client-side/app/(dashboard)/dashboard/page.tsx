@@ -169,30 +169,34 @@ export default function DashboardPage() {
   // Removed duplicate totalAlertCount declaration
 
   if (loading)
-    return <div className="min-h-screen flex items-center justify-center text-slate-500">Loading dashboard...</div>;
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-10 w-10 border-2 border-indigo-600 border-t-transparent" />
+      </div>
+    );
 
   return (
     <>
-      <div className="min-h-screen p-8 space-y-10 bg-linear-to-br from-indigo-50 via-slate-100 to-indigo-100">
+      <div className="space-y-5 sm:space-y-6 lg:space-y-8">
         {/* Header */}
-        <div className="bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-3xl p-8 shadow-xl">
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Smile className="text-yellow-300" size={30} />
+        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 rounded-2xl p-5 sm:p-8 shadow-lg shadow-indigo-200/30">
+          <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-3">
+            <Smile className="text-yellow-300 shrink-0" size={24} />
             Good {greeting || "..."}, Polo
           </h1>
-          <p className="text-white/80 mt-2 text-sm">Here’s your business performance overview.</p>
+          <p className="text-indigo-200 mt-2 text-xs sm:text-sm">Here&apos;s your business performance overview.</p>
         </div>
 
         {/* Filter */}
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {["today", "7d", "30d", "all"].map((r) => (
             <button
               key={r}
               onClick={() => setRange(r as "today" | "7d" | "30d" | "all")}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition ${
+              className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium transition ${
                 range === r
-                  ? "bg-slate-900 text-white shadow"
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-200/50"
+                  : "bg-white text-gray-600 border border-gray-200 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200"
               }`}
             >
               {r.toUpperCase()}
@@ -201,7 +205,7 @@ export default function DashboardPage() {
         </div>
 
         {/* KPI */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <GlassCard title="Revenue" value={formatCurrency(todayRevenue)} />
           <GlassCard title="Transactions" value={todayTransactions} />
           <GlassCard title="Profit" value={formatCurrency(monthProfit)} />
@@ -240,8 +244,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Chart */}
-        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6 flex items-center gap-2">
+        <div className="bg-white border border-indigo-100 rounded-2xl shadow-sm p-4 sm:p-6 lg:p-8">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4 sm:mb-6 flex items-center gap-2">
             <TrendingUp size={20} className="text-indigo-500" />
             Revenue Trend
           </h2>
@@ -249,9 +253,9 @@ export default function DashboardPage() {
         </div>
 
         {/* AI Insight */}
-        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm p-8">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">🤖 AI Insight</h2>
-          <p className="text-slate-600 text-sm leading-relaxed">{aiInsight}</p>
+        <div className="bg-white border border-indigo-100 rounded-2xl shadow-sm p-4 sm:p-6 lg:p-8">
+          <h2 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">🤖 AI Insight</h2>
+          <p className="text-gray-600 text-sm leading-relaxed">{aiInsight}</p>
         </div>
       </div>
 
@@ -264,9 +268,9 @@ export default function DashboardPage() {
 
 function GlassCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <div className="bg-white/80 backdrop-blur border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition">
-      <p className="text-sm text-slate-500">{title}</p>
-      <h2 className="text-2xl font-bold text-slate-900 mt-2">{value}</h2>
+    <div className="bg-white/80 backdrop-blur border border-indigo-100 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition">
+      <p className="text-xs sm:text-sm text-gray-500">{title}</p>
+      <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2 truncate">{value}</h2>
     </div>
   );
 }

@@ -137,10 +137,10 @@ export async function GET(request: NextRequest) {
     });
 
     const movementRows: IngredientRow[] = movements.map((m) => ({
-      ingredientName: m.ingredient.name,
+      ingredientName: m.ingredient?.name ?? "Unknown",
       type: m.type === "In" ? "Masuk" : "Keluar",
       quantity: Math.round(Number(m.quantity) * 100) / 100,
-      unit: m.ingredient.unit,
+      unit: m.ingredient?.unit ?? "-",
       costPerUnit: Math.round(Number(m.costPerUnit)),
       totalCost: Math.round(Number(m.quantity) * Number(m.costPerUnit)),
       docType: m.stockDocument.type,
