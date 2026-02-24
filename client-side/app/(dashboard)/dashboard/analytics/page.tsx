@@ -81,7 +81,8 @@ interface MonthlyDataPoint {
 
 const COLORS = ["#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899"];
 
-const formatRupiah = (val: number) => `Rp ${val.toLocaleString("id-ID")}`;
+const formatRupiah = (val: number) =>
+  `Rp ${val.toLocaleString("id-ID")}`;
 
 const formatShortRupiah = (val: number) => {
   if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}jt`;
@@ -95,12 +96,6 @@ export default function AnalyticsPage() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [insight, setInsight] = useState<InsightData | null>(null);
   const [monthly, setMonthly] = useState<MonthlyDataPoint[]>([]);
-  const [hourlyData, setHourlyData] = useState<
-    { hour: string; revenue: number; profit: number; transactions: number }[]
-  >([]);
-  const [dailyData, setDailyData] = useState<{ date: string; revenue: number; profit: number; label: string }[]>([]);
-  const [chartGranularity, setChartGranularity] = useState<"24h" | "daily" | "monthly">("monthly");
-  const [paymentData, setPaymentData] = useState<{ method: string; count: number; revenue: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -117,36 +112,19 @@ export default function AnalyticsPage() {
 
       const params = `?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`;
 
-      const [dRes, gRes, hRes, iRes, mRes, hourlyRes, dailyRes] = await Promise.allSettled([
+      const [dRes, gRes, hRes, iRes, mRes] = await Promise.allSettled([
         fetch(`/api/analytics/dashboard${params}`).then((r) => r.json()),
         fetch("/api/analytics/growth").then((r) => r.json()),
-        fetch("/api/analytics/health?days=30").then((r) => r.json()),
+        fetch("/api/analytics/health").then((r) => r.json()),
         fetch("/api/analytics/insight").then((r) => r.json()),
         fetch(`/api/analytics/monthly?year=${now.getFullYear()}&month=${now.getMonth() + 1}`).then((r) => r.json()),
-        fetch("/api/analytics/hourly").then((r) => r.json()),
-        fetch(`/api/analytics/daily?from=${startDate.toISOString()}&to=${endDate.toISOString()}`).then((r) => r.json()),
       ]);
 
-      if (dRes.status === "fulfilled") {
-        setDashboard(dRes.value.data);
-        // Extract payment method breakdown from sales
-        if (dRes.value.paymentBreakdown) setPaymentData(dRes.value.paymentBreakdown);
-      }
+      if (dRes.status === "fulfilled") setDashboard(dRes.value.data);
       if (gRes.status === "fulfilled") setGrowth(gRes.value.data);
-      // Health: new route returns { latest, data[] } — we want the latest snapshot
-      if (hRes.status === "fulfilled") setHealth(hRes.value.latest ?? hRes.value.data);
+      if (hRes.status === "fulfilled") setHealth(hRes.value.data);
       if (iRes.status === "fulfilled") setInsight(iRes.value.data);
       if (mRes.status === "fulfilled") setMonthly(mRes.value.data || []);
-      if (hourlyRes.status === "fulfilled") setHourlyData(hourlyRes.value.data || []);
-      if (dailyRes.status === "fulfilled") {
-        const dailyRaw = dailyRes.value.data || [];
-        setDailyData(
-          dailyRaw.map((d: { date: string; revenue: number; profit: number }) => ({
-            ...d,
-            label: new Date(d.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
-          })),
-        );
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat data analytics");
     } finally {
@@ -175,10 +153,7 @@ export default function AnalyticsPage() {
         <div className="text-center bg-red-50 p-8 rounded-2xl border border-red-200">
           <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
           <p className="text-red-600 font-medium">{error}</p>
-          <button
-            onClick={fetchData}
-            className="mt-3 text-sm bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-          >
+          <button onClick={fetchData} className="mt-3 text-sm bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
             Coba Lagi
           </button>
         </div>
@@ -188,17 +163,17 @@ export default function AnalyticsPage() {
 
   const healthScore = health?.overallScore ?? 0;
   const healthClass = health?.classification ?? "N/A";
-  const healthColor = healthScore >= 80 ? "text-green-600" : healthScore >= 60 ? "text-yellow-600" : "text-red-600";
+  const healthColor =
+    healthScore >= 80 ? "text-green-600" : healthScore >= 60 ? "text-yellow-600" : "text-red-600";
   const healthBg =
-    healthScore >= 80
-      ? "bg-green-100 text-green-700"
-      : healthScore >= 60
-        ? "bg-yellow-100 text-yellow-700"
-        : "bg-red-100 text-red-700";
-  const healthStroke = healthScore >= 80 ? "#22c55e" : healthScore >= 60 ? "#eab308" : "#ef4444";
+    healthScore >= 80 ? "bg-green-100 text-green-700" : healthScore >= 60 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700";
+  const healthStroke =
+    healthScore >= 80 ? "#22c55e" : healthScore >= 60 ? "#eab308" : "#ef4444";
 
   const avgTransaction =
-    dashboard && dashboard.transactionCount > 0 ? dashboard.totalRevenue / dashboard.transactionCount : 0;
+    dashboard && dashboard.transactionCount > 0
+      ? dashboard.totalRevenue / dashboard.transactionCount
+      : 0;
 
   // Pie data for top products
   const pieData = (dashboard?.topProducts || [])
@@ -209,30 +184,10 @@ export default function AnalyticsPage() {
     }));
 
   // Monthly chart data
-  const monthlyChartData = monthly.map((d) => ({
+  const chartData = monthly.map((d) => ({
     ...d,
     label: new Date(d.date).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
   }));
-
-  // Active chart data based on granularity
-  const chartData =
-    chartGranularity === "24h"
-      ? hourlyData.map((d) => ({ ...d, label: d.hour }))
-      : chartGranularity === "daily"
-        ? dailyData
-        : monthlyChartData;
-
-  // Payment method breakdown
-  const paymentPieData =
-    paymentData.length > 0
-      ? paymentData
-      : [
-          { method: "Cash", count: 0, revenue: 0 },
-          { method: "QRIS", count: 0, revenue: 0 },
-          { method: "Transfer", count: 0, revenue: 0 },
-          { method: "Digital", count: 0, revenue: 0 },
-          { method: "Kasbon", count: 0, revenue: 0 },
-        ];
 
   return (
     <div className="space-y-6 pb-10">
@@ -267,9 +222,7 @@ export default function AnalyticsPage() {
           value={formatRupiah(dashboard?.totalRevenue ?? 0)}
           icon={<DollarSign className="w-5 h-5" />}
           color="bg-indigo-600"
-          subtext={
-            growth ? `${growth.revenueGrowth >= 0 ? "+" : ""}${growth.revenueGrowth}% vs periode sebelumnya` : undefined
-          }
+          subtext={growth ? `${growth.revenueGrowth >= 0 ? "+" : ""}${growth.revenueGrowth}% vs periode sebelumnya` : undefined}
           trend={growth?.revenueGrowth}
         />
         <KpiCard
@@ -305,22 +258,7 @@ export default function AnalyticsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-800">📈 Revenue &amp; Profit</h3>
-            <div className="flex gap-1">
-              {(["24h", "daily", "monthly"] as const).map((g) => (
-                <button
-                  key={g}
-                  onClick={() => setChartGranularity(g)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                    chartGranularity === g ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500 hover:bg-indigo-50"
-                  }`}
-                >
-                  {g === "24h" ? "24h" : g === "daily" ? "30d" : "Monthly"}
-                </button>
-              ))}
-            </div>
-          </div>
+          <h3 className="text-sm font-semibold text-gray-800 mb-4">📈 Revenue &amp; Profit Bulanan</h3>
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
               <AreaChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
@@ -336,26 +274,20 @@ export default function AnalyticsPage() {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                 <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-                <YAxis
-                  tick={{ fontSize: 11, fill: "#9ca3af" }}
-                  axisLine={false}
-                  tickLine={false}
-                  tickFormatter={formatShortRupiah}
-                />
+                <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={formatShortRupiah} />
                 <Tooltip
                   contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  formatter={(value: any, name: any) => [
-                    formatRupiah(Number(value ?? 0)),
-                    name === "revenue" ? "Revenue" : "Profit",
-                  ]}
+                  formatter={(value: any, name: any) => [formatRupiah(Number(value ?? 0)), name === "revenue" ? "Revenue" : "Profit"]}
                 />
                 <Area type="monotone" dataKey="revenue" stroke="#6366f1" strokeWidth={2} fill="url(#gradRevenue)" />
                 <Area type="monotone" dataKey="profit" stroke="#22c55e" strokeWidth={2} fill="url(#gradProfit)" />
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex items-center justify-center h-65 text-gray-400 text-sm">Belum ada data bulan ini</div>
+            <div className="flex items-center justify-center h-65 text-gray-400 text-sm">
+              Belum ada data bulan ini
+            </div>
           )}
         </motion.div>
 
@@ -371,10 +303,7 @@ export default function AnalyticsPage() {
             <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
               <circle cx="50" cy="50" r="42" fill="none" stroke="#f3f4f6" strokeWidth="8" />
               <circle
-                cx="50"
-                cy="50"
-                r="42"
-                fill="none"
+                cx="50" cy="50" r="42" fill="none"
                 stroke={healthStroke}
                 strokeWidth="8"
                 strokeDasharray={263.89}
@@ -388,14 +317,16 @@ export default function AnalyticsPage() {
               <span className="text-[10px] text-gray-400">/ 100</span>
             </div>
           </div>
-          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${healthBg}`}>{healthClass}</span>
+          <span className={`px-3 py-1 rounded-full text-xs font-semibold ${healthBg}`}>
+            {healthClass}
+          </span>
           <div className="mt-3 text-center">
             <p className="text-[11px] text-gray-400">
               {healthScore >= 80
                 ? "Bisnis dalam kondisi sangat baik!"
                 : healthScore >= 60
-                  ? "Ada beberapa area yang perlu perhatian"
-                  : "Perlu tindakan segera untuk perbaikan"}
+                ? "Ada beberapa area yang perlu perhatian"
+                : "Perlu tindakan segera untuk perbaikan"}
             </p>
           </div>
 
@@ -416,9 +347,7 @@ export default function AnalyticsPage() {
                       style={{ width: `${(s.value / s.max) * 100}%`, backgroundColor: s.color }}
                     />
                   </div>
-                  <span className="text-[10px] font-medium text-gray-600 w-8">
-                    {s.value}/{s.max}
-                  </span>
+                  <span className="text-[10px] font-medium text-gray-600 w-8">{s.value}/{s.max}</span>
                 </div>
               ))}
             </div>
@@ -435,7 +364,9 @@ export default function AnalyticsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
-          <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">🏆 Top 5 Produk Terlaris</h3>
+          <h3 className="text-sm font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            🏆 Top 5 Produk Terlaris
+          </h3>
           {(dashboard?.topProducts?.length ?? 0) > 0 ? (
             <div className="flex gap-6">
               {/* Pie chart */}
@@ -515,13 +446,8 @@ export default function AnalyticsPage() {
                 const pct = item.minStock > 0 ? Math.min((item.currentStock / item.minStock) * 100, 100) : 0;
                 const isOut = item.currentStock <= 0;
                 return (
-                  <div
-                    key={item.id}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl ${isOut ? "bg-red-50 border border-red-200" : "bg-orange-50 border border-orange-200"}`}
-                  >
-                    <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${isOut ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}
-                    >
+                  <div key={item.id} className={`flex items-center gap-3 p-2.5 rounded-xl ${isOut ? "bg-red-50 border border-red-200" : "bg-orange-50 border border-orange-200"}`}>
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${isOut ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
                       {isOut ? "!" : `${Math.round(pct)}%`}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -530,9 +456,7 @@ export default function AnalyticsPage() {
                         Stok: {item.currentStock} / Min: {item.minStock}
                       </p>
                     </div>
-                    <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isOut ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}
-                    >
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isOut ? "bg-red-100 text-red-600" : "bg-orange-100 text-orange-600"}`}>
                       {isOut ? "Habis" : "Rendah"}
                     </span>
                   </div>
@@ -560,19 +484,8 @@ export default function AnalyticsPage() {
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={false}
-                tickLine={false}
-                interval={Math.max(0, Math.floor(chartData.length / 10))}
-              />
-              <YAxis
-                tick={{ fontSize: 10, fill: "#9ca3af" }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={formatShortRupiah}
-              />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} interval={Math.max(0, Math.floor(chartData.length / 10))} />
+              <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} axisLine={false} tickLine={false} tickFormatter={formatShortRupiah} />
               <Tooltip
                 contentStyle={{ borderRadius: 12, border: "1px solid #e5e7eb", fontSize: 12 }}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -588,70 +501,7 @@ export default function AnalyticsPage() {
         </motion.div>
       )}
 
-      {/* ═══ Row 5: Payment Method Breakdown ═══ */}
-      {paymentPieData.some((p) => p.revenue > 0) && (
-        <motion.div
-          className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65 }}
-        >
-          <h3 className="text-sm font-semibold text-gray-800 mb-4">💳 Revenue by Payment Method</h3>
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="w-44 h-44 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={paymentPieData.filter((p) => p.revenue > 0)}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={36}
-                    outerRadius={64}
-                    paddingAngle={3}
-                    dataKey="revenue"
-                    nameKey="method"
-                  >
-                    {paymentPieData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    formatter={(value: any) => [formatRupiah(Number(value ?? 0)), "Revenue"]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex-1 space-y-2">
-              {paymentPieData
-                .filter((p) => p.revenue > 0)
-                .map((p, i) => {
-                  const totalRev = paymentPieData.reduce((s, x) => s + x.revenue, 0);
-                  const pct = totalRev > 0 ? ((p.revenue / totalRev) * 100).toFixed(1) : "0";
-                  return (
-                    <div key={p.method} className="flex items-center gap-3">
-                      <div
-                        className="w-3 h-3 rounded-full shrink-0"
-                        style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                      />
-                      <span className="text-xs font-medium text-gray-700 w-20">{p.method}</span>
-                      <div className="flex-1 bg-gray-100 rounded-full h-2">
-                        <div
-                          className="h-2 rounded-full"
-                          style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-500 w-10 text-right">{pct}%</span>
-                      <span className="text-xs font-semibold text-gray-700 w-24 text-right">{p.count} trx</span>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ═══ Row 6: Executive Summary + AI Insights ═══ */}
+      {/* ═══ Row 5: Executive Summary + AI Insights ═══ */}
       {insight && (
         <motion.div
           className="space-y-4"
@@ -742,9 +592,7 @@ function KpiCard({
       <div className="flex items-center justify-between mb-3">
         <div className={`${color} text-white p-2 rounded-xl`}>{icon}</div>
         {trend !== undefined && (
-          <div
-            className={`flex items-center gap-0.5 text-xs font-medium ${trend >= 0 ? "text-green-600" : "text-red-500"}`}
-          >
+          <div className={`flex items-center gap-0.5 text-xs font-medium ${trend >= 0 ? "text-green-600" : "text-red-500"}`}>
             {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
             {Math.abs(trend)}%
           </div>
@@ -817,3 +665,4 @@ function InsightCard({
     </motion.div>
   );
 }
+

@@ -37,12 +37,19 @@ export async function GET(request: Request) {
       },
     });
 
-    const totalRevenue = sales.reduce((sum, s) => sum + Number(s.totalRevenue), 0);
+    const totalRevenue = sales.reduce(
+      (sum, s) => sum + Number(s.totalRevenue),
+      0
+    );
 
-    const totalCost = sales.reduce((sum, s) => sum + Number(s.totalCost), 0);
+    const totalCost = sales.reduce(
+      (sum, s) => sum + Number(s.totalCost),
+      0
+    );
 
     const totalProfit = totalRevenue - totalCost;
-    const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    const avgMargin =
+      totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
     const transactionCount = sales.length;
 
@@ -82,7 +89,7 @@ export async function GET(request: Request) {
           product,
           quantitySold: item._sum.quantity ?? 0,
         };
-      }),
+      })
     );
 
     // =========================
@@ -100,7 +107,10 @@ export async function GET(request: Request) {
 
     const lowStockIngredients = ingredients
       .map((ingredient) => {
-        const currentStock = ingredient.inventoryBatches.reduce((sum, batch) => sum + Number(batch.remainingQty), 0);
+        const currentStock = ingredient.inventoryBatches.reduce(
+          (sum, batch) => sum + Number(batch.remainingQty),
+          0
+        );
 
         return {
           id: ingredient.id,
@@ -110,25 +120,6 @@ export async function GET(request: Request) {
         };
       })
       .filter((item) => item.currentStock <= item.minStock);
-
-    // =========================
-    // PAYMENT METHOD BREAKDOWN
-    // =========================
-    const paymentGrouped = await prisma.sale.groupBy({
-      by: ["paymentMethod"],
-      where: {
-        businessId,
-        createdAt: { gte: startDate, lte: endDate },
-      },
-      _count: { id: true },
-      _sum: { totalRevenue: true },
-    });
-
-    const paymentBreakdown = paymentGrouped.map((g) => ({
-      method: g.paymentMethod,
-      count: g._count.id,
-      revenue: Number(g._sum.totalRevenue ?? 0),
-    }));
 
     return NextResponse.json({
       success: true,
@@ -140,7 +131,6 @@ export async function GET(request: Request) {
         topProducts,
         lowStockIngredients,
       },
-      paymentBreakdown,
     });
   } catch (error) {
     if (isAuthError(error)) {
@@ -148,6 +138,9 @@ export async function GET(request: Request) {
     }
 
     console.error("Analytics dashboard error:", error);
-    return NextResponse.json({ error: "Failed to fetch dashboard data" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch dashboard data" },
+      { status: 500 }
+    );
   }
 }

@@ -105,13 +105,7 @@ export default function DebtsPage() {
   const [payAmount, setPayAmount] = useState("");
   const [payNotes, setPayNotes] = useState("");
   const [paying, setPaying] = useState(false);
-  const [paySuccess, setPaySuccess] = useState<{
-    debtId: number;
-    amount: number;
-    remaining: number;
-    customerName: string;
-    isFullyPaid: boolean;
-  } | null>(null);
+  const [paySuccess, setPaySuccess] = useState<{ debtId: number; amount: number; remaining: number; customerName: string; isFullyPaid: boolean } | null>(null);
 
   // Receipt
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -158,27 +152,25 @@ export default function DebtsPage() {
 
   const customerSummaries = useMemo(() => {
     const map = new Map<string, CustomerSummary>();
-    debts
-      .filter((d) => d.status !== "Paid")
-      .forEach((d) => {
-        const key = d.customerName.toLowerCase();
-        const existing = map.get(key);
-        if (existing) {
-          existing.totalDebt += d.totalAmount;
-          existing.totalRemaining += d.remaining;
-          existing.count++;
-          if (isOverdue(d)) existing.overdueCount++;
-        } else {
-          map.set(key, {
-            name: d.customerName,
-            phone: d.customerPhone,
-            totalDebt: d.totalAmount,
-            totalRemaining: d.remaining,
-            count: 1,
-            overdueCount: isOverdue(d) ? 1 : 0,
-          });
-        }
-      });
+    debts.filter((d) => d.status !== "Paid").forEach((d) => {
+      const key = d.customerName.toLowerCase();
+      const existing = map.get(key);
+      if (existing) {
+        existing.totalDebt += d.totalAmount;
+        existing.totalRemaining += d.remaining;
+        existing.count++;
+        if (isOverdue(d)) existing.overdueCount++;
+      } else {
+        map.set(key, {
+          name: d.customerName,
+          phone: d.customerPhone,
+          totalDebt: d.totalAmount,
+          totalRemaining: d.remaining,
+          count: 1,
+          overdueCount: isOverdue(d) ? 1 : 0,
+        });
+      }
+    });
     return Array.from(map.values()).sort((a, b) => b.totalRemaining - a.totalRemaining);
   }, [debts]);
 
@@ -250,11 +242,11 @@ export default function DebtsPage() {
       <div class="row"><span>Total Kasbon:</span><span class="bold">${formatRupiah(debt.totalAmount)}</span></div>
       ${paymentAmount ? `<div class="row"><span>Dibayar:</span><span class="bold" style="color:#059669">${formatRupiah(paymentAmount)}</span></div>` : ""}
       <div class="row"><span>Sudah Bayar:</span><span>${formatRupiah(debt.paidAmount + (paymentAmount || 0))}</span></div>
-      <div class="row"><span>Sisa:</span><span class="bold" style="color:${debt.remaining - (paymentAmount || 0) > 0 ? "#DC2626" : "#059669"}">${formatRupiah(Math.max(0, debt.remaining - (paymentAmount || 0)))}</span></div>
+      <div class="row"><span>Sisa:</span><span class="bold" style="color:${debt.remaining - (paymentAmount || 0) > 0 ? '#DC2626' : '#059669'}">${formatRupiah(Math.max(0, debt.remaining - (paymentAmount || 0)))}</span></div>
       ${debt.dueDate ? `<div class="row"><span>Jatuh Tempo:</span><span>${new Date(debt.dueDate).toLocaleDateString("id-ID")}</span></div>` : ""}
       <div class="divider"></div>
       <div class="center">
-        <span class="status ${debt.remaining - (paymentAmount || 0) <= 0 ? "paid" : debt.paidAmount > 0 || paymentAmount ? "partial" : "unpaid"}">
+        <span class="status ${debt.remaining - (paymentAmount || 0) <= 0 ? 'paid' : debt.paidAmount > 0 || paymentAmount ? 'partial' : 'unpaid'}">
           ${debt.remaining - (paymentAmount || 0) <= 0 ? "✅ LUNAS" : debt.paidAmount > 0 || paymentAmount ? "⏳ CICILAN" : "⏰ BELUM BAYAR"}
         </span>
       </div>
@@ -271,7 +263,7 @@ export default function DebtsPage() {
     const phone = debt.customerPhone.replace(/\D/g, "").replace(/^0/, "62");
     const remaining = formatRupiah(debt.remaining);
     const msg = encodeURIComponent(
-      `Halo ${debt.customerName}, ini dari ${business?.name || "kami"}. Mengingatkan kasbon Anda sebesar ${remaining} untuk transaksi ${debt.transactionNumber}${debt.dueDate ? ` (jatuh tempo: ${new Date(debt.dueDate).toLocaleDateString("id-ID")})` : ""}. Terima kasih 🙏`,
+      `Halo ${debt.customerName}, ini dari ${business?.name || "kami"}. Mengingatkan kasbon Anda sebesar ${remaining} untuk transaksi ${debt.transactionNumber}${debt.dueDate ? ` (jatuh tempo: ${new Date(debt.dueDate).toLocaleDateString("id-ID")})` : ""}. Terima kasih 🙏`
     );
     return `https://wa.me/${phone}?text=${msg}`;
   }
@@ -301,7 +293,9 @@ export default function DebtsPage() {
               <AlertTriangle className="w-5 h-5 text-red-600" />
             </div>
             <div>
-              <p className="font-bold text-red-800 text-sm">{overdueDebts.length} kasbon sudah jatuh tempo!</p>
+              <p className="font-bold text-red-800 text-sm">
+                {overdueDebts.length} kasbon sudah jatuh tempo!
+              </p>
               <p className="text-xs text-red-600">Total piutang lewat tempo: {formatRupiah(overdueTotal)}</p>
             </div>
           </div>
@@ -315,12 +309,7 @@ export default function DebtsPage() {
       )}
 
       {/* Summary Cards */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="grid grid-cols-2 sm:grid-cols-4 gap-3"
-      >
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <p className="text-xs text-gray-400 font-medium">Total Piutang</p>
           <p className="text-xl font-extrabold text-red-600 mt-1">{formatRupiah(summary.totalDebt)}</p>
@@ -360,26 +349,18 @@ export default function DebtsPage() {
               >
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {customerSummaries.map((c) => (
-                    <div
-                      key={c.name}
-                      className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3"
-                    >
+                    <div key={c.name} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3">
                       <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
                         <User className="w-4 h-4 text-amber-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-gray-900 truncate">{c.name}</p>
-                        <p className="text-[10px] text-gray-400">
-                          {c.count} kasbon{c.overdueCount > 0 ? ` · ${c.overdueCount} jatuh tempo` : ""}
-                        </p>
+                        <p className="text-[10px] text-gray-400">{c.count} kasbon{c.overdueCount > 0 ? ` · ${c.overdueCount} jatuh tempo` : ""}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="text-sm font-bold text-red-600">{formatRupiah(c.totalRemaining)}</p>
                         <button
-                          onClick={() => {
-                            setSearch(c.name);
-                            setStatusFilter("all");
-                          }}
+                          onClick={() => { setSearch(c.name); setStatusFilter("all"); }}
                           className="text-[10px] text-indigo-600 font-medium hover:underline cursor-pointer"
                         >
                           <Filter className="w-3 h-3 inline" /> Filter
@@ -419,9 +400,7 @@ export default function DebtsPage() {
               onClick={() => setStatusFilter(f.key)}
               className={`px-3 py-2 rounded-lg text-xs font-medium transition cursor-pointer ${
                 statusFilter === f.key
-                  ? f.key === "overdue"
-                    ? "bg-red-600 text-white"
-                    : "bg-amber-600 text-white"
+                  ? f.key === "overdue" ? "bg-red-600 text-white" : "bg-amber-600 text-white"
                   : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
               }`}
             >
@@ -471,46 +450,31 @@ export default function DebtsPage() {
                   }`}
                   onClick={() => setExpandedId(isExp ? null : debt.id)}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                      overdue
-                        ? "bg-red-200"
-                        : cfg.color === "red"
-                          ? "bg-red-100"
-                          : cfg.color === "amber"
-                            ? "bg-amber-100"
-                            : "bg-green-100"
-                    }`}
-                  >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                    overdue ? "bg-red-200" :
+                    cfg.color === "red" ? "bg-red-100" : cfg.color === "amber" ? "bg-amber-100" : "bg-green-100"
+                  }`}>
                     {overdue ? (
                       <AlertTriangle className="w-5 h-5 text-red-600" />
                     ) : (
-                      <StatusIcon
-                        className={`w-5 h-5 ${
-                          cfg.color === "red"
-                            ? "text-red-600"
-                            : cfg.color === "amber"
-                              ? "text-amber-600"
-                              : "text-green-600"
-                        }`}
-                      />
+                      <StatusIcon className={`w-5 h-5 ${
+                        cfg.color === "red" ? "text-red-600" : cfg.color === "amber" ? "text-amber-600" : "text-green-600"
+                      }`} />
                     )}
                   </div>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold text-gray-900 text-sm">{debt.customerName}</p>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          overdue
-                            ? "bg-red-200 text-red-800"
-                            : cfg.color === "red"
-                              ? "bg-red-100 text-red-700"
-                              : cfg.color === "amber"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-green-100 text-green-700"
-                        }`}
-                      >
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        overdue
+                          ? "bg-red-200 text-red-800"
+                          : cfg.color === "red"
+                          ? "bg-red-100 text-red-700"
+                          : cfg.color === "amber"
+                          ? "bg-amber-100 text-amber-700"
+                          : "bg-green-100 text-green-700"
+                      }`}>
                         {overdue ? `LEWAT ${overdueDays} HARI` : cfg.label}
                       </span>
                       {daysLeft !== null && daysLeft > 0 && daysLeft <= 3 && !overdue && (
@@ -560,9 +524,7 @@ export default function DebtsPage() {
                             <Calendar className="w-3.5 h-3.5" /> {new Date(debt.createdAt).toLocaleDateString("id-ID")}
                           </div>
                           {debt.dueDate && (
-                            <div
-                              className={`flex items-center gap-1.5 ${overdue ? "text-red-600 font-semibold" : "text-gray-500"}`}
-                            >
+                            <div className={`flex items-center gap-1.5 ${overdue ? "text-red-600 font-semibold" : "text-gray-500"}`}>
                               <Clock className="w-3.5 h-3.5" />
                               {overdue ? "⚠️ " : ""}Jatuh tempo: {new Date(debt.dueDate).toLocaleDateString("id-ID")}
                             </div>
@@ -591,25 +553,22 @@ export default function DebtsPage() {
                             <p className="text-xs font-semibold text-gray-600 mb-1.5">Riwayat Pembayaran</p>
                             <div className="space-y-1">
                               {debt.payments.map((p) => (
-                                <div
-                                  key={p.id}
-                                  className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-2 border border-gray-100"
-                                >
+                                <div key={p.id} className="flex items-center justify-between text-xs bg-white rounded-lg px-3 py-2 border border-gray-100">
                                   <div className="flex items-center gap-2">
                                     <DollarSign className="w-3 h-3 text-green-500" />
                                     <span className="font-medium text-green-700">{formatRupiah(p.amount)}</span>
                                     {p.notes && <span className="text-gray-400">— {p.notes}</span>}
                                   </div>
-                                  <span className="text-gray-400">
-                                    {new Date(p.createdAt).toLocaleDateString("id-ID")}
-                                  </span>
+                                  <span className="text-gray-400">{new Date(p.createdAt).toLocaleDateString("id-ID")}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
                         )}
 
-                        {debt.notes && <p className="text-xs text-gray-400 italic">Catatan: {debt.notes}</p>}
+                        {debt.notes && (
+                          <p className="text-xs text-gray-400 italic">Catatan: {debt.notes}</p>
+                        )}
 
                         {/* Action buttons */}
                         <div className="flex gap-2 flex-wrap">
@@ -627,10 +586,7 @@ export default function DebtsPage() {
                             </button>
                           )}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              printReceipt(debt);
-                            }}
+                            onClick={(e) => { e.stopPropagation(); printReceipt(debt); }}
                             className="py-2.5 px-4 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition cursor-pointer flex items-center gap-2"
                           >
                             <Printer className="w-4 h-4" /> Cetak
@@ -665,10 +621,7 @@ export default function DebtsPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
-            onClick={() => {
-              setPayDebt(null);
-              setPaySuccess(null);
-            }}
+            onClick={() => { setPayDebt(null); setPaySuccess(null); }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -709,10 +662,7 @@ export default function DebtsPage() {
                       <Printer className="w-4 h-4" /> Cetak Bukti
                     </button>
                     <button
-                      onClick={() => {
-                        setPayDebt(null);
-                        setPaySuccess(null);
-                      }}
+                      onClick={() => { setPayDebt(null); setPaySuccess(null); }}
                       className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition cursor-pointer"
                     >
                       Tutup
@@ -726,18 +676,13 @@ export default function DebtsPage() {
                     <h3 className="font-bold text-gray-900 text-lg flex items-center gap-2">
                       <Receipt className="w-5 h-5 text-green-600" /> Bayar Kasbon
                     </h3>
-                    <button
-                      onClick={() => setPayDebt(null)}
-                      className="text-gray-400 hover:text-gray-600 cursor-pointer"
-                    >
+                    <button onClick={() => setPayDebt(null)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                       <X className="w-5 h-5" />
                     </button>
                   </div>
 
                   <div className="space-y-4">
-                    <div
-                      className={`rounded-xl p-3 ${isOverdue(payDebt) ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}
-                    >
+                    <div className={`rounded-xl p-3 ${isOverdue(payDebt) ? "bg-red-50 border border-red-200" : "bg-gray-50"}`}>
                       <div className="flex items-center justify-between">
                         <p className="font-semibold text-sm">{payDebt.customerName}</p>
                         {isOverdue(payDebt) && (
@@ -769,14 +714,9 @@ export default function DebtsPage() {
                           { label: "Lunas", value: payDebt.remaining },
                           { label: "½", value: Math.round(payDebt.remaining / 2) },
                           ...[10000, 20000, 50000, 100000, 200000, 500000]
-                            .filter(
-                              (v) =>
-                                v <= payDebt.remaining &&
-                                v !== payDebt.remaining &&
-                                v !== Math.round(payDebt.remaining / 2),
-                            )
+                            .filter((v) => v <= payDebt.remaining && v !== payDebt.remaining && v !== Math.round(payDebt.remaining / 2))
                             .slice(0, 6)
-                            .map((v) => ({ label: `${v / 1000}rb`, value: v })),
+                            .map((v) => ({ label: `${(v / 1000)}rb`, value: v })),
                         ]
                           .filter((v, i, a) => a.findIndex((x) => x.value === v.value) === i && v.value > 0)
                           .slice(0, 4)
@@ -831,3 +771,4 @@ export default function DebtsPage() {
     </div>
   );
 }
+

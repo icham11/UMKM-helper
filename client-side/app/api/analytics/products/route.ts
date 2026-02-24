@@ -10,12 +10,14 @@ export async function GET(req: NextRequest) {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
 
-    if (!to) {
-      return NextResponse.json({ error: "to date required" }, { status: 400 });
+    if (!from || !to) {
+      return NextResponse.json(
+        { error: "from and to date required" },
+        { status: 400 }
+      );
     }
 
-    // If 'from' is not provided, use a very old date to fetch all data
-    const fromDate = from ? new Date(from) : new Date("2000-01-01");
+    const fromDate = new Date(from);
     const toDate = new Date(to);
 
     type ProductAnalyticsRow = {
@@ -37,7 +39,6 @@ export async function GET(req: NextRequest) {
       JOIN "Sale" s ON s.id = si."saleId"
       JOIN "Product" p ON p.id = si."productId"
       WHERE s."businessId" = ${businessId}
-        AND s."paymentStatus" = 'Paid'
         AND s."createdAt" BETWEEN ${fromDate} AND ${toDate}
       GROUP BY p.id, p.name
       ORDER BY "revenue" DESC
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest) {
         totalCost: 0,
         totalProfit: 0,
         totalQuantity: 0,
-      },
+      }
     );
 
     return NextResponse.json({
@@ -81,8 +82,12 @@ export async function GET(req: NextRequest) {
       summary,
       products,
       top: {
-        byRevenue: [...products].sort((a, b) => b.revenue - a.revenue).slice(0, 5),
-        byQuantity: [...products].sort((a, b) => b.quantitySold - a.quantitySold).slice(0, 5),
+        byRevenue: [...products]
+          .sort((a, b) => b.revenue - a.revenue)
+          .slice(0, 5),
+        byQuantity: [...products]
+          .sort((a, b) => b.quantitySold - a.quantitySold)
+          .slice(0, 5),
       },
     });
   } catch (error: unknown) {
@@ -91,6 +96,9 @@ export async function GET(req: NextRequest) {
     }
 
     console.error("GET /analytics/products error:", error);
-    return NextResponse.json({ error: "Failed to fetch product analytics" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch product analytics" },
+      { status: 500 }
+    );
   }
 }
