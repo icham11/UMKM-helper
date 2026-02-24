@@ -143,7 +143,7 @@ export default function SmartInsightsPanel() {
             <h2 className="text-white font-bold text-lg">Smart AI Insights</h2>
             <p className="text-purple-200 text-xs">
               {data
-                ? "Update: " + new Date(data.generatedAt).toLocaleString("id-ID")
+                ? "Update: " + new Date(data.generatedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })
                 : "Klik Generate untuk memulai"}
             </p>
           </div>
@@ -191,9 +191,7 @@ export default function SmartInsightsPanel() {
             <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Brain className="w-7 h-7 text-purple-600" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-700 mb-2">
-              AI Insights Belum Di-generate
-            </h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">AI Insights Belum Di-generate</h3>
             <p className="text-sm text-gray-500 mb-4">
               Klik &quot;Generate Insights&quot; untuk analisis AI berdasarkan data bisnis Anda
             </p>
@@ -204,7 +202,15 @@ export default function SmartInsightsPanel() {
           <div className="text-center py-12">
             <div className="inline-flex items-center gap-3 px-6 py-3 bg-indigo-50 rounded-xl">
               <svg className="animate-spin h-5 w-5 text-indigo-600" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  fill="none"
+                />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
               <span className="text-indigo-700 font-medium">AI sedang menganalisis data bisnis...</span>
@@ -223,9 +229,7 @@ export default function SmartInsightsPanel() {
             {activeTab === "overview" && (
               <div className="space-y-4">
                 <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl border border-indigo-200">
-                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
-                    {data.summary}
-                  </pre>
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">{data.summary}</pre>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-red-50 p-4 rounded-xl border border-red-200">
@@ -279,22 +283,28 @@ export default function SmartInsightsPanel() {
                     <div key={i} className={"p-4 rounded-xl border " + severityColors[alert.severity]}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="font-semibold">{alert.ingredientName}</span>
-                        <span className={
-                          "text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 " +
-                          (alert.severity === "critical" ? "bg-red-200 text-red-800" : "bg-yellow-200 text-yellow-800")
-                        }>
+                        <span
+                          className={
+                            "text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 " +
+                            (alert.severity === "critical"
+                              ? "bg-red-200 text-red-800"
+                              : "bg-yellow-200 text-yellow-800")
+                          }
+                        >
                           {alert.severity === "critical" ? (
-                            <><CircleAlert className="w-3 h-3" /> Kritis</>
+                            <>
+                              <CircleAlert className="w-3 h-3" /> Kritis
+                            </>
                           ) : (
-                            <><AlertTriangle className="w-3 h-3" /> Peringatan</>
+                            <>
+                              <AlertTriangle className="w-3 h-3" /> Peringatan
+                            </>
                           )}
                         </span>
                       </div>
                       <p className="text-sm mb-1">
                         Stok: <strong>{alert.currentStock}</strong> / {alert.minStock} {alert.unit}
-                        {alert.daysUntilEmpty !== null && (
-                          <span className="ml-2">· ~{alert.daysUntilEmpty} hari</span>
-                        )}
+                        {alert.daysUntilEmpty !== null && <span className="ml-2">· ~{alert.daysUntilEmpty} hari</span>}
                       </p>
                       <p className="text-xs opacity-80">{alert.suggestion}</p>
                     </div>
@@ -368,7 +378,9 @@ export default function SmartInsightsPanel() {
                       <div key={i} className="p-4 bg-white rounded-xl border border-gray-200 shadow-sm">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${typeConfig.color}`}>
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${typeConfig.color}`}
+                            >
                               <TypeIcon className="w-3 h-3" /> {typeConfig.label}
                             </span>
                             <span className="font-semibold text-gray-800">{rec.name}</span>

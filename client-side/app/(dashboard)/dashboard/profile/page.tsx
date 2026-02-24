@@ -65,10 +65,13 @@ function formatDate(d: string) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 }
 
 function timeAgo(d: string) {
+  // Use a stable reference: always computed on the client (never during SSR).
+  // Callers must ensure this runs inside a useEffect or event handler.
   const diff = Date.now() - new Date(d).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   if (days === 0) return "Hari ini";
@@ -99,6 +102,9 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Client-only values to avoid SSR/client hydration mismatches
+  const [updatedAgoLabel, setUpdatedAgoLabel] = useState("");
+  const [currentYear, setCurrentYear] = useState("");
 
   // Edit name
   const [editingName, setEditingName] = useState(false);
@@ -116,6 +122,11 @@ export default function ProfilePage() {
 
   const isOAuth = !!session?.user; // Google login = has session
 
+  // Compute time-dependent labels only on the client
+  useEffect(() => {
+    setCurrentYear(String(new Date().getFullYear()));
+  }, []);
+
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
@@ -123,6 +134,8 @@ export default function ProfilePage() {
       if (res.success) {
         setProfile(res.data);
         setNameVal(res.data.name);
+        // Compute time-relative label on client after data arrives
+        setUpdatedAgoLabel(timeAgo(res.data.updatedAt));
       }
     } catch {
       toast.error("Gagal memuat profil");
@@ -373,7 +386,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Terakhir Diperbarui</p>
-                  <p className="text-gray-700 font-medium">{timeAgo(profile.updatedAt)}</p>
+                  <p className="text-gray-700 font-medium">{updatedAgoLabel}</p>
                 </div>
               </div>
             </div>
@@ -605,7 +618,7 @@ export default function ProfilePage() {
         className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-xs text-gray-400"
       >
         <span>User ID: #{profile.id}</span>
-        <span>Cuanify • {new Date().getFullYear()}</span>
+        <span>Cuanify • {currentYear}</span>
       </motion.div>
     </div>
   );

@@ -53,7 +53,9 @@ export default function ProductionPage() {
     }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleProduce = async () => {
     if (!selectedProduct || produceQty <= 0) return;
@@ -69,7 +71,9 @@ export default function ProductionPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal produksi");
-      setSuccess(`Berhasil produksi ${produceQty}x ${selectedProduct.productName}. Biaya: ${formatRupiah(data.data.totalCost)}`);
+      setSuccess(
+        `Berhasil produksi ${produceQty}x ${selectedProduct.productName}. Biaya: ${formatRupiah(data.data.totalCost)}`,
+      );
       setShowModal(false);
       setProduceQty(1);
       fetchData();
@@ -148,20 +152,20 @@ export default function ProductionPage() {
                           Harga jual: {formatRupiah(Number(p.sellingPrice))}
                         </p>
                       </div>
-                      <span className={`text-sm font-bold px-3 py-1 rounded-full ${
-                        p.availableStock <= 0
-                          ? "bg-red-100 text-red-600"
-                          : p.availableStock <= 5
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-indigo-100 text-indigo-700"
-                      }`}>
+                      <span
+                        className={`text-sm font-bold px-3 py-1 rounded-full ${
+                          p.availableStock <= 0
+                            ? "bg-red-100 text-red-600"
+                            : p.availableStock <= 5
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-indigo-100 text-indigo-700"
+                        }`}
+                      >
                         {p.availableStock}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">
-                        Biaya resep: {formatRupiah(Number(p.recipeCost))}
-                      </span>
+                      <span className="text-xs text-gray-400">Biaya resep: {formatRupiah(Number(p.recipeCost))}</span>
                       <button
                         onClick={() => {
                           setSelectedProduct(p);
@@ -206,18 +210,23 @@ export default function ProductionPage() {
                         <td className="px-5 py-3 font-medium text-gray-900">{b.product.name}</td>
                         <td className="px-5 py-3 text-center">{b.quantity}</td>
                         <td className="px-5 py-3 text-center">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                            b.remainingQty <= 0
-                              ? "bg-gray-100 text-gray-400"
-                              : "bg-indigo-100 text-indigo-700"
-                          }`}>
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              b.remainingQty <= 0 ? "bg-gray-100 text-gray-400" : "bg-indigo-100 text-indigo-700"
+                            }`}
+                          >
                             {b.remainingQty}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-right text-gray-600">{formatRupiah(Number(b.costPerUnit))}</td>
                         <td className="px-5 py-3 text-right text-gray-500">
                           {new Date(b.producedAt).toLocaleDateString("id-ID", {
-                            day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "Asia/Jakarta",
                           })}
                         </td>
                       </tr>
@@ -234,12 +243,8 @@ export default function ProductionPage() {
       {showModal && selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">
-              Produksi: {selectedProduct.productName}
-            </h3>
-            <p className="text-xs text-gray-500 mb-5">
-              Bahan baku akan dikurangi otomatis sesuai resep produk.
-            </p>
+            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Produksi: {selectedProduct.productName}</h3>
+            <p className="text-xs text-gray-500 mb-5">Bahan baku akan dikurangi otomatis sesuai resep produk.</p>
 
             <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Jumlah Produksi</label>
             <input
@@ -263,7 +268,10 @@ export default function ProductionPage() {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowModal(false); setError(null); }}
+                onClick={() => {
+                  setShowModal(false);
+                  setError(null);
+                }}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
               >
                 Batal

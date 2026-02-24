@@ -428,17 +428,17 @@ type SortOrderType = "asc" | "desc";
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
-    // Fetch categories from backend
-    useEffect(() => {
-      fetch("/api/categories")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && Array.isArray(data.data)) {
-            setCategories(data.data);
-          }
-        })
-        .catch(() => {});
-    }, []);
+  // Fetch categories from backend
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          setCategories(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortByField>("createdAt");
@@ -460,21 +460,21 @@ export default function ProductsPage() {
   const router = useRouter();
 
   const fetchProducts = async (pageOverride?: number) => {
-  setLoading(true);
-  setError(null);
-  try {
+    setLoading(true);
+    setError(null);
+    try {
       const { data, meta } = await getProducts({
         search,
         categoryId: categoryFilter ?? undefined,
-  sortBy,
-  sortOrder,
-  page: pageOverride ?? page,
-  });
-  setProducts(data);
-  setTotalPages(meta.totalPages);
-  setTotalCount(meta.total);
-  setAvgSellingPrice(meta.avgSellingPrice);
-  setAvgMargin(meta.avgMargin);
+        sortBy,
+        sortOrder,
+        page: pageOverride ?? page,
+      });
+      setProducts(data);
+      setTotalPages(meta.totalPages);
+      setTotalCount(meta.total);
+      setAvgSellingPrice(meta.avgSellingPrice);
+      setAvgMargin(meta.avgMargin);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch products");
     } finally {
@@ -810,6 +810,7 @@ export default function ProductsPage() {
                                 day: "2-digit",
                                 month: "short",
                                 year: "numeric",
+                                timeZone: "Asia/Jakarta",
                               })
                             : "—"}
                         </td>
@@ -891,7 +892,6 @@ export default function ProductsPage() {
       {/* Modals */}
       {recipeModal && <RecipeModal product={recipeModal} onClose={() => setRecipeModal(null)} />}
 
-
       {/* Modal edit produk lengkap */}
       {editModal && (
         <EditProductModal
@@ -904,7 +904,6 @@ export default function ProductsPage() {
           }}
         />
       )}
-
 
       {deleteModal && (
         <DeleteConfirmModal

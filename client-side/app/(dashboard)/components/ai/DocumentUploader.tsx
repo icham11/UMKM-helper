@@ -104,7 +104,7 @@ export default function DocumentUploader() {
         }
       }
     },
-    [fetchDocuments]
+    [fetchDocuments],
   );
 
   // ─── Delete handler ───
@@ -114,10 +114,7 @@ export default function DocumentUploader() {
 
       setDeletingFile(filename);
       try {
-        const res = await fetch(
-          `/api/ai/rag/documents?filename=${encodeURIComponent(filename)}`,
-          { method: "DELETE" }
-        );
+        const res = await fetch(`/api/ai/rag/documents?filename=${encodeURIComponent(filename)}`, { method: "DELETE" });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error);
@@ -130,7 +127,7 @@ export default function DocumentUploader() {
         setDeletingFile(null);
       }
     },
-    [fetchDocuments]
+    [fetchDocuments],
   );
 
   // ─── Drag & drop ───
@@ -155,7 +152,7 @@ export default function DocumentUploader() {
         handleUpload(files[0]);
       }
     },
-    [handleUpload]
+    [handleUpload],
   );
 
   const formatFileSize = (bytes: number) => {
@@ -173,6 +170,7 @@ export default function DocumentUploader() {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Asia/Jakarta",
     });
   };
 
@@ -210,9 +208,7 @@ export default function DocumentUploader() {
             <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
             <div>
               <p className="text-sm font-medium text-gray-700">{uploadProgress}</p>
-              <p className="text-xs text-gray-400 mt-1">
-                Proses ini membutuhkan waktu beberapa detik...
-              </p>
+              <p className="text-xs text-gray-400 mt-1">Proses ini membutuhkan waktu beberapa detik...</p>
             </div>
           </div>
         ) : (
@@ -295,9 +291,7 @@ export default function DocumentUploader() {
           <div className="text-center py-8 bg-gray-50 rounded-xl border border-gray-100">
             <File className="w-10 h-10 text-gray-300 mx-auto mb-2" />
             <p className="text-sm text-gray-500">Belum ada dokumen yang diunggah</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Upload SOP, panduan, atau dokumen bisnis lainnya
-            </p>
+            <p className="text-xs text-gray-400 mt-1">Upload SOP, panduan, atau dokumen bisnis lainnya</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -313,9 +307,7 @@ export default function DocumentUploader() {
                   <FileText className="w-5 h-5 text-red-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">
-                    {doc.filename}
-                  </p>
+                  <p className="text-sm font-medium text-gray-800 truncate">{doc.filename}</p>
                   <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
                     <span>{doc.pages} halaman</span>
                     <span>·</span>
@@ -369,4 +361,3 @@ export default function DocumentUploader() {
     </div>
   );
 }
-

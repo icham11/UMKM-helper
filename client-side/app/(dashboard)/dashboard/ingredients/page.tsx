@@ -706,7 +706,7 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
                   </span>
                   {batch.expirationDate && (
                     <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
-                      Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID")}
+                      Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
                     </span>
                   )}
                   <span className={`inline-block px-3 py-1 rounded-full font-semibold ${status.color}`}>
@@ -940,12 +940,15 @@ function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientM
   };
 
   return (
-    <ModalWrapper onClose={onClose} title={
-      <span className="flex items-center gap-2 text-indigo-700">
-        <Pencil size={20} />
-        <span className="font-bold">Edit Bahan Baku</span>
-      </span>
-    }>
+    <ModalWrapper
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2 text-indigo-700">
+          <Pencil size={20} />
+          <span className="font-bold">Edit Bahan Baku</span>
+        </span>
+      }
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -953,7 +956,11 @@ function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientM
         }}
         className="space-y-6"
       >
-        {error && <div className="text-red-600 text-sm font-semibold px-2 py-1 bg-red-50 rounded-lg border border-red-200">{error}</div>}
+        {error && (
+          <div className="text-red-600 text-sm font-semibold px-2 py-1 bg-red-50 rounded-lg border border-red-200">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-1">
           <label className="block text-sm font-semibold text-indigo-700 mb-0.5">Nama</label>

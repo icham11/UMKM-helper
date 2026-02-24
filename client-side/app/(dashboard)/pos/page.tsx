@@ -124,11 +124,7 @@ function getProductAvailability(
  * ReadyStock products: reserve by productId (from availableStock)
  * PreOrder products: reserve by ingredientId (from ingredient stock)
  */
-function buildReservedStock(
-  cart: CartItem[],
-  products: Product[],
-  excludeProductId?: number,
-): Map<number, number> {
+function buildReservedStock(cart: CartItem[], products: Product[], excludeProductId?: number): Map<number, number> {
   const reserved = new Map<number, number>();
   for (const cartItem of cart) {
     if (cartItem.productId === excludeProductId) continue;
@@ -157,11 +153,12 @@ function formatDate(date: Date): string {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 }
 
 // ─── Main Component ───
@@ -185,7 +182,14 @@ export default function POSPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // ── Shift management ──
-  const { shift, isOpen: isShiftOpen, loading: shiftLoading, openShift, closeShift, refresh: refreshShift } = useShift();
+  const {
+    shift,
+    isOpen: isShiftOpen,
+    loading: shiftLoading,
+    openShift,
+    closeShift,
+    refresh: refreshShift,
+  } = useShift();
   const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
   const [openingCashInput, setOpeningCashInput] = useState("");
   const [actualCashInput, setActualCashInput] = useState("");
@@ -225,9 +229,7 @@ export default function POSPage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Don't intercept when typing in input fields (except shortcuts)
-      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(
-        (e.target as HTMLElement)?.tagName,
-      );
+      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName);
 
       if (e.key === "F2") {
         e.preventDefault();
@@ -331,7 +333,7 @@ export default function POSPage() {
     for (const p of filtered) {
       const reservedByOthers = buildReservedStock(cart, products, p.id);
       const { available, maxQty } = getProductAvailability(p, reservedByOthers);
-      const cartQty = cart.find(c => c.productId === p.id)?.quantity || 0;
+      const cartQty = cart.find((c) => c.productId === p.id)?.quantity || 0;
       availMap.set(p.id, { available, remaining: maxQty - cartQty });
     }
 
@@ -361,9 +363,7 @@ export default function POSPage() {
       const existing = prev.find((item) => item.productId === product.id);
 
       if (existing) {
-        return prev.map((item) =>
-          item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
+        return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
       }
       return [...prev, { productId: product.id, name: product.name, price: Number(product.sellingPrice), quantity: 1 }];
     });
@@ -383,7 +383,7 @@ export default function POSPage() {
           const newQty = Math.max(0, Math.min(item.quantity + delta, maxQty));
           return { ...item, quantity: newQty };
         })
-        .filter((item) => item.quantity > 0)
+        .filter((item) => item.quantity > 0),
     );
   };
 
@@ -560,7 +560,10 @@ export default function POSPage() {
           {/* Shift indicator */}
           {isShiftOpen && shift && (
             <button
-              onClick={() => { refreshShift(); setShowCloseShiftModal(true); }}
+              onClick={() => {
+                refreshShift();
+                setShowCloseShiftModal(true);
+              }}
               className="flex items-center gap-2 text-sm bg-emerald-50 border border-emerald-200 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-100 transition"
             >
               <span className="relative flex h-2 w-2">
@@ -604,7 +607,10 @@ export default function POSPage() {
                 className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-black placeholder-gray-400"
               />
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
                   <X className="w-4 h-4" />
                 </button>
               )}
@@ -690,10 +696,10 @@ export default function POSPage() {
                         !available
                           ? "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
                           : isMaxed
-                          ? "bg-orange-50 border-orange-200 cursor-not-allowed"
-                          : cartQty > 0
-                          ? "bg-indigo-50 border-indigo-300 shadow-sm ring-1 ring-indigo-200"
-                          : "bg-white border-gray-200 hover:border-indigo-300 hover:shadow-md"
+                            ? "bg-orange-50 border-orange-200 cursor-not-allowed"
+                            : cartQty > 0
+                              ? "bg-indigo-50 border-indigo-300 shadow-sm ring-1 ring-indigo-200"
+                              : "bg-white border-gray-200 hover:border-indigo-300 hover:shadow-md"
                       }`}
                     >
                       {/* Badge: quantity in cart */}
@@ -718,7 +724,9 @@ export default function POSPage() {
                       </div>
 
                       {/* Name */}
-                      <h3 className={`font-semibold mt-2 text-sm leading-tight ${!available ? "text-gray-400" : "text-gray-900"}`}>
+                      <h3
+                        className={`font-semibold mt-2 text-sm leading-tight ${!available ? "text-gray-400" : "text-gray-900"}`}
+                      >
                         {product.name}
                       </h3>
 
@@ -730,13 +738,15 @@ export default function POSPage() {
                       {/* ── Stock indicators — ReadyStock vs PreOrder ── */}
                       {product.productType === "ReadyStock" ? (
                         <div className="mt-1.5">
-                          <span className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-md font-semibold ${
-                            (product.availableStock ?? 0) <= 0
-                              ? "bg-red-100 text-red-600"
-                              : (product.availableStock ?? 0) <= 5
-                              ? "bg-amber-50 text-amber-700"
-                              : "bg-emerald-50 text-emerald-700"
-                          }`}>
+                          <span
+                            className={`inline-flex items-center text-[10px] px-2 py-0.5 rounded-md font-semibold ${
+                              (product.availableStock ?? 0) <= 0
+                                ? "bg-red-100 text-red-600"
+                                : (product.availableStock ?? 0) <= 5
+                                  ? "bg-amber-50 text-amber-700"
+                                  : "bg-emerald-50 text-emerald-700"
+                            }`}
+                          >
                             📦 Stok: {product.availableStock ?? 0}
                           </span>
                         </div>
@@ -749,11 +759,12 @@ export default function POSPage() {
                                 ing.depleted
                                   ? "bg-red-100 text-red-600"
                                   : ing.effectiveStock < ing.needed * 3
-                                  ? "bg-amber-50 text-amber-700"
-                                  : "bg-gray-100 text-gray-500"
+                                    ? "bg-amber-50 text-amber-700"
+                                    : "bg-gray-100 text-gray-500"
                               }`}
                             >
-                              {ing.name}: {Math.round(ing.effectiveStock)}{ing.unit}
+                              {ing.name}: {Math.round(ing.effectiveStock)}
+                              {ing.unit}
                             </span>
                           ))}
                           {ingredientStocks.length > 3 && (
@@ -793,10 +804,7 @@ export default function POSPage() {
                         <div className="mt-1.5 flex items-center gap-1">
                           <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                           <span className="text-[10px] text-amber-600 font-medium">
-                            {cartQty > 0
-                              ? `${cartQty} di cart · +${remaining} lagi`
-                              : `Bisa ${remaining} porsi`
-                            }
+                            {cartQty > 0 ? `${cartQty} di cart · +${remaining} lagi` : `Bisa ${remaining} porsi`}
                           </span>
                         </div>
                       ) : (
@@ -852,41 +860,44 @@ export default function POSPage() {
                   const atMax = item.quantity >= maxQty;
 
                   return (
-                  <div key={item.productId} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                      <p className="text-xs text-gray-500">{formatRupiah(item.price)}</p>
-                      {atMax && product?.recipes && product.recipes.length > 0 && (
-                        <p className="text-[9px] text-orange-500 mt-0.5">⚠ Maks. bahan baku</p>
-                      )}
+                    <div key={item.productId} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+                        <p className="text-xs text-gray-500">{formatRupiah(item.price)}</p>
+                        {atMax && product?.recipes && product.recipes.length > 0 && (
+                          <p className="text-[9px] text-orange-500 mt-0.5">⚠ Maks. bahan baku</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => updateQuantity(item.productId, -1)}
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
+                        >
+                          <Minus className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="w-7 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
+                        <button
+                          onClick={() => !atMax && updateQuantity(item.productId, 1)}
+                          disabled={atMax}
+                          className={`w-7 h-7 flex items-center justify-center rounded-lg ${
+                            atMax
+                              ? "bg-gray-200 text-gray-400 cursor-not-allowed"
+                              : "bg-indigo-600 text-white hover:bg-indigo-700"
+                          }`}
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-sm font-bold text-gray-900">{formatRupiah(item.price * item.quantity)}</p>
+                        <button
+                          onClick={() => removeFromCart(item.productId)}
+                          className="text-red-400 hover:text-red-600 mt-0.5"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => updateQuantity(item.productId, -1)}
-                        className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
-                      >
-                        <Minus className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="w-7 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
-                      <button
-                        onClick={() => !atMax && updateQuantity(item.productId, 1)}
-                        disabled={atMax}
-                        className={`w-7 h-7 flex items-center justify-center rounded-lg ${
-                          atMax
-                            ? "bg-gray-200 text-gray-400 cursor-not-allowed"
-                            : "bg-indigo-600 text-white hover:bg-indigo-700"
-                        }`}
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-bold text-gray-900">{formatRupiah(item.price * item.quantity)}</p>
-                      <button onClick={() => removeFromCart(item.productId)} className="text-red-400 hover:text-red-600 mt-0.5">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
                   );
                 })}
               </div>
@@ -920,7 +931,15 @@ export default function POSPage() {
                         : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-50"
                     }`}
                   >
-                    {method === "Cash" ? "💵" : method === "QRIS" ? "📱" : method === "Transfer" ? "🏦" : method === "Digital" ? "💳" : "📒"}{" "}
+                    {method === "Cash"
+                      ? "💵"
+                      : method === "QRIS"
+                        ? "📱"
+                        : method === "Transfer"
+                          ? "🏦"
+                          : method === "Digital"
+                            ? "💳"
+                            : "📒"}{" "}
                     {method}
                   </button>
                 ))}
@@ -1031,16 +1050,20 @@ export default function POSPage() {
 
             {/* Total + Checkout — always pinned at bottom */}
             <div className="px-5 pb-4 pt-2 space-y-2 border-t border-gray-100">
-              <div className={`border rounded-xl p-2.5 ${
-                paymentMethod === "Kasbon" ? "bg-amber-50 border-amber-200" : "bg-white border-gray-200"
-              }`}>
+              <div
+                className={`border rounded-xl p-2.5 ${
+                  paymentMethod === "Kasbon" ? "bg-amber-50 border-amber-200" : "bg-white border-gray-200"
+                }`}
+              >
                 <div className="flex justify-between items-center text-xs text-gray-500 mb-0.5">
                   <span>{totalItems} item</span>
                   <span>{paymentMethod === "Kasbon" ? "Total Kasbon" : "Subtotal"}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-base font-extrabold text-gray-900">Total</span>
-                  <span className={`text-base font-extrabold ${paymentMethod === "Kasbon" ? "text-amber-700" : "text-indigo-600"}`}>
+                  <span
+                    className={`text-base font-extrabold ${paymentMethod === "Kasbon" ? "text-amber-700" : "text-indigo-600"}`}
+                  >
                     {formatRupiah(total)}
                   </span>
                 </div>
@@ -1065,9 +1088,8 @@ export default function POSPage() {
                   {!customerName.trim()
                     ? "Isi Nama Dulu"
                     : cart.length === 0
-                    ? "Pilih Menu Dulu"
-                    : `Catat Kasbon ${formatRupiah(total)}`
-                  }
+                      ? "Pilih Menu Dulu"
+                      : `Catat Kasbon ${formatRupiah(total)}`}
                   <span className="text-[10px] opacity-70 ml-1">(F5)</span>
                 </button>
               ) : (
@@ -1113,7 +1135,9 @@ export default function POSPage() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Buka Shift Kasir</h2>
-              <p className="text-sm text-gray-500 mt-1">Masukkan jumlah uang cash di laci kasir sebelum mulai berjualan</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Masukkan jumlah uang cash di laci kasir sebelum mulai berjualan
+              </p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700 block text-left mb-1">Modal Awal (Rp)</label>
@@ -1143,29 +1167,75 @@ export default function POSPage() {
 
       {/* ═══ CLOSE SHIFT MODAL ═══ */}
       {showCloseShiftModal && !closeResult && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowCloseShiftModal(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowCloseShiftModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-gray-900">💰 Tutup Kasir</h2>
-              <button onClick={() => setShowCloseShiftModal(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+              <button
+                onClick={() => setShowCloseShiftModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-xl"
+              >
+                &times;
+              </button>
             </div>
 
             {/* Running summary */}
             {shift && (
               <div className="bg-gray-50 rounded-xl p-4 text-sm space-y-2">
-                <div className="flex justify-between"><span className="text-gray-500">Kasir</span><span className="font-medium">{shift.openedBy}</span></div>
-                <div className="flex justify-between"><span className="text-gray-500">Dibuka</span><span className="font-medium">{new Date(shift.openedAt).toLocaleString("id-ID")}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Kasir</span>
+                  <span className="font-medium">{shift.openedBy}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Dibuka</span>
+                  <span className="font-medium">
+                    {new Date(shift.openedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}
+                  </span>
+                </div>
                 <hr />
-                <div className="flex justify-between"><span>Modal Awal</span><span className="font-semibold">{formatRupiah(shift.openingCash)}</span></div>
-                <div className="flex justify-between"><span>💵 Cash Sales</span><span className="font-semibold text-green-600">+{formatRupiah(shift.runningTotals.cashTotal)}</span></div>
-                <div className="flex justify-between"><span>📱 QRIS</span><span>{formatRupiah(shift.runningTotals.qrisTotal)}</span></div>
-                <div className="flex justify-between"><span>🏦 Transfer</span><span>{formatRupiah(shift.runningTotals.transferTotal)}</span></div>
-                <div className="flex justify-between"><span>💳 Digital</span><span>{formatRupiah(shift.runningTotals.digitalTotal)}</span></div>
-                <div className="flex justify-between"><span>📝 Kasbon</span><span>{formatRupiah(shift.runningTotals.kasbonTotal)}</span></div>
+                <div className="flex justify-between">
+                  <span>Modal Awal</span>
+                  <span className="font-semibold">{formatRupiah(shift.openingCash)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>💵 Cash Sales</span>
+                  <span className="font-semibold text-green-600">+{formatRupiah(shift.runningTotals.cashTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>📱 QRIS</span>
+                  <span>{formatRupiah(shift.runningTotals.qrisTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🏦 Transfer</span>
+                  <span>{formatRupiah(shift.runningTotals.transferTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>💳 Digital</span>
+                  <span>{formatRupiah(shift.runningTotals.digitalTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>📝 Kasbon</span>
+                  <span>{formatRupiah(shift.runningTotals.kasbonTotal)}</span>
+                </div>
                 <hr />
-                <div className="flex justify-between font-bold text-base"><span>Total Revenue</span><span className="text-indigo-600">{formatRupiah(shift.runningTotals.totalRevenue)}</span></div>
-                <div className="flex justify-between font-bold"><span>Cash Seharusnya</span><span className="text-emerald-600">{formatRupiah(shift.runningTotals.expectedCash)}</span></div>
-                <div className="flex justify-between"><span>Transaksi</span><span className="font-bold">{shift.runningTotals.transactionCount}</span></div>
+                <div className="flex justify-between font-bold text-base">
+                  <span>Total Revenue</span>
+                  <span className="text-indigo-600">{formatRupiah(shift.runningTotals.totalRevenue)}</span>
+                </div>
+                <div className="flex justify-between font-bold">
+                  <span>Cash Seharusnya</span>
+                  <span className="text-emerald-600">{formatRupiah(shift.runningTotals.expectedCash)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Transaksi</span>
+                  <span className="font-bold">{shift.runningTotals.transactionCount}</span>
+                </div>
               </div>
             )}
 
@@ -1185,15 +1255,23 @@ export default function POSPage() {
                 onKeyDown={(e) => e.key === "Enter" && handleCloseShift()}
               />
               {/* Live discrepancy preview */}
-              {shift && actualCashInput && (() => {
-                const actual = Number(actualCashInput.replace(/\D/g, ""));
-                const diff = actual - shift.runningTotals.expectedCash;
-                return (
-                  <div className={`mt-2 text-sm font-semibold text-center ${diff === 0 ? "text-green-600" : diff > 0 ? "text-blue-600" : "text-red-600"}`}>
-                    {diff === 0 ? "✅ Cocok sempurna!" : diff > 0 ? `+${formatRupiah(diff)} (lebih)` : `${formatRupiah(diff)} (kurang)`}
-                  </div>
-                );
-              })()}
+              {shift &&
+                actualCashInput &&
+                (() => {
+                  const actual = Number(actualCashInput.replace(/\D/g, ""));
+                  const diff = actual - shift.runningTotals.expectedCash;
+                  return (
+                    <div
+                      className={`mt-2 text-sm font-semibold text-center ${diff === 0 ? "text-green-600" : diff > 0 ? "text-blue-600" : "text-red-600"}`}
+                    >
+                      {diff === 0
+                        ? "✅ Cocok sempurna!"
+                        : diff > 0
+                          ? `+${formatRupiah(diff)} (lebih)`
+                          : `${formatRupiah(diff)} (kurang)`}
+                    </div>
+                  );
+                })()}
             </div>
 
             <div>
@@ -1229,15 +1307,35 @@ export default function POSPage() {
             </div>
 
             <div className="bg-indigo-50 rounded-xl p-4 text-sm space-y-2">
-              <div className="flex justify-between"><span>Modal Awal</span><span className="font-semibold">{formatRupiah(Number(closeResult.openingCash) || 0)}</span></div>
-              <div className="flex justify-between"><span>+ Cash Sales</span><span className="font-semibold text-green-600">+{formatRupiah(Number(closeResult.cashSalesTotal) || 0)}</span></div>
+              <div className="flex justify-between">
+                <span>Modal Awal</span>
+                <span className="font-semibold">{formatRupiah(Number(closeResult.openingCash) || 0)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>+ Cash Sales</span>
+                <span className="font-semibold text-green-600">
+                  +{formatRupiah(Number(closeResult.cashSalesTotal) || 0)}
+                </span>
+              </div>
               <hr className="border-indigo-200" />
-              <div className="flex justify-between font-bold"><span>Seharusnya</span><span>{formatRupiah(Number(closeResult.expectedCash) || 0)}</span></div>
-              <div className="flex justify-between font-bold"><span>Aktual</span><span>{formatRupiah(Number(closeResult.actualCash) || 0)}</span></div>
+              <div className="flex justify-between font-bold">
+                <span>Seharusnya</span>
+                <span>{formatRupiah(Number(closeResult.expectedCash) || 0)}</span>
+              </div>
+              <div className="flex justify-between font-bold">
+                <span>Aktual</span>
+                <span>{formatRupiah(Number(closeResult.actualCash) || 0)}</span>
+              </div>
               <hr className="border-indigo-200" />
-              <div className={`flex justify-between font-bold text-lg ${Number(closeResult.discrepancy) === 0 ? "text-green-600" : Number(closeResult.discrepancy) > 0 ? "text-blue-600" : "text-red-600"}`}>
+              <div
+                className={`flex justify-between font-bold text-lg ${Number(closeResult.discrepancy) === 0 ? "text-green-600" : Number(closeResult.discrepancy) > 0 ? "text-blue-600" : "text-red-600"}`}
+              >
                 <span>Selisih</span>
-                <span>{Number(closeResult.discrepancy) === 0 ? "✅ Cocok" : `${Number(closeResult.discrepancy) > 0 ? "+" : ""}${formatRupiah(Number(closeResult.discrepancy))}`}</span>
+                <span>
+                  {Number(closeResult.discrepancy) === 0
+                    ? "✅ Cocok"
+                    : `${Number(closeResult.discrepancy) > 0 ? "+" : ""}${formatRupiah(Number(closeResult.discrepancy))}`}
+                </span>
               </div>
             </div>
 
@@ -1251,7 +1349,10 @@ export default function POSPage() {
             </div>
 
             <button
-              onClick={() => { setCloseResult(null); setShowCloseShiftModal(false); }}
+              onClick={() => {
+                setCloseResult(null);
+                setShowCloseShiftModal(false);
+              }}
               className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition"
             >
               OK — Buka Shift Baru

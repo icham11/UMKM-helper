@@ -99,7 +99,6 @@ async function evaluateForecastAccuracy(businessId: number) {
 
     // Store accuracy metrics
     try {
-      // @ts-expect-error forecastAccuracy may not exist in current schema
       await prisma.forecastAccuracy.upsert({
         where: { businessId },
         update: {
@@ -122,7 +121,9 @@ async function evaluateForecastAccuracy(businessId: number) {
           lastEvaluatedAt: now,
         },
       });
-    } catch { /* model may not exist yet */ }
+    } catch {
+      /* model may not exist yet */
+    }
 
     console.log(
       `[ACCURACY] Business ${businessId}: 7d accuracy=${accuracy7d?.toFixed(1) ?? "N/A"}% (n=${last7d.length}), ` +
@@ -605,7 +606,8 @@ async function generateHealthScoreForBusiness(businessId: number) {
 const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => Promise<string> }[] = [
   {
     key: "revenue",
-    prompt: "Berikan 1-2 kalimat ringkas tentang tren pendapatan harian bisnis ini. Sebutkan pola kunci.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan profesional tentang tren pendapatan harian bisnis ini. Soroti pola utama (naik, turun, atau stabil) serta implikasinya terhadap kinerja penjualan.",
     gather: async (bid) => {
       // Match EXACTLY what frontend /api/analytics/daily returns:
       // Use UTC boundaries to match database DATE type (stored as midnight UTC)
@@ -639,7 +641,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "growth",
-    prompt: "Berikan 1-2 kalimat ringkas tentang pertumbuhan bisnis bulan ini vs bulan lalu.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas tentang pertumbuhan bisnis bulan ini dibandingkan bulan lalu, dengan menyoroti arah pertumbuhan (positif, stagnan, atau negatif) dan dampaknya ke keberlanjutan bisnis.",
     gather: async (bid) => {
       const now = new Date();
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -656,7 +659,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "products",
-    prompt: "Berikan 1-2 kalimat ringkas tentang performa produk — mana yang paling laris dan paling menguntungkan.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan bernada bisnis tentang performa produk: produk mana yang paling berkontribusi ke omzet dan profit, serta pesan singkat yang dapat dibaca manajemen.",
     gather: async (bid) => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
@@ -674,7 +678,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "health",
-    prompt: "Berikan 1-2 kalimat ringkas tentang skor kesehatan bisnis dan klasifikasi saat ini.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan jelas tentang skor kesehatan bisnis dan klasifikasi saat ini, dengan menekankan apakah kondisi tergolong sehat, perlu perhatian, atau berisiko. Perlu diketahui semakin besar skor ,informasi ini bisa kamu gunakan dengan bijak.",
     gather: async (bid) => {
       const latest = await prisma.businessHealthScores.findFirst({
         where: { businessId: bid },
@@ -686,7 +691,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "waste",
-    prompt: "Berikan 1-2 kalimat ringkas tentang tingkat limbah/waste bisnis ini terhadap pendapatan.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan profesional tentang tingkat limbah/waste bisnis ini terhadap pendapatan, serta apakah levelnya masih wajar atau sudah menggerus profit.",
     gather: async (bid) => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
@@ -707,7 +713,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "kasbon",
-    prompt: "Berikan 1-2 kalimat ringkas tentang status kasbon/piutang bisnis ini.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas tentang status kasbon/piutang bisnis ini, dengan fokus pada besarnya piutang tertunggak dan implikasinya terhadap arus kas.",
     gather: async (bid) => {
       const debts = await prisma.debt.findMany({
         where: { businessId: bid },
@@ -716,7 +723,7 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
       const total = debts.reduce((s, d) => s + Number(d.totalAmount), 0);
       const paid = debts.reduce((s, d) => s + d.payments.reduce((ps, p) => ps + Number(p.amount), 0), 0);
       const outstanding = total - paid;
-        const overdue = debts.filter((d) => (d.status as string) === "overdue").length;
+      const overdue = debts.filter((d) => (d.status as string) === "overdue").length;
       return `Total kasbon: Rp ${total.toLocaleString("id-ID")}, terbayar: Rp ${paid.toLocaleString("id-ID")}, sisa: Rp ${outstanding.toLocaleString("id-ID")}, jatuh tempo: ${overdue}.`;
     },
   },
@@ -814,10 +821,10 @@ async function generateInsightsForBusiness(businessId: number) {
             role: "system",
             content:
               `Kamu adalah konsultan bisnis AI untuk UMKM Indonesia. Hari ini ${dateContext}. ` +
-              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia. ` +
+              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia dengan gaya profesional seperti catatan analis bisnis. ` +
               `PENTING: Gunakan ANGKA PERSIS yang diberikan dalam data, JANGAN menghitung ulang atau memperkirakan. ` +
-              `Perhatikan pola hari kerja vs weekend dan hari besar Indonesia jika relevan. ` +
-              `Jangan gunakan markdown. Langsung ke poin utama.`,
+              `Fokus pada pesan yang relevan untuk pemilik/manajer bisnis (misalnya tren utama, risiko, atau peluang). ` +
+              `Jangan gunakan markdown atau emotikon. Langsung sampaikan poin utama secara lugas.`,
           },
           {
             role: "user",
@@ -825,7 +832,7 @@ async function generateInsightsForBusiness(businessId: number) {
           },
         ],
         model: GROQ_MODELS.text.primary,
-        temperature: 0.1,
+        temperature: 0.3,
         max_tokens: 150,
       });
 

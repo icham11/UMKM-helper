@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Filter, Calendar } from "lucide-react";
+import { Search, Filter, Calendar, TrendingUp, Clock, ShoppingCart } from "lucide-react";
+import StatTile from "@/app/components/StatTile";
 import { InvoiceViewer } from "../../components/InvoiceViewer";
 
 interface Sale {
@@ -98,7 +99,7 @@ export default function SalesHistoryPage() {
         (sale) =>
           sale.transactionNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
           sale.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          sale.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
+          sale.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
@@ -145,7 +146,7 @@ export default function SalesHistoryPage() {
   const totalRevenue = filteredSales.reduce((sum, sale) => sum + Number(sale.totalRevenue), 0);
   const totalProfit = filteredSales.reduce(
     (sum, sale) => sum + (Number(sale.totalRevenue) - Number(sale.totalCost)),
-    0
+    0,
   );
   const paidSales = filteredSales.filter((sale) => sale.paymentStatus === "Paid").length;
 
@@ -155,21 +156,18 @@ export default function SalesHistoryPage() {
   const pendingRevenue = pendingSales.reduce((sum, sale) => sum + Number(sale.totalRevenue), 0);
   const pendingProfit = pendingSales.reduce(
     (sum, sale) => sum + (Number(sale.totalRevenue) - Number(sale.totalCost)),
-    0
+    0,
   );
   const paidProfit = totalProfit - pendingProfit;
 
   // Pending grouped by payment method
-  const pendingByMethod = pendingSales.reduce<Record<string, { count: number; amount: number }>>(
-    (acc, sale) => {
-      const method = sale.paymentMethod || "Unknown";
-      if (!acc[method]) acc[method] = { count: 0, amount: 0 };
-      acc[method].count += 1;
-      acc[method].amount += Number(sale.totalRevenue);
-      return acc;
-    },
-    {}
-  );
+  const pendingByMethod = pendingSales.reduce<Record<string, { count: number; amount: number }>>((acc, sale) => {
+    const method = sale.paymentMethod || "Unknown";
+    if (!acc[method]) acc[method] = { count: 0, amount: 0 };
+    acc[method].count += 1;
+    acc[method].amount += Number(sale.totalRevenue);
+    return acc;
+  }, {});
 
   if (loading) {
     return (
@@ -210,43 +208,51 @@ export default function SalesHistoryPage() {
           </button>
         </div>
 
-          {/* Statistics Cards inside header */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
-            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
-              <p className="text-indigo-200 text-xs">Total Transaksi</p>
-              <p className="text-lg sm:text-2xl font-bold mt-0.5">{filteredSales.length}</p>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
-              <p className="text-indigo-200 text-xs">Total Revenue</p>
-              <p className="text-lg sm:text-2xl font-bold mt-0.5">Rp {totalRevenue.toLocaleString("id-ID")}</p>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
-              <p className="text-indigo-200 text-xs">Total Profit</p>
-              <p className="text-lg sm:text-2xl font-bold mt-0.5">Rp {totalProfit.toLocaleString("id-ID")}</p>
-            </div>
-            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
-              <p className="text-indigo-200 text-xs">Lunas</p>
-              <p className="text-lg sm:text-2xl font-bold mt-0.5">{paidSales} / {filteredSales.length}</p>
-            </div>
+        {/* Statistics Cards inside header */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+          <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+            <p className="text-indigo-200 text-xs">Total Transaksi</p>
+            <p className="text-lg sm:text-2xl font-bold mt-0.5">{filteredSales.length}</p>
+          </div>
+          <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+            <p className="text-indigo-200 text-xs">Total Revenue</p>
+            <p className="text-lg sm:text-2xl font-bold mt-0.5">Rp {totalRevenue.toLocaleString("id-ID")}</p>
+          </div>
+          <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+            <p className="text-indigo-200 text-xs">Total Profit</p>
+            <p className="text-lg sm:text-2xl font-bold mt-0.5">Rp {totalProfit.toLocaleString("id-ID")}</p>
+          </div>
+          <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+            <p className="text-indigo-200 text-xs">Lunas</p>
+            <p className="text-lg sm:text-2xl font-bold mt-0.5">
+              {paidSales} / {filteredSales.length}
+            </p>
           </div>
         </div>
+      </div>
 
       {/* Profit & Pending Detail */}
       {pendingCount > 0 && (
         <div className="bg-white border border-indigo-100 rounded-xl p-4 sm:p-5">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
-              <p className="text-xs text-indigo-500 font-medium">Profit Lunas</p>
-              <p className="text-lg font-bold text-indigo-700 mt-0.5">Rp {paidProfit.toLocaleString("id-ID")}</p>
-            </div>
-            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
-              <p className="text-xs text-amber-600 font-medium">Profit Pending ({pendingCount})</p>
-              <p className="text-lg font-bold text-amber-700 mt-0.5">Rp {pendingProfit.toLocaleString("id-ID")}</p>
-            </div>
-            <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
-              <p className="text-xs text-purple-500 font-medium">Pending Revenue</p>
-              <p className="text-lg font-bold text-purple-700 mt-0.5">Rp {pendingRevenue.toLocaleString("id-ID")}</p>
-            </div>
+            <StatTile
+              icon={TrendingUp}
+              label="Profit Lunas"
+              value={`Rp ${paidProfit.toLocaleString("id-ID")}`}
+              color="indigo"
+            />
+            <StatTile
+              icon={Clock}
+              label={`Profit Pending (${pendingCount})`}
+              value={`Rp ${pendingProfit.toLocaleString("id-ID")}`}
+              color="amber"
+            />
+            <StatTile
+              icon={ShoppingCart}
+              label="Pending Revenue"
+              value={`Rp ${pendingRevenue.toLocaleString("id-ID")}`}
+              color="purple"
+            />
           </div>
           {Object.keys(pendingByMethod).length > 0 && (
             <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-indigo-100/60">
@@ -264,220 +270,207 @@ export default function SalesHistoryPage() {
         </div>
       )}
 
-        {/* Filters */}
-        <div className="bg-white p-4 sm:p-5 rounded-xl border border-indigo-100">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Cari transaksi..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-black placeholder-gray-400"
-              />
-            </div>
-
-            {/* Payment Method Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={paymentMethodFilter}
-                onChange={(e) => setPaymentMethodFilter(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
-              >
-                <option value="All">Metode Pembayaran</option>
-                <option value="Cash">Tunai</option>
-                <option value="QRIS">QRIS</option>
-                <option value="Transfer">Transfer</option>
-                <option value="Digital">Digital</option>
-                <option value="Kasbon">Kasbon</option>
-              </select>
-            </div>
-
-            {/* Payment Status Filter */}
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={paymentStatusFilter}
-                onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
-              >
-                <option value="All">Status Pembayaran</option>
-                <option value="Paid">Lunas</option>
-                <option value="Pending">Belum Lunas</option>
-              </select>
-            </div>
-
-            {/* Date Filter */}
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <select
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
-              >
-                <option value="All">Hari,Minggu,Bulan</option>
-                <option value="Today">Hari Ini</option>
-                <option value="Week">Minggu Ini</option>
-                <option value="Month">Bulan Ini</option>
-              </select>
-            </div>
+      {/* Filters */}
+      <div className="bg-white p-4 sm:p-5 rounded-xl border border-indigo-100">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Cari transaksi..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-black placeholder-gray-400"
+            />
           </div>
-        </div>
 
-        {/* Sales Table with Pagination */}
-        <div className="bg-white rounded-xl border border-indigo-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Nomor Transaksi
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Pelanggan
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Item
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Jumlah
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Pembayaran
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Tanggal
-                  </th>
-                  <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Print Tagihan
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredSales.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                      <p className="text-lg font-medium">No sales found</p>
-                      <p className="text-sm mt-1">Try adjusting your filters</p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSales
-                    .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-                    .map((sale, idx) => (
-                      <tr
-                        key={sale.id}
-                        className="hover:bg-indigo-50 transition duration-300"
-                        style={{ opacity: 0, animation: `fadeInUp 0.4s ease ${idx * 0.04}s forwards` }}
-                      >
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{sale.transactionNumber}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm">
-                            <div className="font-medium text-gray-900">
-                              {sale.customerName || "Guest"}
-                            </div>
-                            {sale.customerEmail && (
-                              <div className="text-gray-500 text-xs">{sale.customerEmail}</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="text-sm text-gray-900">
-                            {sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)} items
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            {sale.saleItems.slice(0, 2).map((item) => item.product.name).join(", ")}
-                            {sale.saleItems.length > 2 && "..."}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-gray-900">
-                            Rp {Number(sale.totalRevenue).toLocaleString("id-ID")}
-                          </div>
-                          <div className="text-xs text-gray-500">
-                            Profit: Rp{" "}
-                            {(Number(sale.totalRevenue) - Number(sale.totalCost)).toLocaleString(
-                              "id-ID"
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-2 py-4">
-                          <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
-                            {sale.paymentMethod}
-                          </span>
-                        </td>
-                        <td className="px-2 py-4">
-                          {sale.paymentStatus === "Paid" ? (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                              ✓ Paid
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
-                              ⏳ Pending
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-4 text-sm text-gray-500">
-                          {new Date(sale.createdAt).toLocaleDateString("id-ID", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
-                        </td>
-                        <td className="px-2 py-4">
-                          {sale.paymentStatus === "Paid" && (
-                            <InvoiceViewer
-                              saleId={sale.id}
-                              transactionNumber={sale.transactionNumber}
-                            />
-                          )}
-                        </td>
-                      </tr>
-                    ))
-                )}
-              </tbody>
-            </table>
+          {/* Payment Method Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={paymentMethodFilter}
+              onChange={(e) => setPaymentMethodFilter(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
+            >
+              <option value="All">Metode Pembayaran</option>
+              <option value="Cash">Tunai</option>
+              <option value="QRIS">QRIS</option>
+              <option value="Transfer">Transfer</option>
+              <option value="Digital">Digital</option>
+              <option value="Kasbon">Kasbon</option>
+            </select>
           </div>
-          {/* Pagination Controls (match products page style) */}
-          {totalPages > 1 && (
-            <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t rounded-b-3xl">
-              <div className="flex items-center gap-6">
-                <button
-                  className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
-                  disabled={page === 1 || loading}
-                  onClick={() => setPage(page - 1)}
-                >
-                  ‹ Previous
-                </button>
-                <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
-                  disabled={page === totalPages || loading}
-                  onClick={() => setPage(page + 1)}
-                >
-                  Next ›
-                </button>
-              </div>
-            </div>
-          )}
+
+          {/* Payment Status Filter */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={paymentStatusFilter}
+              onChange={(e) => setPaymentStatusFilter(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
+            >
+              <option value="All">Status Pembayaran</option>
+              <option value="Paid">Lunas</option>
+              <option value="Pending">Belum Lunas</option>
+            </select>
+          </div>
+
+          {/* Date Filter */}
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
+            >
+              <option value="All">Hari,Minggu,Bulan</option>
+              <option value="Today">Hari Ini</option>
+              <option value="Week">Minggu Ini</option>
+              <option value="Month">Bulan Ini</option>
+            </select>
+          </div>
         </div>
       </div>
+
+      {/* Sales Table with Pagination */}
+      <div className="bg-white rounded-xl border border-indigo-100 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Nomor Transaksi
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Pelanggan
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Item
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Jumlah
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Pembayaran
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Tanggal
+                </th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                  Print Tagihan
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredSales.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    <p className="text-lg font-medium">No sales found</p>
+                    <p className="text-sm mt-1">Try adjusting your filters</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((sale, idx) => (
+                  <tr
+                    key={sale.id}
+                    className="hover:bg-indigo-50 transition duration-300"
+                    style={{ opacity: 0, animation: `fadeInUp 0.4s ease ${idx * 0.04}s forwards` }}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-gray-900">{sale.transactionNumber}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        <div className="font-medium text-gray-900">{sale.customerName || "Guest"}</div>
+                        {sale.customerEmail && <div className="text-gray-500 text-xs">{sale.customerEmail}</div>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">
+                        {sale.saleItems.reduce((sum, item) => sum + item.quantity, 0)} items
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {sale.saleItems
+                          .slice(0, 2)
+                          .map((item) => item.product.name)
+                          .join(", ")}
+                        {sale.saleItems.length > 2 && "..."}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900">
+                        Rp {Number(sale.totalRevenue).toLocaleString("id-ID")}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        Profit: Rp {(Number(sale.totalRevenue) - Number(sale.totalCost)).toLocaleString("id-ID")}
+                      </div>
+                    </td>
+                    <td className="px-2 py-4">
+                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                        {sale.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="px-2 py-4">
+                      {sale.paymentStatus === "Paid" ? (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                          ✓ Paid
+                        </span>
+                      ) : (
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
+                          ⏳ Pending
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-2 py-4 text-sm text-gray-500">
+                      {new Date(sale.createdAt).toLocaleDateString("id-ID", {
+                        timeZone: "Asia/Jakarta",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-2 py-4">
+                      {sale.paymentStatus === "Paid" && (
+                        <InvoiceViewer saleId={sale.id} transactionNumber={sale.transactionNumber} />
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+        {/* Pagination Controls (match products page style) */}
+        {totalPages > 1 && (
+          <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t rounded-b-3xl">
+            <div className="flex items-center gap-6">
+              <button
+                className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
+                disabled={page === 1 || loading}
+                onClick={() => setPage(page - 1)}
+              >
+                ‹ Previous
+              </button>
+              <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
+                disabled={page === totalPages || loading}
+                onClick={() => setPage(page + 1)}
+              >
+                Next ›
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
-
-
-
-
-

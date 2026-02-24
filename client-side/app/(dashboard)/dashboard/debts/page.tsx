@@ -24,6 +24,7 @@ import {
   Users,
   Filter,
 } from "lucide-react";
+import StatTile from "@/app/components/StatTile";
 import { useBusiness } from "@/context/BusinessContext";
 
 const formatRupiah = (val: number) => `Rp ${val.toLocaleString("id-ID")}`;
@@ -219,7 +220,7 @@ export default function DebtsPage() {
   function printReceipt(debt: Debt, paymentAmount?: number) {
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return;
-    const now = new Date().toLocaleString("id-ID");
+    const now = new Date().toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
     w.document.write(`<!DOCTYPE html><html><head><title>Bukti Kasbon</title>
       <style>
         body { font-family: 'Courier New', monospace; width: 300px; margin: 20px auto; font-size: 12px; color: #333; }
@@ -251,7 +252,7 @@ export default function DebtsPage() {
       ${paymentAmount ? `<div class="row"><span>Dibayar:</span><span class="bold" style="color:#059669">${formatRupiah(paymentAmount)}</span></div>` : ""}
       <div class="row"><span>Sudah Bayar:</span><span>${formatRupiah(debt.paidAmount + (paymentAmount || 0))}</span></div>
       <div class="row"><span>Sisa:</span><span class="bold" style="color:${debt.remaining - (paymentAmount || 0) > 0 ? "#DC2626" : "#059669"}">${formatRupiah(Math.max(0, debt.remaining - (paymentAmount || 0)))}</span></div>
-      ${debt.dueDate ? `<div class="row"><span>Jatuh Tempo:</span><span>${new Date(debt.dueDate).toLocaleDateString("id-ID")}</span></div>` : ""}
+      ${debt.dueDate ? `<div class="row"><span>Jatuh Tempo:</span><span>${new Date(debt.dueDate).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}</span></div>` : ""}
       <div class="divider"></div>
       <div class="center">
         <span class="status ${debt.remaining - (paymentAmount || 0) <= 0 ? "paid" : debt.paidAmount > 0 || paymentAmount ? "partial" : "unpaid"}">
@@ -271,7 +272,7 @@ export default function DebtsPage() {
     const phone = debt.customerPhone.replace(/\D/g, "").replace(/^0/, "62");
     const remaining = formatRupiah(debt.remaining);
     const msg = encodeURIComponent(
-      `Halo ${debt.customerName}, ini dari ${business?.name || "kami"}. Mengingatkan kasbon Anda sebesar ${remaining} untuk transaksi ${debt.transactionNumber}${debt.dueDate ? ` (jatuh tempo: ${new Date(debt.dueDate).toLocaleDateString("id-ID")})` : ""}. Terima kasih 🙏`,
+      `Halo ${debt.customerName}, ini dari ${business?.name || "kami"}. Mengingatkan kasbon Anda sebesar ${remaining} untuk transaksi ${debt.transactionNumber}${debt.dueDate ? ` (jatuh tempo: ${new Date(debt.dueDate).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })})` : ""}. Terima kasih 🙏`,
     );
     return `https://wa.me/${phone}?text=${msg}`;
   }
@@ -321,22 +322,10 @@ export default function DebtsPage() {
         transition={{ delay: 0.05 }}
         className="grid grid-cols-2 sm:grid-cols-4 gap-3"
       >
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-xs text-gray-400 font-medium">Total Piutang</p>
-          <p className="text-xl font-extrabold text-red-600 mt-1">{formatRupiah(summary.totalDebt)}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-xs text-gray-400 font-medium">Belum Lunas</p>
-          <p className="text-xl font-extrabold text-amber-600 mt-1">{summary.unpaidCount}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-xs text-gray-400 font-medium">Jatuh Tempo</p>
-          <p className="text-xl font-extrabold text-red-600 mt-1">{overdueDebts.length}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-100 p-4">
-          <p className="text-xs text-gray-400 font-medium">Total Kasbon</p>
-          <p className="text-xl font-extrabold text-gray-700 mt-1">{summary.totalCount}</p>
-        </div>
+        <StatTile icon={DollarSign} label="Total Piutang" value={formatRupiah(summary.totalDebt)} color="red" />
+        <StatTile icon={Clock} label="Belum Lunas" value={String(summary.unpaidCount)} color="amber" />
+        <StatTile icon={AlertTriangle} label="Jatuh Tempo" value={String(overdueDebts.length)} color="red" />
+        <StatTile icon={Receipt} label="Total Kasbon" value={String(summary.totalCount)} color="indigo" />
       </motion.div>
 
       {/* Customer Summary Toggle */}
@@ -557,14 +546,16 @@ export default function DebtsPage() {
                             </div>
                           )}
                           <div className="flex items-center gap-1.5 text-gray-500">
-                            <Calendar className="w-3.5 h-3.5" /> {new Date(debt.createdAt).toLocaleDateString("id-ID")}
+                            <Calendar className="w-3.5 h-3.5" />{" "}
+                            {new Date(debt.createdAt).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
                           </div>
                           {debt.dueDate && (
                             <div
                               className={`flex items-center gap-1.5 ${overdue ? "text-red-600 font-semibold" : "text-gray-500"}`}
                             >
                               <Clock className="w-3.5 h-3.5" />
-                              {overdue ? "⚠️ " : ""}Jatuh tempo: {new Date(debt.dueDate).toLocaleDateString("id-ID")}
+                              {overdue ? "⚠️ " : ""}Jatuh tempo:{" "}
+                              {new Date(debt.dueDate).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
                             </div>
                           )}
                         </div>
@@ -601,7 +592,7 @@ export default function DebtsPage() {
                                     {p.notes && <span className="text-gray-400">— {p.notes}</span>}
                                   </div>
                                   <span className="text-gray-400">
-                                    {new Date(p.createdAt).toLocaleDateString("id-ID")}
+                                    {new Date(p.createdAt).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
                                   </span>
                                 </div>
                               ))}
