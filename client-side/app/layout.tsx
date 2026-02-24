@@ -29,13 +29,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "UMKM Helper — Solusi Bisnis UMKM Indonesia",
-  description: "POS kasir, manajemen inventori, analitik penjualan, dan AI assistant untuk UMKM Indonesia",
+  title: "Cuanify — Bikin Bisnis Makin Cuan",
+  description: "Platform cerdas untuk UMKM Indonesia — POS kasir, inventori FIFO, kasbon, AI assistant, dan analytics real-time. Gratis selamanya.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "UMKM Helper",
+    title: "Cuanify",
   },
   icons: {
     icon: "/icons/icon-192x192.png",

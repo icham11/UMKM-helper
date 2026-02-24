@@ -48,7 +48,7 @@ export async function sendInvoiceEmail(
         <p>Terima kasih telah melakukan transaksi. Invoice Anda terlampir di email ini.</p>
         <p>Jika ada pertanyaan, silakan hubungi kami.</p>
         <br>
-        <p>Salam,<br>Tim UMKM Helper</p>
+        <p>Salam,<br>Tim Cuanify</p>
       `,
       attachments: [
         {

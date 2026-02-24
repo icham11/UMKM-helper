@@ -1,17 +1,14 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserPlus, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+import { TrendingUp, Eye, EyeOff } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,112 +27,135 @@ export default function RegisterPage() {
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.password,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: form.name, email: form.email, password: form.password }),
       });
       if (!res.ok) {
         const text = await res.text();
         throw new Error(text);
       }
       router.push("/login");
-    } catch (err: any) {
-      setError(err.message || "Registrasi gagal");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registrasi gagal");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-yellow-100 via-orange-100 to-pink-100 px-4 py-8">
-      <div className="w-full max-w-md bg-white p-10 rounded-2xl shadow-2xl flex flex-col items-center">
-        <span className="bg-linear-to-br from-yellow-200 to-orange-200 p-3 rounded-full mb-2 shadow">
-          <UserPlus size={32} className="text-orange-600" />
-        </span>
-        <h1 className="text-3xl font-extrabold text-center mb-2 text-orange-600 tracking-tight">Buat Akun Baru</h1>
-        <p className="text-center text-gray-500 mb-8 text-sm">Daftar untuk mulai mengelola UMKM Anda</p>
-        <form onSubmit={handleSubmit} className="w-full space-y-4">
-          <div>
-            <label className="block text-orange-700 text-sm font-semibold mb-1">Nama Lengkap</label>
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-orange-200 focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white/90 text-orange-900"
-              placeholder="Nama Lengkap"
-            />
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center p-4">
+      {/* Decorative blobs */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-purple-200/30 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3 pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-200/30 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3 pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-white/90 backdrop-blur-sm p-8 sm:p-10 rounded-2xl shadow-xl border border-white/60">
+          {/* Logo */}
+          <div className="flex justify-center mb-6">
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-2xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
+                Cuanify
+              </span>
+            </Link>
           </div>
-          <div>
-            <label className="block text-orange-700 text-sm font-semibold mb-1">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 rounded-lg border border-orange-200 focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white/90 text-orange-900"
-              placeholder="Email"
-            />
-          </div>
-          <div className="relative">
-            <label className="block text-orange-700 text-sm font-semibold mb-1">Password</label>
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-              className="w-full px-4 py-2 rounded-lg border border-orange-200 focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white/90 text-orange-900 pr-10"
-              placeholder="Password"
-            />
+
+          <h1 className="text-2xl font-bold text-center text-gray-900 mb-1">Buat Akun Baru</h1>
+          <p className="text-center text-gray-500 mb-7 text-sm">Daftar gratis untuk mulai kelola bisnis Anda</p>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+              <input
+                type="text"
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm transition"
+                placeholder="Nama lengkap Anda"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                required
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm transition"
+                placeholder="nama@email.com"
+              />
+            </div>
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm transition"
+                placeholder="Min. 6 karakter"
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                className="absolute right-3 top-[34px] text-gray-400 hover:text-gray-600 transition"
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+              <input
+                type={showPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                required
+                minLength={6}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm transition"
+                placeholder="Ulangi password"
+              />
+            </div>
+
+            {error && (
+              <div className="text-sm text-red-600 bg-red-50 border border-red-200 p-3 rounded-xl">
+                {error}
+              </div>
+            )}
+
             <button
-              type="button"
-              tabIndex={-1}
-              className="absolute right-3 top-8 text-orange-400 hover:text-orange-600"
-              onClick={() => setShowPassword((v) => !v)}
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 rounded-xl transition shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              {loading ? "Mendaftar..." : "Daftar Gratis"}
             </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-500">
+              Sudah punya akun?{" "}
+              <button
+                onClick={() => router.push("/login")}
+                className="font-semibold text-indigo-600 hover:text-indigo-700 transition"
+              >
+                Masuk di sini
+              </button>
+            </p>
           </div>
-          <div className="relative">
-            <label className="block text-orange-700 text-sm font-semibold mb-1">Konfirmasi Password</label>
-            <input
-              type={showPassword ? "text" : "password"}
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              required
-              minLength={6}
-              className="w-full px-4 py-2 rounded-lg border border-orange-200 focus:ring-2 focus:ring-orange-400 focus:outline-none bg-white/90 text-orange-900 pr-10"
-              placeholder="Konfirmasi Password"
-            />
-          </div>
-          {error && <div className="text-red-500 text-sm text-center font-semibold">{error}</div>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 mt-2 rounded-lg bg-linear-to-r from-blue-500 to-indigo-500 text-white font-bold text-lg shadow hover:from-blue-600 hover:to-indigo-600 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            {loading ? "Mendaftar..." : "Daftar"}
-          </button>
-        </form>
-        <div className="mt-6 text-center text-orange-600 text-sm">
-          Sudah punya akun?{' '}
-          <button
-            className="font-bold underline hover:text-indigo-600 transition"
-            onClick={() => router.push("/login")}
-          >
-            Login di sini
-          </button>
         </div>
+
+        <p className="text-xs text-gray-400 text-center mt-6">
+          &copy; 2026 Cuanify. All rights reserved.
+        </p>
       </div>
     </div>
   );

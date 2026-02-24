@@ -605,7 +605,7 @@ export default function ProfilePage() {
         className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-xs text-gray-400"
       >
         <span>User ID: #{profile.id}</span>
-        <span>UMKM Helper • {new Date().getFullYear()}</span>
+        <span>Cuanify • {new Date().getFullYear()}</span>
       </motion.div>
     </div>
   );

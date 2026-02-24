@@ -1,6 +1,6 @@
 // Quick debug script to check business 11 data
 // Run with: npx tsx debug_business.js
-import prisma from './lib/prisma.ts';
+import prisma from './lib/prisma';
 
 async function main() {
   // Business info

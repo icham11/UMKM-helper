@@ -1,5 +1,5 @@
 /**
- * UMKM Helper — Service Worker
+ * Cuanify — Service Worker
  *
  * Strategy:
  *  - App Shell (layout, CSS, fonts): Cache-first

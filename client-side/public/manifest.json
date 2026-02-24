@@ -1,7 +1,7 @@
 {
-  "name": "UMKM Helper",
-  "short_name": "UMKM",
-  "description": "Solusi bisnis UMKM Indonesia — POS, inventori, analitik, dan AI assistant",
+  "name": "Cuanify",
+  "short_name": "Cuanify",
+  "description": "Platform cerdas untuk UMKM Indonesia — POS, inventori, kasbon, AI assistant, dan analytics",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#f5f7fa",

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
-// @ts-expect-error arima has no TS declarations
 import ARIMA from "arima";
 
 /**
@@ -253,7 +252,7 @@ export async function GET() {
         });
         const wma = Math.round(wSum / wTotal);
         preds = Array(7).fill(wma);
-        errs = Array(7).fill(avgQty * 0.2);
+        errs = Array(7).fill(wma * 0.2);
         console.warn(`ARIMA failed for product ${productId}, using WMA fallback`);
       }
       // Clamp predictions to reasonable range

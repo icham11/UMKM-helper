@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
-import { Search, Filter, Calendar, DollarSign } from "lucide-react";
+import { Search, Filter, Calendar } from "lucide-react";
 import { InvoiceViewer } from "../../components/InvoiceViewer";
 
 interface Sale {
@@ -175,7 +175,7 @@ export default function SalesHistoryPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading sales history...</p>
         </div>
       </div>
@@ -194,141 +194,98 @@ export default function SalesHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-blue-50 via-white to-indigo-50 py-8 px-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Sales History</h1>
-              <p className="text-gray-600 mt-1">Riwayat transaksi dan penjualan</p>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 rounded-2xl p-5 sm:p-8 shadow-lg shadow-indigo-200/30">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold text-white">Sales History</h1>
+            <p className="text-indigo-200 mt-1 text-sm">Riwayat transaksi dan penjualan</p>
+          </div>
+          <button
+            onClick={fetchSales}
+            className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl transition text-sm font-medium self-start sm:self-auto backdrop-blur-sm border border-white/20"
+          >
+            Refresh
+          </button>
+        </div>
+
+          {/* Statistics Cards inside header */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+              <p className="text-indigo-200 text-xs">Total Transaksi</p>
+              <p className="text-lg sm:text-2xl font-bold mt-0.5">{filteredSales.length}</p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={fetchSales}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-              >
-                Refresh
-              </button>
+            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+              <p className="text-indigo-200 text-xs">Total Revenue</p>
+              <p className="text-lg sm:text-2xl font-bold mt-0.5">Rp {totalRevenue.toLocaleString("id-ID")}</p>
+            </div>
+            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+              <p className="text-indigo-200 text-xs">Total Profit</p>
+              <p className="text-lg sm:text-2xl font-bold mt-0.5">Rp {totalProfit.toLocaleString("id-ID")}</p>
+            </div>
+            <div className="bg-white/15 backdrop-blur-sm border border-white/20 p-3 sm:p-4 rounded-xl text-white">
+              <p className="text-indigo-200 text-xs">Lunas</p>
+              <p className="text-lg sm:text-2xl font-bold mt-0.5">{paidSales} / {filteredSales.length}</p>
             </div>
           </div>
+        </div>
 
-          {/* Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-            <div className="bg-linear-to-br from-blue-500 to-blue-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm">Total Transaksi</p>
-                  <p className="text-2xl font-bold">{filteredSales.length}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
+      {/* Profit & Pending Detail */}
+      {pendingCount > 0 && (
+        <div className="bg-white border border-indigo-100 rounded-xl p-4 sm:p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-100">
+              <p className="text-xs text-indigo-500 font-medium">Profit Lunas</p>
+              <p className="text-lg font-bold text-indigo-700 mt-0.5">Rp {paidProfit.toLocaleString("id-ID")}</p>
             </div>
-
-            <div className="bg-linear-to-br from-green-500 to-green-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm">Total Revenue</p>
-                  <p className="text-2xl font-bold">Rp {totalRevenue.toLocaleString("id-ID")}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-100">
+              <p className="text-xs text-amber-600 font-medium">Profit Pending ({pendingCount})</p>
+              <p className="text-lg font-bold text-amber-700 mt-0.5">Rp {pendingProfit.toLocaleString("id-ID")}</p>
             </div>
-
-            <div className="bg-linear-to-br from-orange-500 to-orange-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm">Lunas</p>
-                  <p className="text-2xl font-bold">{paidSales} / {filteredSales.length}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
+            <div className="bg-purple-50 p-3 rounded-xl border border-purple-100">
+              <p className="text-xs text-purple-500 font-medium">Pending Revenue</p>
+              <p className="text-lg font-bold text-purple-700 mt-0.5">Rp {pendingRevenue.toLocaleString("id-ID")}</p>
             </div>
           </div>
-
-          {/* Profit breakdown */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-            <div className="bg-linear-to-br from-purple-500 to-purple-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm">Total Profit</p>
-                  <p className="text-2xl font-bold">Rp {totalProfit.toLocaleString("id-ID")}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
-            </div>
-
-            <div className="bg-linear-to-br from-emerald-500 to-emerald-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-emerald-100 text-sm">Profit Lunas</p>
-                  <p className="text-2xl font-bold">Rp {paidProfit.toLocaleString("id-ID")}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
-            </div>
-
-            <div className="bg-linear-to-br from-amber-500 to-amber-600 p-4 rounded-lg text-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-amber-100 text-sm">Profit Pending</p>
-                  <p className="text-2xl font-bold">Rp {pendingProfit.toLocaleString("id-ID")}</p>
-                </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
-              </div>
-            </div>
-          </div>
-
-          {/* Pending detail breakdown */}
-          {pendingCount > 0 && (
-            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-amber-800 mb-2">
-                ⏳ Detail Pending — {pendingCount} transaksi (Rp {pendingRevenue.toLocaleString("id-ID")})
-              </h3>
-              <div className="flex flex-wrap gap-3">
-                {Object.entries(pendingByMethod).map(([method, info]) => (
-                  <div
-                    key={method}
-                    className="flex items-center gap-2 bg-white border border-amber-200 rounded-lg px-3 py-2"
-                  >
-                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700">
-                      {method}
-                    </span>
-                    <span className="text-sm font-semibold text-gray-800">
-                      {info.count}x
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      (Rp {info.amount.toLocaleString("id-ID")})
-                    </span>
-                  </div>
-                ))}
-              </div>
+          {Object.keys(pendingByMethod).length > 0 && (
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-indigo-100/60">
+              {Object.entries(pendingByMethod).map(([method, info]) => (
+                <span
+                  key={method}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-medium text-gray-700"
+                >
+                  <span className="text-amber-500">●</span>
+                  {method}: {info.count}x (Rp {info.amount.toLocaleString("id-ID")})
+                </span>
+              ))}
             </div>
           )}
         </div>
+      )}
 
         {/* Filters */}
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-xl border border-indigo-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by transaction, customer..."
+                placeholder="Cari transaksi..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black placeholder-gray-400"
+                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm text-black placeholder-gray-400"
               />
             </div>
 
             {/* Payment Method Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <select
                 value={paymentMethodFilter}
                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-black"
+                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
               >
                 <option value="All">All Methods</option>
                 <option value="Cash">Cash</option>
@@ -341,11 +298,11 @@ export default function SalesHistoryPage() {
 
             {/* Payment Status Filter */}
             <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <select
                 value={paymentStatusFilter}
                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-black"
+                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
               >
                 <option value="All">All Status</option>
                 <option value="Paid">Paid</option>
@@ -355,11 +312,11 @@ export default function SalesHistoryPage() {
 
             {/* Date Filter */}
             <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-black"
+                className="w-full pl-9 pr-4 py-2.5 border border-indigo-100 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-sm text-black"
               >
                 <option value="All">All Time</option>
                 <option value="Today">Today</option>
@@ -371,7 +328,7 @@ export default function SalesHistoryPage() {
         </div>
 
         {/* Sales Table with Pagination */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-indigo-100 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
@@ -517,11 +474,8 @@ export default function SalesHistoryPage() {
           )}
         </div>
       </div>
-    </div>
   );
 }
-
-
 
 
 

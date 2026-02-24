@@ -81,39 +81,39 @@ export default function ProductionPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-emerald-100 rounded-xl">
-              <Factory className="w-6 h-6 text-emerald-600" />
-            </div>
-            Produksi
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
-          </p>
+    <div className="space-y-6">
+      {/* Header — matches indigo/purple theme */}
+      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 rounded-2xl p-5 sm:p-8 shadow-lg shadow-indigo-200/30">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-3">
+              <Factory className="w-7 h-7" />
+              Produksi
+            </h1>
+            <p className="text-indigo-200 mt-1 text-sm">
+              Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
+            </p>
+          </div>
+          <button
+            onClick={fetchData}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-sm rounded-xl text-sm font-medium text-white transition"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+            Refresh
+          </button>
         </div>
-        <button
-          onClick={fetchData}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </button>
       </div>
 
       {/* Alerts */}
       {error && (
-        <div className="flex items-center gap-2 bg-red-50 text-red-600 rounded-xl p-4 mb-6 text-sm">
+        <div className="flex items-center gap-2 bg-red-50 text-red-600 rounded-xl p-4 text-sm border border-red-100">
           <AlertCircle className="w-4 h-4 shrink-0" />
           {error}
         </div>
       )}
       {success && (
-        <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 rounded-xl p-4 mb-6 text-sm">
+        <div className="flex items-center gap-2 bg-indigo-50 text-indigo-700 rounded-xl p-4 text-sm border border-indigo-100">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           {success}
         </div>
@@ -121,15 +121,15 @@ export default function ProductionPage() {
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
+          <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : (
         <>
           {/* Ready Stock Products Summary */}
-          <div className="mb-8">
+          <div>
             <h2 className="text-lg font-bold text-gray-800 mb-4">Produk Ready Stock</h2>
             {summary.length === 0 ? (
-              <div className="bg-gray-50 rounded-2xl p-8 text-center text-gray-400">
+              <div className="bg-white rounded-2xl p-8 text-center text-gray-400 border border-indigo-100">
                 <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
                 <p className="text-sm font-medium">Belum ada produk Ready Stock.</p>
                 <p className="text-xs mt-1">Ubah tipe produk ke &quot;Ready Stock&quot; di halaman Products.</p>
@@ -139,7 +139,7 @@ export default function ProductionPage() {
                 {summary.map((p) => (
                   <div
                     key={p.productId}
-                    className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition"
+                    className="bg-white rounded-2xl border border-indigo-100 p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition"
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div>
@@ -153,7 +153,7 @@ export default function ProductionPage() {
                           ? "bg-red-100 text-red-600"
                           : p.availableStock <= 5
                           ? "bg-amber-100 text-amber-700"
-                          : "bg-emerald-100 text-emerald-700"
+                          : "bg-indigo-100 text-indigo-700"
                       }`}>
                         {p.availableStock}
                       </span>
@@ -169,7 +169,7 @@ export default function ProductionPage() {
                           setShowModal(true);
                           setError(null);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white text-xs font-semibold rounded-lg hover:bg-emerald-700 transition"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Produksi
@@ -185,14 +185,14 @@ export default function ProductionPage() {
           <div>
             <h2 className="text-lg font-bold text-gray-800 mb-4">Riwayat Produksi</h2>
             {batches.length === 0 ? (
-              <div className="bg-gray-50 rounded-2xl p-8 text-center text-gray-400">
+              <div className="bg-white rounded-2xl p-8 text-center text-gray-400 border border-indigo-100">
                 <p className="text-sm">Belum ada riwayat produksi.</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+              <div className="bg-white rounded-2xl border border-indigo-100 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-gray-50 text-xs font-bold text-gray-500 uppercase">
+                    <tr className="bg-indigo-50/50 text-xs font-bold text-indigo-400 uppercase">
                       <th className="px-5 py-3 text-left">Produk</th>
                       <th className="px-5 py-3 text-center">Qty Produksi</th>
                       <th className="px-5 py-3 text-center">Sisa</th>
@@ -200,16 +200,16 @@ export default function ProductionPage() {
                       <th className="px-5 py-3 text-right">Tanggal</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-indigo-50">
                     {batches.map((b) => (
-                      <tr key={b.id} className="hover:bg-gray-50 transition">
+                      <tr key={b.id} className="hover:bg-indigo-50/30 transition">
                         <td className="px-5 py-3 font-medium text-gray-900">{b.product.name}</td>
                         <td className="px-5 py-3 text-center">{b.quantity}</td>
                         <td className="px-5 py-3 text-center">
                           <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
                             b.remainingQty <= 0
                               ? "bg-gray-100 text-gray-400"
-                              : "bg-emerald-100 text-emerald-700"
+                              : "bg-indigo-100 text-indigo-700"
                           }`}>
                             {b.remainingQty}
                           </span>
@@ -248,7 +248,7 @@ export default function ProductionPage() {
               max={999}
               value={produceQty}
               onChange={(e) => setProduceQty(Math.max(1, Number(e.target.value)))}
-              className="w-full border border-emerald-200 rounded-xl px-4 py-3 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-emerald-400 outline-none mb-2"
+              className="w-full border border-indigo-200 rounded-xl px-4 py-3 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-indigo-400 outline-none mb-2"
             />
             <p className="text-xs text-gray-400 mb-5">
               Estimasi biaya: {formatRupiah(Number(selectedProduct.recipeCost) * produceQty)}
@@ -271,7 +271,7 @@ export default function ProductionPage() {
               <button
                 onClick={handleProduce}
                 disabled={producing || produceQty <= 0}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white font-bold text-sm rounded-xl hover:bg-emerald-700 transition disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
               >
                 {producing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Factory className="w-4 h-4" />}
                 Produksi {produceQty}x
@@ -283,4 +283,3 @@ export default function ProductionPage() {
     </div>
   );
 }
-

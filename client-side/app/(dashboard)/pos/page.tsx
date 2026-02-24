@@ -534,7 +534,7 @@ export default function POSPage() {
   return (
     <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden">
       {/* ═══ Top Bar ═══ */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <div className="bg-indigo-600 text-white p-2 rounded-xl">
             <Receipt className="w-5 h-5" />
@@ -544,7 +544,7 @@ export default function POSPage() {
             <p className="text-xs text-gray-500">Kasir &amp; Transaksi</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4">
           <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg">
             <CalendarDays className="w-4 h-4 text-indigo-500" />
             <span className="font-medium" suppressHydrationWarning>
@@ -579,16 +579,16 @@ export default function POSPage() {
 
       {/* Payment notice */}
       {paymentNotice && (
-        <div className="mx-6 mt-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm text-blue-700 flex items-center gap-2 shrink-0">
+        <div className="mx-3 sm:mx-6 mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-700 flex items-center gap-2 shrink-0">
           {paymentNotice}
-          <button onClick={() => setPaymentNotice(null)} className="ml-auto text-blue-400 hover:text-blue-600">
+          <button onClick={() => setPaymentNotice(null)} className="ml-auto text-indigo-400 hover:text-indigo-600">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* ═══ Main Content ═══ */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row gap-3 sm:gap-4 p-2 sm:p-4 overflow-hidden min-h-0">
         {/* ─── LEFT: Products ─── */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Search + Categories */}
@@ -816,7 +816,7 @@ export default function POSPage() {
         </div>
 
         {/* ─── RIGHT: Cart ─── */}
-        <div className="w-95 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden">
+        <div className="w-full md:w-96 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden max-h-[50vh] md:max-h-none">
           {/* Cart header */}
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
@@ -1228,13 +1228,13 @@ export default function POSPage() {
               <h2 className="text-lg font-bold text-gray-900">Shift Ditutup ✅</h2>
             </div>
 
-            <div className="bg-blue-50 rounded-xl p-4 text-sm space-y-2">
+            <div className="bg-indigo-50 rounded-xl p-4 text-sm space-y-2">
               <div className="flex justify-between"><span>Modal Awal</span><span className="font-semibold">{formatRupiah(Number(closeResult.openingCash) || 0)}</span></div>
               <div className="flex justify-between"><span>+ Cash Sales</span><span className="font-semibold text-green-600">+{formatRupiah(Number(closeResult.cashSalesTotal) || 0)}</span></div>
-              <hr className="border-blue-200" />
+              <hr className="border-indigo-200" />
               <div className="flex justify-between font-bold"><span>Seharusnya</span><span>{formatRupiah(Number(closeResult.expectedCash) || 0)}</span></div>
               <div className="flex justify-between font-bold"><span>Aktual</span><span>{formatRupiah(Number(closeResult.actualCash) || 0)}</span></div>
-              <hr className="border-blue-200" />
+              <hr className="border-indigo-200" />
               <div className={`flex justify-between font-bold text-lg ${Number(closeResult.discrepancy) === 0 ? "text-green-600" : Number(closeResult.discrepancy) > 0 ? "text-blue-600" : "text-red-600"}`}>
                 <span>Selisih</span>
                 <span>{Number(closeResult.discrepancy) === 0 ? "✅ Cocok" : `${Number(closeResult.discrepancy) > 0 ? "+" : ""}${formatRupiah(Number(closeResult.discrepancy))}`}</span>

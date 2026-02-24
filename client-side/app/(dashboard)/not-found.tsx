@@ -17,10 +17,10 @@ const quickLinks = [
 ];
 
 const colorMap: Record<string, string> = {
-  blue: "bg-blue-50 text-blue-600 border-blue-100 hover:bg-blue-100",
-  green: "bg-green-50 text-green-600 border-green-100 hover:bg-green-100",
+  blue: "bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100",
+  green: "bg-emerald-50 text-emerald-600 border-emerald-100 hover:bg-emerald-100",
   purple: "bg-purple-50 text-purple-600 border-purple-100 hover:bg-purple-100",
-  orange: "bg-orange-50 text-orange-600 border-orange-100 hover:bg-orange-100",
+  orange: "bg-amber-50 text-amber-600 border-amber-100 hover:bg-amber-100",
 };
 
 export default function DashboardNotFound() {
@@ -29,12 +29,12 @@ export default function DashboardNotFound() {
       <div className="max-w-lg w-full text-center">
         {/* 404 Header */}
         <div className="relative mb-6">
-          <h1 className="text-8xl font-black text-transparent bg-clip-text bg-linear-to-b from-blue-200 to-blue-100 leading-none select-none">
+          <h1 className="text-8xl font-black text-transparent bg-clip-text bg-linear-to-b from-indigo-200 to-indigo-100 leading-none select-none">
             404
           </h1>
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="p-3 bg-white rounded-xl shadow-lg border border-blue-100">
-              <MapPin className="w-7 h-7 text-blue-500" />
+            <div className="p-3 bg-white rounded-xl shadow-lg border border-indigo-100">
+              <MapPin className="w-7 h-7 text-indigo-500" />
             </div>
           </div>
         </div>
@@ -83,7 +83,7 @@ export default function DashboardNotFound() {
           <div className="px-8 pb-8 flex gap-3">
             <Link
               href="/dashboard"
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-linear-to-r from-blue-500 to-indigo-500 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-indigo-600 transition-all shadow-md shadow-blue-100 active:scale-[0.98]"
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-linear-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold hover:from-indigo-600 hover:to-purple-600 transition-all shadow-md shadow-indigo-100 active:scale-[0.98]"
             >
               <LayoutDashboard className="w-4 h-4" />
               Ke Dashboard
