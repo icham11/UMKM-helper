@@ -540,7 +540,7 @@ export default function POSPage() {
             <Receipt className="w-5 h-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-gray-900">Point of Sale</h1>
+            <h1 className="text-lg font-bold text-gray-900">Kasir</h1>
             <p className="text-xs text-gray-500">Kasir &amp; Transaksi</p>
           </div>
         </div>

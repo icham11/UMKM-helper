@@ -178,8 +178,7 @@ export default function SalesHistoryPage() {
         <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Sales History</h1>
-              <p className="text-gray-600 mt-1">Riwayat transaksi dan penjualan</p>
+              <h1 className="text-3xl font-bold text-gray-900">Riwayat Penjualan </h1>
             </div>
             <div className="flex gap-3">
               <button
@@ -199,27 +198,24 @@ export default function SalesHistoryPage() {
                   <p className="text-blue-100 text-sm">Total Transaksi</p>
                   <p className="text-2xl font-bold">{filteredSales.length}</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
               </div>
             </div>
 
             <div className="bg-linear-to-br from-green-500 to-green-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-green-100 text-sm">Total Revenue</p>
+                  <p className="text-green-100 text-sm">Total Keuntungan Kotor</p>
                   <p className="text-2xl font-bold">Rp {totalRevenue.toLocaleString("id-ID")}</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
               </div>
             </div>
 
             <div className="bg-linear-to-br from-purple-500 to-purple-600 p-4 rounded-lg text-white">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm">Total Profit</p>
+                  <p className="text-purple-100 text-sm">Total Keuntungan Bersih</p>
                   <p className="text-2xl font-bold">Rp {totalProfit.toLocaleString("id-ID")}</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
               </div>
             </div>
 
@@ -229,7 +225,6 @@ export default function SalesHistoryPage() {
                   <p className="text-orange-100 text-sm">Lunas</p>
                   <p className="text-2xl font-bold">{paidSales} / {filteredSales.length}</p>
                 </div>
-                <DollarSign className="w-10 h-10 opacity-50" />
               </div>
             </div>
           </div>
@@ -243,7 +238,7 @@ export default function SalesHistoryPage() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search by transaction, customer..."
+                placeholder="Pencarian transaksi, pelanggan..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black placeholder-gray-400"
@@ -258,8 +253,8 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setPaymentMethodFilter(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-black"
               >
-                <option value="All">All Methods</option>
-                <option value="Cash">Cash</option>
+                <option value="All">Metode Pembayaran</option>
+                <option value="Cash">Tunai</option>
                 <option value="QRIS">QRIS</option>
                 <option value="Transfer">Transfer</option>
                 <option value="Digital">Digital</option>
@@ -274,9 +269,9 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setPaymentStatusFilter(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-black"
               >
-                <option value="All">All Status</option>
-                <option value="Paid">Paid</option>
-                <option value="Pending">Pending</option>
+                <option value="All">Status Pembayaran</option>
+                <option value="Paid">Lunas</option>
+                <option value="Pending">Belum Lunas</option>
               </select>
             </div>
 
@@ -288,10 +283,10 @@ export default function SalesHistoryPage() {
                 onChange={(e) => setDateFilter(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none text-black"
               >
-                <option value="All">All Time</option>
-                <option value="Today">Today</option>
-                <option value="Week">This Week</option>
-                <option value="Month">This Month</option>
+                <option value="All">Hari,Minggu,Bulan</option>
+                <option value="Today">Hari Ini</option>
+                <option value="Week">Minggu Ini</option>
+                <option value="Month">Bulan Ini</option>
               </select>
             </div>
           </div>
@@ -304,28 +299,28 @@ export default function SalesHistoryPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Transaction
+                    Nomor Transaksi
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Customer
+                    Pelanggan
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Items
+                    Item
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Amount
+                    Jumlah
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Payment
+                    Pembayaran
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Date
+                    Tanggal
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Actions
+                    Print Tagihan
                   </th>
                 </tr>
               </thead>

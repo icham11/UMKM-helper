@@ -216,7 +216,7 @@ export default function DashboardPage() {
             </span>
             <div>
               <p className="font-semibold text-amber-700 text-lg flex items-center gap-2">
-                Inventory Alerts
+                Peringatan Stok
                 {totalAlertCount > 0 && (
                   <span className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full animate-bounce">
                     {totalAlertCount}
@@ -287,7 +287,7 @@ function PremiumModal({
           ×
         </button>
         <h2 className="text-2xl font-bold mb-6 text-amber-700 flex items-center gap-2">
-          <AlertTriangle className="text-amber-500" size={24} /> Inventory Alerts
+          <AlertTriangle className="text-amber-500" size={24} /> Peringatan Stok
         </h2>
         <div className="space-y-4">
           {/* Low Stock */}

@@ -59,12 +59,12 @@ function InventoryAlertModal({
           <X className="w-5 h-5" />
         </button>
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-amber-700">
-          <AlertTriangle className="w-5 h-5" /> Inventory Alerts
+          <AlertTriangle className="w-5 h-5" /> Peringatan Stok
         </h2>
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {alerts.expired.length > 0 && (
             <div>
-              <p className="font-semibold text-red-600 mb-1">Expired:</p>
+              <p className="font-semibold text-red-600 mb-1">Kadaluarsa:</p>
               <ul className="list-disc pl-5 text-sm text-gray-700">
                 {alerts.expired.map((item, idx) => (
                   <li key={`expired-${idx}`}>
@@ -76,7 +76,7 @@ function InventoryAlertModal({
           )}
           {alerts.expiring3.length > 0 && (
             <div>
-              <p className="font-semibold text-orange-500 mb-1">Expiring in 3 days:</p>
+              <p className="font-semibold text-orange-500 mb-1">Kadaluarsa 3 hari lagi:</p>
               <ul className="list-disc pl-5 text-sm text-gray-700">
                 {alerts.expiring3.map((item, idx) => (
                   <li key={`exp3-${idx}`}>
@@ -88,7 +88,7 @@ function InventoryAlertModal({
           )}
           {alerts.expiring7.length > 0 && (
             <div>
-              <p className="font-semibold text-yellow-500 mb-1">Expiring in 7 days:</p>
+              <p className="font-semibold text-yellow-500 mb-1">Kadaluarsa 7 hari lagi:</p>
               <ul className="list-disc pl-5 text-sm text-gray-700">
                 {alerts.expiring7.map((item, idx) => (
                   <li key={`exp7-${idx}`}>
@@ -100,7 +100,7 @@ function InventoryAlertModal({
           )}
           {alerts.lowStock.length > 0 && (
             <div>
-              <p className="font-semibold text-pink-600 mb-1">Low Stock:</p>
+              <p className="font-semibold text-pink-600 mb-1">Stok Rendah:</p>
               <ul className="list-disc pl-5 text-sm text-gray-700">
                 {alerts.lowStock.map((item, idx) => (
                   <li key={`lowstock-${idx}`}>
@@ -118,7 +118,7 @@ function InventoryAlertModal({
             alerts.expiring7.length === 0 &&
             alerts.lowStock.length === 0 && (
               <div className="text-center text-green-600 font-semibold py-6">
-                All inventory is healthy!
+                Semua stok aman 👍
               </div>
             )}
         </div>
@@ -503,7 +503,7 @@ export default function BusinessPage() {
                       </span>
                       <div>
                         <p className="font-semibold text-amber-700 text-lg flex items-center gap-2">
-                          Inventory Alerts
+                          Peringatan Stok
                           {totalAlertCount > 0 && (
                             <span className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full animate-bounce">
                               {totalAlertCount}
@@ -511,7 +511,7 @@ export default function BusinessPage() {
                           )}
                         </p>
                         <p className="text-sm text-amber-600 mt-1">
-                          {totalAlertCount > 0 ? `${totalAlertCount} items need attention` : "All inventory is healthy!"}
+                          {totalAlertCount > 0 ? `${totalAlertCount} stok bahan baku perlu dicek` : "Semua stok aman 👍"}
                         </p>
                       </div>
                     </div>
