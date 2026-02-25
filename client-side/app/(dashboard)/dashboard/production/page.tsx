@@ -96,26 +96,24 @@ export default function ProductionPage() {
   return (
     <div className="space-y-6">
       {/* Header — matches indigo/purple theme */}
-      <div className="bg-linear-to-r from-indigo-600 via-purple-600 to-indigo-600 rounded-2xl p-4 sm:p-5 md:p-8 shadow-lg shadow-indigo-200/30">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
-              <Factory className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
-              Produksi
-            </h1>
-            <p className="text-indigo-200 mt-1 text-xs sm:text-sm">
-              Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
-            </p>
-          </div>
-          <button
-            onClick={fetchData}
-            disabled={loading}
-            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-sm rounded-xl text-xs sm:text-sm font-medium text-white transition shrink-0"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-            Refresh
-          </button>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-4 sm:p-6 shadow-lg">
+        <div>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+            <Factory className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
+            Produksi
+          </h1>
+          <p className="text-indigo-100 text-sm mt-1">
+            Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
+          </p>
         </div>
+        <button
+          onClick={fetchData}
+          disabled={loading}
+          className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-sm rounded-xl text-sm font-semibold text-white transition shrink-0"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          Refresh
+        </button>
       </div>
 
       {/* Alerts */}

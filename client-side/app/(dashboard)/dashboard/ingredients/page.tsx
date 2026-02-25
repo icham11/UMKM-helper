@@ -13,6 +13,8 @@ import {
   Pencil,
   Flame,
   PackagePlus,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import IngredientStatusBadge from "./components/IngredientStatusBadge";
 import { getIngredients, deleteIngredient, bulkDeleteIngredients, type Ingredient } from "@/lib/api/ingredients";
@@ -202,8 +204,11 @@ export default function IngredientsPage() {
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-4 sm:p-6 shadow-lg">
         <div>
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Bahan Baku</h1>
-          <p className="text-indigo-100 text-sm">Kelola stok bahan baku dengan visual & batch tracking.</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+            <PackageOpen className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
+            Bahan Baku
+          </h1>
+          <p className="text-indigo-100 text-sm mt-1">Kelola stok bahan baku dengan visual & batch tracking.</p>
         </div>
 
         <button
@@ -259,11 +264,11 @@ export default function IngredientsPage() {
             <option value="costPerUnit">Harga</option>
           </select>
           <button
-            className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
+            className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 flex items-center justify-center"
             onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
             title="Urutan"
           >
-            {sortDir === "asc" ? "⬆️" : "⬇️"}
+            {sortDir === "asc" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
         </div>
       </div>
