@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createBusiness } from "@/lib/api/business";
 import { useBusiness } from "@/context/BusinessContext";
-import { TrendingUp, Building2, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Building2, MapPin } from "lucide-react";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -40,14 +41,14 @@ export default function OnboardingPage() {
         <div className="bg-white/90 backdrop-blur-sm p-8 sm:p-10 rounded-2xl shadow-xl border border-white/60">
           {/* Logo */}
           <div className="flex justify-center mb-6">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-2xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                Cuanify
-              </span>
-            </div>
+            <Image
+              src="/cuanify-logo.svg"
+              alt="Cuanify"
+              width={180}
+              height={44}
+              className="h-10 w-auto"
+              priority
+            />
           </div>
 
           {/* Step indicator */}

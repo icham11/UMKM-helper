@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import {
   ShoppingCart,
-  TrendingUp,
   Package,
   BarChart3,
   Sparkles,
@@ -135,13 +135,15 @@ export default function LandingPage() {
 
       {/* ═══ Navigation ═══ */}
       <nav className="container mx-auto px-4 sm:px-6 py-4 sm:py-5 flex justify-between items-center relative z-10">
-        <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group">
-          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-200 group-hover:shadow-indigo-300 transition">
-            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-          </div>
-          <span className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent tracking-tight">
-            Cuanify
-          </span>
+        <Link href="/" className="flex items-center group">
+          <Image
+            src="/cuanify-logo.svg"
+            alt="Cuanify"
+            width={160}
+            height={40}
+            className="h-8 sm:h-10 w-auto"
+            priority
+          />
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
@@ -154,7 +156,7 @@ export default function LandingPage() {
             href="/register"
             className="px-3 sm:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 font-semibold transition shadow-md shadow-indigo-200 hover:shadow-lg text-xs sm:text-sm"
           >
-            Daftar Gratis
+            Daftar
           </Link>
         </div>
       </nav>
@@ -187,7 +189,7 @@ export default function LandingPage() {
               href="/register"
               className="flex items-center justify-center gap-2 px-7 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold text-base hover:from-indigo-700 hover:to-purple-700 transition shadow-lg shadow-indigo-200 hover:shadow-xl"
             >
-              Mulai Sekarang — Gratis
+              Mulai Sekarang yuk!
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
@@ -200,8 +202,8 @@ export default function LandingPage() {
 
           <div className="flex flex-wrap items-center gap-3 sm:gap-5 pt-4">
             <div className="flex items-center gap-1.5 text-sm text-gray-500">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              Gratis selamanya
+              {/* <CheckCircle className="w-4 h-4 text-green-500" />
+              Gratis selamanya */}
             </div>
             <div className="flex items-center gap-1.5 text-sm text-gray-500">
               <CheckCircle className="w-4 h-4 text-green-500" />
@@ -314,7 +316,7 @@ export default function LandingPage() {
                 "Support kasbon — tradisi warung Indonesia",
                 "AI paham konteks bisnis Anda",
                 "Bisa di-install di HP seperti app biasa",
-                "Gratis selamanya, tanpa batasan",
+                // "Gratis selamanya, tanpa batasan",
                 "Data aman & terenkripsi",
               ].map((item) => (
                 <div key={item} className="flex items-start gap-2">
@@ -327,7 +329,7 @@ export default function LandingPage() {
               href="/register"
               className="inline-flex items-center gap-2 px-7 py-3.5 bg-white text-indigo-700 rounded-xl font-bold text-base hover:bg-indigo-50 transition shadow-lg"
             >
-              Daftar Gratis Sekarang
+              Daftar Sekarang
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -397,14 +399,13 @@ export default function LandingPage() {
             Siap Bikin Bisnis Makin Cuan?
           </h2>
           <p className="text-indigo-200 text-lg mb-8 max-w-lg mx-auto">
-            Bergabung dengan Cuanify sekarang — gratis, tanpa ribet, langsung
-            pakai.
+            Bergabung dengan Cuanify sekarang, tanpa ribet, langsung pakai.
           </p>
           <Link
             href="/register"
             className="inline-flex items-center gap-2 px-8 py-4 bg-white text-indigo-700 rounded-xl font-bold text-lg hover:bg-indigo-50 transition shadow-lg"
           >
-            Daftar Sekarang — Gratis!
+            Daftar Sekarang gan!
             <ArrowRight className="w-5 h-5" />
           </Link>
         </div>
@@ -413,11 +414,14 @@ export default function LandingPage() {
       {/* ═══ Footer ═══ */}
       <footer className="border-t border-gray-200 bg-white/50 backdrop-blur-sm relative z-10">
         <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-gray-700">Cuanify</span>
+          <div className="flex items-center">
+            <Image
+              src="/cuanify-logo.svg"
+              alt="Cuanify"
+              width={130}
+              height={32}
+              className="h-7 w-auto"
+            />
           </div>
           <p className="text-sm text-gray-400">
             &copy; 2026 Cuanify. All rights reserved.

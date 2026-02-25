@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
@@ -9,7 +10,6 @@ import {
   Package,
   Menu,
   X,
-  TrendingUp,
   History,
   Bot,
   Boxes,
@@ -107,13 +107,14 @@ export default function MobileNav({
           <div className="relative ml-auto w-80 max-w-[85vw] h-full bg-white shadow-2xl overflow-y-auto flex flex-col animate-slide-in-right">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-linear-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-white" />
-                </div>
-                <span className="font-extrabold text-lg bg-linear-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                  Cuanify
-                </span>
+              <div className="flex items-center">
+                <Image
+                  src="/cuanify-logo.svg"
+                  alt="Cuanify"
+                  width={130}
+                  height={32}
+                  className="h-8 w-auto"
+                />
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}

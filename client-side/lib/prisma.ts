@@ -13,7 +13,7 @@ function createPrismaClient() {
 
   const pool = new Pool({
     connectionString: cleanUrl,
-    ssl: { rejectUnauthorized: false }, // Supabase pooler uses self-signed cert
+    ssl: { rejectUnauthorized: false },  // Supabase pooler requires this
   });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({
