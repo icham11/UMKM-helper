@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
-import { groq, GROQ_MODELS } from "@/lib/groq";
+import { GROQ_MODELS, createGroqCompletion } from "@/lib/groq";
 
 export const dynamic = "force-dynamic";
 
@@ -144,35 +144,35 @@ Berikan 5-7 insights yang beragam, spesifik, dan langsung terkait dengan data (b
     let aiInsights = null;
 
     try {
-      const completion = await groq.chat.completions.create({
+      const completion = await createGroqCompletion({
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: dataContext },
         ],
         model: GROQ_MODELS.text.primary,
         temperature: 0.4,
-        max_tokens: 1200,
-        response_format: { type: "json_object" },
+        maxTokens: 1200,
+        responseFormat: { type: "json_object" },
       });
 
-      const raw = completion.choices[0]?.message?.content || "";
+      const raw = completion.choices?.[0]?.message?.content || "";
       aiInsights = JSON.parse(raw);
     } catch (err) {
       console.warn("AI insight generation failed, trying fallback:", err instanceof Error ? err.message : err);
 
       try {
-        const completion = await groq.chat.completions.create({
+        const completion = await createGroqCompletion({
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: dataContext },
           ],
           model: GROQ_MODELS.text.fallback,
           temperature: 0.4,
-          max_tokens: 1200,
-          response_format: { type: "json_object" },
+          maxTokens: 1200,
+          responseFormat: { type: "json_object" },
         });
 
-        const raw = completion.choices[0]?.message?.content || "";
+        const raw = completion.choices?.[0]?.message?.content || "";
         aiInsights = JSON.parse(raw);
       } catch {
         console.warn("Fallback AI also failed, using rule-based");
@@ -316,7 +316,7 @@ export async function POST(req: Request) {
   - Akhiri dengan 2-3 saran tindakan yang konkret dan dapat langsung dipertimbangkan oleh pemilik bisnis
   - Gunakan format Rp untuk mata uang (contoh: Rp 500.000)`;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await createGroqCompletion({
       messages: [
         {
           role: "system",
@@ -327,10 +327,10 @@ export async function POST(req: Request) {
       ],
       model: GROQ_MODELS.text.primary,
       temperature: 0.5,
-      max_tokens: 800,
+      maxTokens: 800,
     });
 
-    const insight = completion.choices[0]?.message?.content || "Tidak dapat menghasilkan analisis saat ini.";
+    const insight = completion.choices?.[0]?.message?.content || "Tidak dapat menghasilkan analisis saat ini.";
 
     return NextResponse.json({ success: true, insight });
   } catch (error) {

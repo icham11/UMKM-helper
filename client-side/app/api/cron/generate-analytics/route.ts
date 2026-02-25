@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import ARIMA from "arima";
-import { groq, GROQ_MODELS } from "@/lib/groq";
+import { GROQ_MODELS, createGroqCompletion } from "@/lib/groq";
 import { requireAuth } from "@/lib/auth/session";
 import {
   calculateAdaptiveLookback,
@@ -857,7 +857,7 @@ async function generateInsightsForBusiness(businessId: number) {
         year: "numeric",
       });
 
-      const completion = await groq.chat.completions.create({
+      const completion = await createGroqCompletion({
         messages: [
           {
             role: "system",
@@ -875,10 +875,10 @@ async function generateInsightsForBusiness(businessId: number) {
         ],
         model: GROQ_MODELS.text.primary,
         temperature: 0.3,
-        max_tokens: 150,
+        maxTokens: 150,
       });
 
-      const insight = completion.choices[0]?.message?.content?.trim();
+      const insight = completion.choices?.[0]?.message?.content?.trim();
       if (!insight) continue;
 
       await prisma.analyticsInsight.upsert({

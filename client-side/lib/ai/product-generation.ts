@@ -1,4 +1,4 @@
-import { groq, GROQ_MODELS } from "@/lib/groq";
+import { GROQ_MODELS, createGroqCompletion } from "@/lib/groq";
 import type { AIGeneratedProduct } from "@/lib/validations/product";
 import { INGREDIENT_UNITS } from "@/lib/validations/product";
 
@@ -92,18 +92,18 @@ Rules:
 - "quantity" is how much of the ingredient is needed to make ONE unit of the product.
 - The recipe should be realistic and complete.`;
 
-  const completion = await groq.chat.completions.create({
+  const completion = await createGroqCompletion({
     messages: [
       { role: "system", content: PRODUCT_SYSTEM_PROMPT },
       { role: "user", content: prompt },
     ],
     model: GROQ_MODELS.text.primary,
     temperature: 0.4,
-    max_tokens: 1024,
-    response_format: { type: "json_object" },
+    maxTokens: 1024,
+    responseFormat: { type: "json_object" },
   });
 
-  const raw = completion.choices[0]?.message?.content || "";
+  const raw = completion.choices?.[0]?.message?.content || "";
   return parseAIProductResponse(raw);
 }
 
@@ -184,7 +184,7 @@ Rules:
   - "estimatedShelfLifeDays" — typical shelf life in days for this ingredient (e.g. fresh chicken: 3, eggs: 21, milk: 7, flour: 180, cooking oil: 365, dried spices: 730). Be realistic.
 - Use the same ingredient across products when it makes sense (e.g., "Susu Fresh Milk" for all milk-based drinks).`;
 
-  const completion = await groq.chat.completions.create({
+  const completion = await createGroqCompletion({
     messages: [
       { role: "system", content: PRODUCT_SYSTEM_PROMPT },
       {
@@ -197,11 +197,11 @@ Rules:
     ],
     model: GROQ_MODELS.vision.primary,
     temperature: 0.3,
-    max_tokens: 4096,
-    response_format: { type: "json_object" },
+    maxTokens: 4096,
+    responseFormat: { type: "json_object" },
   });
 
-  const raw = completion.choices[0]?.message?.content || "";
+  const raw = completion.choices?.[0]?.message?.content || "";
 
   try {
     const parsed = JSON.parse(raw);
@@ -286,7 +286,7 @@ Rules:
 - For NEW ingredients (no ingredientId), include "estimatedStockQty" — a realistic initial stock quantity a small business would typically have on hand, in the same unit.
 - Quantities should be for ONE serving/unit of the product.`;
 
-  const completion = await groq.chat.completions.create({
+  const completion = await createGroqCompletion({
     messages: [
       { role: "system", content: PRODUCT_SYSTEM_PROMPT },
       {
@@ -299,11 +299,11 @@ Rules:
     ],
     model: GROQ_MODELS.vision.primary,
     temperature: 0.3,
-    max_tokens: 2048,
-    response_format: { type: "json_object" },
+    maxTokens: 2048,
+    responseFormat: { type: "json_object" },
   });
 
-  const raw = completion.choices[0]?.message?.content || "";
+  const raw = completion.choices?.[0]?.message?.content || "";
 
   try {
     const parsed = JSON.parse(raw);

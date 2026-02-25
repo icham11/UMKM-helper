@@ -1,14 +1,77 @@
 import ImageKit from "imagekit";
 
-if (!process.env.IMAGEKIT_PUBLIC_KEY || !process.env.IMAGEKIT_PRIVATE_KEY || !process.env.IMAGEKIT_URL_ENDPOINT) {
-  throw new Error("Missing ImageKit environment variables");
+function safeJsonStringify(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
-const imagekit = new ImageKit({
-  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT,
-});
+function formatImageKitError(error: unknown): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const obj = error as Record<string, unknown>;
+    const nestedError = obj.error as Record<string, unknown> | undefined;
+    const response = obj.response as Record<string, unknown> | undefined;
+    const responseData = response?.data as Record<string, unknown> | undefined;
+    const apiResponse = obj.ApiResponse as { error_messages?: string[] } | undefined;
+
+    const candidates: unknown[] = [
+      obj.message,
+      nestedError?.message,
+      obj.reason,
+      obj.help,
+      responseData?.message,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim() !== "") {
+        return candidate;
+      }
+    }
+
+    if (Array.isArray(apiResponse?.error_messages) && apiResponse.error_messages.length > 0) {
+      return apiResponse.error_messages.join(", ");
+    }
+
+    return safeJsonStringify(obj);
+  }
+
+  return String(error);
+}
+
+function getImageKitClient(): ImageKit {
+  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY;
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
+
+  if (!publicKey || !privateKey || !urlEndpoint) {
+    throw new Error(
+      "Missing ImageKit environment variables: IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, IMAGEKIT_URL_ENDPOINT",
+    );
+  }
+
+  return new ImageKit({
+    publicKey,
+    privateKey,
+    urlEndpoint,
+  });
+}
+
+type UploadParams = Parameters<ImageKit["upload"]>[0];
+type ListFilesParams = Parameters<ImageKit["listFiles"]>[0];
+
+export const imagekit = {
+  upload: (params: UploadParams) => getImageKitClient().upload(params),
+  deleteFile: (fileId: string) => getImageKitClient().deleteFile(fileId),
+  listFiles: (params: ListFilesParams) => getImageKitClient().listFiles(params),
+  getFileDetails: (fileId: string) => getImageKitClient().getFileDetails(fileId),
+  url: (params: Parameters<ImageKit["url"]>[0]) => getImageKitClient().url(params),
+};
 
 export interface UploadImageResult {
   url: string;
@@ -84,9 +147,9 @@ export async function uploadImage(
       thumbnailUrl: result.thumbnailUrl || result.url,
       filePath: result.filePath,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("ImageKit upload error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = formatImageKitError(error);
     throw new Error(`Failed to upload image: ${errorMessage}`);
   }
 }
@@ -176,9 +239,9 @@ export async function uploadStockDocument(
 export async function deleteImage(fileId: string): Promise<void> {
   try {
     await imagekit.deleteFile(fileId);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("ImageKit delete error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = formatImageKitError(error);
     throw new Error(`Failed to delete image: ${errorMessage}`);
   }
 }
@@ -251,7 +314,7 @@ export async function listFiles(folder: string = "umkm-helper") {
     return result;
   } catch (error: unknown) {
     console.error("ImageKit list files error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = formatImageKitError(error);
     throw new Error(`Failed to list files: ${errorMessage}`);
   }
 }
@@ -267,9 +330,7 @@ export async function getFileDetails(fileId: string) {
     return result;
   } catch (error: unknown) {
     console.error("ImageKit get file details error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = formatImageKitError(error);
     throw new Error(`Failed to get file details: ${errorMessage}`);
   }
 }
-
-export { imagekit };

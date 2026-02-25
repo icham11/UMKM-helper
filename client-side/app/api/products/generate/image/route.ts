@@ -7,6 +7,20 @@ import { resolveIngredients } from "@/lib/helpers/resolve-ingredients";
 
 export const runtime = "nodejs";
 
+function toInlineDataUrl(buffer: Buffer, mimeType: string): string {
+  return `data:${mimeType || "image/jpeg"};base64,${buffer.toString("base64")}`;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 /**
  * POST /api/products/generate/image
  *
@@ -71,7 +85,21 @@ export async function POST(request: NextRequest) {
     // Upload to ImageKit (auto-expires in 2 minutes)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadResult = await uploadProductImage(buffer, "product-list", 2);
+    let aiImageUrl = toInlineDataUrl(buffer, file.type);
+    let uploadedImageUrl: string | null = null;
+    let uploadWarning: string | null = null;
+
+    try {
+      const uploadResult = await uploadProductImage(buffer, "product-list", 2);
+      aiImageUrl = uploadResult.url;
+      uploadedImageUrl = uploadResult.url;
+    } catch (uploadError) {
+      uploadWarning = getErrorMessage(uploadError);
+      console.warn(
+        "ImageKit upload failed for /api/products/generate/image, using inline data URL fallback:",
+        uploadWarning,
+      );
+    }
 
     // Fetch existing ingredients, categories, and product names for AI context + duplicate check
     const [rawIngredients, categories, existingProductsRaw] = await Promise.all([
@@ -113,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // AI validation + extraction — passing existing product names so AI skips them
     const result = await generateProductsByImage({
-      imageUrl: uploadResult.url,
+      imageUrl: aiImageUrl,
       existingIngredients: ingredients,
       existingCategories: categories,
       existingProductNames,
@@ -171,8 +199,10 @@ export async function POST(request: NextRequest) {
         productsFound: resolved.length,
         newIngredientsCreated,
         skippedDuplicates: result.products.length - newProducts.length,
-        imageUrl: uploadResult.url,
-        expiresIn: "2 minutes",
+        imageUrl: uploadedImageUrl,
+        uploadMode: uploadedImageUrl ? "imagekit" : "inline",
+        uploadWarning,
+        expiresIn: uploadedImageUrl ? "2 minutes" : null,
         note: "Ingredients have been auto-resolved. Use readyToCreate payload to POST /api/products directly.",
       },
     });
@@ -181,9 +211,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("POST /api/products/generate/image error:", error);
+    const errorMessage = getErrorMessage(error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to process image",
+        error: errorMessage || "Failed to process image",
       },
       { status: 500 },
     );

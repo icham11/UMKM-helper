@@ -7,6 +7,20 @@ import { resolveIngredients } from "@/lib/helpers/resolve-ingredients";
 
 export const runtime = "nodejs";
 
+function toInlineDataUrl(buffer: Buffer, mimeType: string): string {
+  return `data:${mimeType || "image/jpeg"};base64,${buffer.toString("base64")}`;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 /**
  * POST /api/products/generate/recipe-image
  *
@@ -65,7 +79,21 @@ export async function POST(request: NextRequest) {
     // Upload to ImageKit (auto-expires in 2 minutes)
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const uploadResult = await uploadRecipeImage(buffer, productName || "recipe", 2);
+    let aiImageUrl = toInlineDataUrl(buffer, file.type);
+    let uploadedImageUrl: string | null = null;
+    let uploadWarning: string | null = null;
+
+    try {
+      const uploadResult = await uploadRecipeImage(buffer, productName || "recipe", 2);
+      aiImageUrl = uploadResult.url;
+      uploadedImageUrl = uploadResult.url;
+    } catch (uploadError) {
+      uploadWarning = getErrorMessage(uploadError);
+      console.warn(
+        "ImageKit upload failed for /api/products/generate/recipe-image, using inline data URL fallback:",
+        uploadWarning,
+      );
+    }
 
     // Fetch existing ingredients (with cost data) for AI context
     const rawIngredients = await prisma.ingredient.findMany({
@@ -93,7 +121,7 @@ export async function POST(request: NextRequest) {
 
     // AI validation + extraction
     const result = await generateRecipeByImage({
-      imageUrl: uploadResult.url,
+      imageUrl: aiImageUrl,
       productName: productName || undefined,
       existingIngredients: ingredients,
     });
@@ -141,8 +169,10 @@ export async function POST(request: NextRequest) {
         },
       },
       meta: {
-        imageUrl: uploadResult.url,
-        expiresIn: "2 minutes",
+        imageUrl: uploadedImageUrl,
+        uploadMode: uploadedImageUrl ? "imagekit" : "inline",
+        uploadWarning,
+        expiresIn: uploadedImageUrl ? "2 minutes" : null,
         note: "Ingredients have been auto-resolved. Use readyRecipe in your POST /api/products payload.",
       },
     });
@@ -151,9 +181,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     console.error("POST /api/products/generate/recipe-image error:", error);
+    const errorMessage = getErrorMessage(error);
     return NextResponse.json(
       {
-        error: error instanceof Error ? error.message : "Failed to process recipe image",
+        error: errorMessage || "Failed to process recipe image",
       },
       { status: 500 },
     );

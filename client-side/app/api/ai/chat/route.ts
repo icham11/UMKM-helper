@@ -59,7 +59,14 @@ export async function POST(request: NextRequest) {
     }
     console.error("AI Chat error:", error);
     const msg = error instanceof Error ? error.message : String(error);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const lowered = msg.toLowerCase();
+    const status =
+      lowered.includes("connection error") ||
+      lowered.includes("fetch failed") ||
+      lowered.includes("network")
+        ? 503
+        : 500;
+    return NextResponse.json({ error: msg }, { status });
   }
 }
 
@@ -88,4 +95,3 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch chat history" }, { status: 500 });
   }
 }
-

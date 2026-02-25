@@ -6,6 +6,20 @@ import { requireAuth, AuthError } from "@/lib/auth/session";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function toInlineDataUrl(buffer: Buffer, mimeType: string): string {
+  return `data:${mimeType || "image/jpeg"};base64,${buffer.toString("base64")}`;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return String(error);
+  }
+}
+
 /**
  * POST /api/analyze-image
  *
@@ -49,8 +63,26 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload to ImageKit with 1 minute expiry
-    const uploadResult = await uploadStockDocument(buffer, analysisType || "analysis", 1);
+    // Upload to ImageKit with 1 minute expiry (fallback to inline data URL if unavailable)
+    let aiImageUrl = toInlineDataUrl(buffer, file.type);
+    let uploadedImageUrl: string | null = null;
+    let uploadedThumbnailUrl: string | null = null;
+    let uploadedFileId: string | null = null;
+    let uploadWarning: string | null = null;
+
+    try {
+      const uploadResult = await uploadStockDocument(buffer, analysisType || "analysis", 1);
+      aiImageUrl = uploadResult.url;
+      uploadedImageUrl = uploadResult.url;
+      uploadedThumbnailUrl = uploadResult.thumbnailUrl;
+      uploadedFileId = uploadResult.fileId;
+    } catch (uploadError) {
+      uploadWarning = getErrorMessage(uploadError);
+      console.warn(
+        "ImageKit upload failed for /api/analyze-image, using inline data URL fallback:",
+        uploadWarning,
+      );
+    }
 
     // Prepare prompt based on analysis type
     let aiPrompt = prompt || "Analyze this business-related image and provide insights";
@@ -96,19 +128,23 @@ ${prompt || ""}`;
     // Analyze with GROQ AI
     const analysis = await analyzeBusinessData({
       prompt: aiPrompt,
-      imageUrl: uploadResult.url,
+      imageUrl: aiImageUrl,
     });
 
     return NextResponse.json({
       success: true,
-      imageUrl: uploadResult.url,
-      thumbnailUrl: uploadResult.thumbnailUrl,
-      fileId: uploadResult.fileId,
+      imageUrl: uploadedImageUrl,
+      thumbnailUrl: uploadedThumbnailUrl,
+      fileId: uploadedFileId,
+      uploadMode: uploadedImageUrl ? "imagekit" : "inline",
+      uploadWarning,
       analysis,
       analysisType,
       expiryInfo: {
-        expiresIn: "1 minute",
-        message: "Image will be automatically deleted after 1 minute to save storage",
+        expiresIn: uploadedImageUrl ? "1 minute" : null,
+        message: uploadedImageUrl
+          ? "Image will be automatically deleted after 1 minute to save storage"
+          : "Image was processed inline without external upload",
       },
     });
   } catch (error: unknown) {
@@ -116,13 +152,20 @@ ${prompt || ""}`;
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
     console.error("Image analysis error:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorMessage = getErrorMessage(error);
+    const lowered = errorMessage.toLowerCase();
+    const status =
+      lowered.includes("connection error") ||
+      lowered.includes("fetch failed") ||
+      lowered.includes("network")
+        ? 503
+        : 500;
     return NextResponse.json(
       {
         error: errorMessage || "Failed to process image",
-        details: String(error),
+        details: errorMessage,
       },
-      { status: 500 },
+      { status },
     );
   }
 }

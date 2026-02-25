@@ -2,6 +2,8 @@ import Groq from "groq-sdk";
 import type { ChatCompletionMessageParam } from "groq-sdk/resources/chat/completions";
 import { logAI } from "@/lib/logger";
 
+const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 if (!process.env.GROQ_API_KEY) {
   throw new Error("Missing GROQ_API_KEY environment variable");
 }
@@ -31,6 +33,84 @@ export interface AnalyzeBusinessDataOptions {
   temperature?: number;
   maxTokens?: number;
   useFallback?: boolean;
+}
+
+type GroqCompletionResponse = {
+  choices?: Array<{ message?: { content?: string | null } }>;
+};
+
+type GroqCompletionRequest = {
+  messages: ChatCompletionMessageParam[];
+  model: string;
+  temperature?: number;
+  maxTokens?: number;
+  responseFormat?: { type: "json_object" };
+};
+
+function isGroqConnectionError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  const maybeError = error as { code?: string; cause?: { code?: string } };
+  const code = maybeError.code || maybeError.cause?.code || "";
+
+  return (
+    msg.includes("connection error") ||
+    msg.includes("fetch failed") ||
+    msg.includes("network") ||
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND"
+  );
+}
+
+function buildCompletionPayload(params: GroqCompletionRequest) {
+  return {
+    messages: params.messages,
+    model: params.model,
+    temperature: params.temperature ?? 0.7,
+    max_tokens: params.maxTokens ?? 1024,
+    ...(params.responseFormat ? { response_format: params.responseFormat } : {}),
+    stream: false as const,
+  };
+}
+
+/**
+ * Create chat completion with automatic direct-HTTP fallback if SDK connection fails.
+ */
+export async function createGroqCompletion(
+  params: GroqCompletionRequest,
+): Promise<GroqCompletionResponse> {
+  const payload = buildCompletionPayload(params);
+
+  try {
+    const completion = await groq.chat.completions.create(payload);
+    return completion as unknown as GroqCompletionResponse;
+  } catch (error: unknown) {
+    if (!isGroqConnectionError(error)) {
+      throw error;
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw error;
+
+    logAI.warn("GROQ SDK connection failed, retrying via direct HTTP API");
+
+    const response = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => "");
+      throw new Error(`Groq direct HTTP failed (${response.status}): ${bodyText || response.statusText}`);
+    }
+
+    return (await response.json()) as GroqCompletionResponse;
+  }
 }
 
 /**
@@ -72,14 +152,14 @@ export async function analyzeBusinessData(options: AnalyzeBusinessDataOptions): 
 
   try {
     logAI.debug("GROQ API call", { model: selectedModel, type: imageUrl ? "vision" : "text" });
-    const completion = await groq.chat.completions.create({
+    const completion = await createGroqCompletion({
       messages,
       model: selectedModel,
       temperature,
-      max_tokens: maxTokens,
+      maxTokens,
     });
 
-    return completion.choices[0]?.message?.content || "";
+    return completion.choices?.[0]?.message?.content || "";
   } catch (error: unknown) {
     // If primary model fails, try fallback within the same category
     if (!useFallback) {

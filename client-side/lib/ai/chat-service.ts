@@ -2,6 +2,8 @@ import { groq, GROQ_MODELS } from "@/lib/groq";
 import prisma from "@/lib/prisma";
 import { getRelevantContext, getIndexStatus, indexBusinessDocuments } from "@/lib/ai/rag-store";
 
+const GROQ_CHAT_COMPLETIONS_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 // ===================== TYPES =====================
 
 export interface ChatMessage {
@@ -43,6 +45,88 @@ export interface BusinessDataContext {
     quantity: number;
     unit: string;
   }[];
+}
+
+type GroqRole = "user" | "assistant" | "system";
+type GroqMessage = { role: GroqRole; content: string };
+
+function toGroqMessages(messages: ChatMessage[]): GroqMessage[] {
+  return messages.map((m) => ({
+    role: m.role as GroqRole,
+    content: m.content,
+  }));
+}
+
+function isGroqConnectionError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  const maybeError = error as { code?: string; cause?: { code?: string } };
+  const code = maybeError.code || maybeError.cause?.code || "";
+
+  return (
+    msg.includes("connection error") ||
+    msg.includes("fetch failed") ||
+    msg.includes("network") ||
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND"
+  );
+}
+
+async function createChatCompletionWithNetworkFallback(params: {
+  messages: GroqMessage[];
+  model: string;
+  temperature: number;
+  maxTokens: number;
+}): Promise<string> {
+  try {
+    const completion = await groq.chat.completions.create({
+      messages: params.messages,
+      model: params.model,
+      temperature: params.temperature,
+      max_tokens: params.maxTokens,
+    });
+    return completion.choices[0]?.message?.content || "";
+  } catch (error) {
+    if (!isGroqConnectionError(error)) {
+      throw error;
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      throw error;
+    }
+
+    console.warn("⚠️ GROQ SDK connection failed, retrying via direct HTTP API...");
+
+    const response = await fetch(GROQ_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        messages: params.messages,
+        model: params.model,
+        temperature: params.temperature,
+        max_tokens: params.maxTokens,
+        stream: false,
+      }),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const bodyText = await response.text().catch(() => "");
+      throw new Error(
+        `Groq direct HTTP failed (${response.status}): ${bodyText || response.statusText}`
+      );
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string | null } }>;
+    };
+
+    return data.choices?.[0]?.message?.content || "";
+  }
 }
 
 // ===================== SYSTEM PROMPT =====================
@@ -298,6 +382,7 @@ export async function chatWithAssistant(
   };
 
   const allMessages = [systemMessage, ...messages.slice(-10)]; // Keep last 10 messages for context
+  const modelMessages = toGroqMessages(allMessages);
 
   const modelConfig = GROQ_MODELS.text;
   let selectedModel = modelConfig.primary;
@@ -305,46 +390,40 @@ export async function chatWithAssistant(
   try {
     console.log(`🤖 AI Chat using model: ${selectedModel}`);
 
-    const completion = await groq.chat.completions.create({
-      messages: allMessages.map((m) => ({
-        role: m.role as "user" | "assistant" | "system",
-        content: m.content,
-      })),
+    const response = await createChatCompletionWithNetworkFallback({
+      messages: modelMessages,
       model: selectedModel,
       temperature: 0.7,
-      max_tokens: 2048,
+      maxTokens: 2048,
     });
 
-    const response = completion.choices[0]?.message?.content || "Maaf, saya tidak bisa memberikan respons saat ini.";
+    const safeResponse = response || "Maaf, saya tidak bisa memberikan respons saat ini.";
 
     // Persist messages
     try {
       await persistMessages(context.businessId, context.sessionId, messages[messages.length - 1], {
         role: "assistant",
-        content: response,
+        content: safeResponse,
       }, context.contextType);
     } catch (persistError) {
       console.warn("Failed to persist chat messages:", persistError);
     }
 
-    return response;
+    return safeResponse;
   } catch {
     // Try fallback model
     console.warn(`⚠️ Primary chat model failed, trying fallback: ${modelConfig.fallback}`);
     selectedModel = modelConfig.fallback;
 
     try {
-      const completion = await groq.chat.completions.create({
-        messages: allMessages.map((m) => ({
-          role: m.role as "user" | "assistant" | "system",
-          content: m.content,
-        })),
+      const response = await createChatCompletionWithNetworkFallback({
+        messages: modelMessages,
         model: selectedModel,
         temperature: 0.7,
-        max_tokens: 2048,
+        maxTokens: 2048,
       });
 
-      return completion.choices[0]?.message?.content || "Maaf, saya tidak bisa memberikan respons saat ini.";
+      return response || "Maaf, saya tidak bisa memberikan respons saat ini.";
     } catch (fallbackError) {
       const msg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
       console.error("❌ AI Chat Error:", msg);
@@ -376,6 +455,7 @@ export async function streamChatWithAssistant(
   };
 
   const allMessages = [systemMessage, ...messages.slice(-10)];
+  const modelMessages = toGroqMessages(allMessages);
   const modelConfig = GROQ_MODELS.text;
 
   const encoder = new TextEncoder();
@@ -427,12 +507,35 @@ export async function streamChatWithAssistant(
         // Try fallback
         const primaryMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
         console.warn(`⚠️ Streaming primary failed (${primaryMsg}), trying fallback...`);
+
+        // If this is a network-layer issue on SDK stream, jump directly to non-stream fallback.
+        if (isGroqConnectionError(primaryError)) {
+          try {
+            const nonStream = await createChatCompletionWithNetworkFallback({
+              messages: modelMessages,
+              model: modelConfig.primary,
+              temperature: 0.7,
+              maxTokens: 2048,
+            });
+            if (nonStream) {
+              fullResponse = nonStream;
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: nonStream })}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+              controller.close();
+              return;
+            }
+          } catch (directFallbackError) {
+            const msg =
+              directFallbackError instanceof Error
+                ? directFallbackError.message
+                : String(directFallbackError);
+            console.warn(`⚠️ Direct non-stream fallback after stream error failed (${msg})`);
+          }
+        }
+
         try {
           const stream = await groq.chat.completions.create({
-            messages: allMessages.map((m) => ({
-              role: m.role as "user" | "assistant" | "system",
-              content: m.content,
-            })),
+            messages: modelMessages,
             model: modelConfig.fallback,
             temperature: 0.7,
             max_tokens: 2048,
@@ -693,5 +796,4 @@ export async function autoTitleSession(sessionId: number, businessId: number, fi
     await updateSessionTitle(sessionId, businessId, title);
   }
 }
-
 

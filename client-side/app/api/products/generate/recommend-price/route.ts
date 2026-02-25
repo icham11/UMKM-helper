@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
-import { groq, GROQ_MODELS } from "@/lib/groq";
+import { GROQ_MODELS, createGroqCompletion } from "@/lib/groq";
 import { recommendPriceSchema } from "@/lib/validations/product";
 import prisma from "@/lib/prisma";
 
@@ -186,7 +186,7 @@ Respond with ONLY this JSON (no markdown):
 "margin" = ((recommendedPrice - recipeCost) / recommendedPrice) * 100.
 "reasoning" MUST be in Indonesian (Bahasa Indonesia) and explain the key tactic used.`;
 
-    const completion = await groq.chat.completions.create({
+    const completion = await createGroqCompletion({
       messages: [
         {
           role: "system",
@@ -196,11 +196,11 @@ Respond with ONLY this JSON (no markdown):
       ],
       model: GROQ_MODELS.text.primary,
       temperature: 0.3,
-      max_tokens: 512,
-      response_format: { type: "json_object" },
+      maxTokens: 512,
+      responseFormat: { type: "json_object" },
     });
 
-    const raw = completion.choices[0]?.message?.content || "";
+    const raw = completion.choices?.[0]?.message?.content || "";
 
     try {
       const result = JSON.parse(raw);
