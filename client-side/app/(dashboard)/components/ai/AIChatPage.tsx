@@ -93,16 +93,20 @@ export default function AIChatPage() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [ragStatus, setRagStatus] = useState<RAGStatus | null>(null);
   const [indexing, setIndexing] = useState(false);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const el = messagesContainerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, []);
 
   useEffect(() => {
+    if (messages.length === 0 && !streamingContent) return;
     scrollToBottom();
-  }, [messages, streamingContent, scrollToBottom]);
+  }, [messages.length, streamingContent, scrollToBottom]);
 
   useEffect(() => {
     fetchSessions();
@@ -421,7 +425,7 @@ export default function AIChatPage() {
   };
 
   return (
-    <div className="relative flex flex-col md:flex-row min-h-[520px] md:min-h-[640px] max-h-[85vh] bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden">
+    <div className="relative flex flex-col md:flex-row min-h-[500px] sm:min-h-[560px] md:min-h-[640px] md:max-h-[85vh] bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl shadow-gray-200/40 border border-white/60 overflow-hidden">
       {/* ─── Sidebar Overlay ─── */}
       <AnimatePresence>
         {showSidebar && (
@@ -585,14 +589,18 @@ export default function AIChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4" style={{ minHeight: "350px", paddingBottom: "60px" }}>
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-5 space-y-4"
+          style={{ minHeight: "280px", paddingBottom: "max(76px, env(safe-area-inset-bottom))" }}
+        >
           {/* Empty state */}
           {messages.length === 0 && !streamingContent && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ type: "spring", stiffness: 200, damping: 20 }}
-              className="text-center py-8"
+              className="text-center py-6 sm:py-8"
             >
               <motion.div
                 className="w-16 h-16 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm"
@@ -755,7 +763,10 @@ export default function AIChatPage() {
         </div>
 
         {/* Input area */}
-        <div className="p-3 md:p-4 border-t border-gray-100 bg-white/80 backdrop-blur-sm shrink-0" style={{ position: "sticky", bottom: 0, zIndex: 10 }}>
+        <div
+          className="p-3 md:p-4 border-t border-gray-100 bg-white/80 backdrop-blur-sm shrink-0"
+          style={{ position: "sticky", bottom: 0, zIndex: 10, paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+        >
           <div className="flex gap-2 items-end">
             <textarea
               ref={inputRef}

@@ -45,7 +45,7 @@ export default function AIAnalysisPage() {
       initial="hidden"
       animate="visible"
       variants={containerVariants}
-      className="min-h-screen pb-20"
+      className="min-h-screen pb-[calc(5rem+env(safe-area-inset-bottom))]"
     >
       {/* Ambient background blobs */}
       <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
@@ -54,35 +54,35 @@ export default function AIAnalysisPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-blue-100/10 rounded-full blur-3xl" />
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* ─── Header ─── */}
-        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-2xl bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg shadow-indigo-500/5">
+        <motion.div variants={itemVariants} className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-white/80 backdrop-blur-xl border border-white/60 shadow-lg shadow-indigo-500/5">
           <div className="absolute inset-0 bg-gradient-to-br from-indigo-50/50 via-transparent to-violet-50/50" />
-          <div className="relative px-6 py-5 flex items-center gap-4">
+          <div className="relative px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3 sm:gap-4">
             <motion.div
-              className="relative w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30"
+              className="relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30"
               whileHover={{ scale: 1.05, rotate: 5 }}
               transition={{ type: "spring", stiffness: 400 }}
             >
-              <Sparkles className="w-6 h-6 text-white" />
+              <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-white animate-pulse" />
             </motion.div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">AI Center</h1>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">AI Center</h1>
               <p className="text-sm text-gray-500">Pusat AI untuk analisis bisnis, prediksi, dan rekomendasi</p>
             </div>
           </div>
         </motion.div>
 
         {/* ─── Tab Navigation ─── */}
-        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <motion.div variants={itemVariants} className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-3">
           {tabs.map((tab, i) => {
             const isActive = activeTab === tab.id;
             return (
               <motion.button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative group overflow-hidden rounded-xl p-4 text-left transition-all duration-300 border ${
+                className={`relative group overflow-hidden rounded-xl p-3 sm:p-4 text-left transition-all duration-300 border ${
                   isActive
                     ? "bg-white shadow-lg shadow-gray-200/60 border-gray-200/80 ring-1 ring-gray-900/5"
                     : "bg-white/60 backdrop-blur-sm border-white/60 hover:bg-white hover:shadow-md hover:border-gray-200/80"
@@ -97,18 +97,18 @@ export default function AIAnalysisPage() {
                 <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${tab.gradient} transition-opacity duration-300 ${isActive ? "opacity-100" : "opacity-0"}`} />
 
                 <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-300 shrink-0 ${
+                  <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center transition-all duration-300 shrink-0 ${
                     isActive
                       ? `bg-gradient-to-br ${tab.gradient} shadow-md`
                       : "bg-gray-100 group-hover:bg-gray-200"
                   }`}>
-                    <tab.icon className={`w-[18px] h-[18px] transition-colors ${isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"}`} />
+                    <tab.icon className={`w-4 h-4 sm:w-[18px] sm:h-[18px] transition-colors ${isActive ? "text-white" : "text-gray-500 group-hover:text-gray-700"}`} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className={`text-sm font-semibold transition-colors ${isActive ? "text-gray-900" : "text-gray-600 group-hover:text-gray-800"}`}>
+                    <p className={`text-[13px] sm:text-sm font-semibold leading-tight transition-colors ${isActive ? "text-gray-900" : "text-gray-600 group-hover:text-gray-800"}`}>
                       {tab.label}
                     </p>
-                    <p className={`text-[11px] mt-0.5 transition-colors ${isActive ? "text-gray-500" : "text-gray-400"}`}>
+                    <p className={`text-[11px] mt-0.5 leading-tight transition-colors ${isActive ? "text-gray-500" : "text-gray-400"}`}>
                       {tab.desc}
                     </p>
                   </div>
