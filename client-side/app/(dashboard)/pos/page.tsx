@@ -194,14 +194,6 @@ export default function POSPage() {
     closeShift,
     refresh: refreshShift,
   } = useShift();
-  const {
-    shift,
-    isOpen: isShiftOpen,
-    loading: shiftLoading,
-    openShift,
-    closeShift,
-    refresh: refreshShift,
-  } = useShift();
   const [showCloseShiftModal, setShowCloseShiftModal] = useState(false);
   const [openingCashInput, setOpeningCashInput] = useState("");
   const [actualCashInput, setActualCashInput] = useState("");
