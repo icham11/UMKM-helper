@@ -897,7 +897,7 @@ async function generateInsightsForBusiness(businessId: number) {
   }
 }
 
-export async function POST(req: NextRequest) {
+async function handleCronRequest(req: NextRequest) {
   // Allow access via CRON_SECRET or authenticated user session
   const authHeader = req.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
@@ -952,4 +952,14 @@ export async function POST(req: NextRequest) {
     console.error("[CRON] generate-analytics error:", error);
     return NextResponse.json({ error: "Failed to generate analytics", details: String(error) }, { status: 500 });
   }
+}
+
+// Vercel Cron Jobs always send GET requests
+export async function GET(req: NextRequest) {
+  return handleCronRequest(req);
+}
+
+// Allow manual POST calls (authenticated users or direct API calls with CRON_SECRET)
+export async function POST(req: NextRequest) {
+  return handleCronRequest(req);
 }
