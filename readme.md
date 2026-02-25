@@ -6,7 +6,7 @@ Cuanify adalah platform **AI-powered Point of Sale (POS)** dan **inventory dinam
 
 ---
 
-## Who is it for
+## Who Is It For
 - Pemilik UMKM (terutama F&B / retail) yang butuh POS cepat + stok rapi
 - Tim operasional/kasir yang butuh flow transaksi yang sat-set
 - Owner yang ingin kontrol **HPP/COGS** dan keputusan bisnis berbasis data
