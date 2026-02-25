@@ -23,8 +23,7 @@ export default function SidebarNav() {
   const { isOwner, isCashier, userName, loading } = useRole();
   const pathname = usePathname();
 
-  const isActive = (href: string) =>
-    pathname === href || (href !== "/dashboard" && pathname?.startsWith(href + "/"));
+  const isActive = (href: string) => pathname === href || (href !== "/dashboard" && pathname?.startsWith(href + "/"));
 
   if (loading) {
     return (
@@ -55,59 +54,90 @@ export default function SidebarNav() {
       {/* Dashboard — Owner only */}
       {isOwner && (
         <div>
-          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">
-            Dashboard
-          </p>
+          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">Dashboard</p>
           {/*<SidebarLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} />*/}
-          <SidebarLink href="/analytics" icon={BarChart3} label="Analytics Pro" active={isActive("/analytics")} />
+          <SidebarLink href="/analytics" icon={BarChart3} label="Analytics" active={isActive("/analytics")} />
         </div>
       )}
 
       {/* AI Tools — Owner only */}
       {isOwner && (
         <div>
-          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">
-            AI Tools
-          </p>
-          <SidebarLink href="/dashboard/ai-analysis" icon={Bot} label="AI Center" active={isActive("/dashboard/ai-analysis")} accent />
+          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">AI Tools</p>
+          <SidebarLink
+            href="/dashboard/ai-analysis"
+            icon={Bot}
+            label="AI Center"
+            active={isActive("/dashboard/ai-analysis")}
+            accent
+          />
         </div>
       )}
 
       {/* Sales — All roles */}
       <div>
-        <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">
-          Sales
-        </p>
-        <SidebarLink href="/pos" icon={ShoppingCart} label="POS Kasir" active={isActive("/pos")} />
-        <SidebarLink href="/dashboard/sales-history" icon={History} label="Riwayat Penjualan" active={isActive("/dashboard/sales-history")} />
+        <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">Sales</p>
+        <SidebarLink href="/pos" icon={ShoppingCart} label="POS" active={isActive("/pos")} />
+        <SidebarLink
+          href="/dashboard/sales-history"
+          icon={History}
+          label="Sales History"
+          active={isActive("/dashboard/sales-history")}
+        />
         <SidebarLink href="/dashboard/debts" icon={BookOpen} label="Kasbon" active={isActive("/dashboard/debts")} />
-        <SidebarLink href="/dashboard/shift-history" icon={Clock} label="Closing Shift" active={isActive("/dashboard/shift-history")} />
+        <SidebarLink
+          href="/dashboard/shift-history"
+          icon={Clock}
+          label="Closing"
+          active={isActive("/dashboard/shift-history")}
+        />
         {isOwner && (
-          <SidebarLink href="/dashboard/export" icon={FileDown} label="Export Data" active={isActive("/dashboard/export")} />
+          <SidebarLink
+            href="/dashboard/export"
+            icon={FileDown}
+            label="Export Data"
+            active={isActive("/dashboard/export")}
+          />
         )}
       </div>
 
       {/* Inventory — Owner only */}
       {isOwner && (
         <div>
-          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">
-            Inventory
-          </p>
-          <SidebarLink href="/dashboard/products" icon={Package} label="Produk" active={isActive("/dashboard/products")} />
-          <SidebarLink href="/dashboard/production" icon={Factory} label="Produksi" active={isActive("/dashboard/production")} />
-          <SidebarLink href="/dashboard/ingredients" icon={Boxes} label="Bahan Baku" active={isActive("/dashboard/ingredients")} />
+          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">Inventory</p>
+          <SidebarLink
+            href="/dashboard/products"
+            icon={Package}
+            label="Products"
+            active={isActive("/dashboard/products")}
+          />
+          <SidebarLink
+            href="/dashboard/production"
+            icon={Factory}
+            label="Production"
+            active={isActive("/dashboard/production")}
+          />
+          <SidebarLink
+            href="/dashboard/ingredients"
+            icon={Boxes}
+            label="Ingredients"
+            active={isActive("/dashboard/ingredients")}
+          />
         </div>
       )}
 
       {/* Settings — Owner only */}
       {isOwner && (
         <div>
-          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">
-            Settings
-          </p>
-          <SidebarLink href="/dashboard/business" icon={Building2} label="Bisnis" active={isActive("/dashboard/business")} />
-          <SidebarLink href="/dashboard/profile" icon={User} label="Profil" active={isActive("/dashboard/profile")} />
-          <SidebarLink href="/dashboard/staff" icon={Users} label="Staf" active={isActive("/dashboard/staff")} />
+          <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">Settings</p>
+          <SidebarLink
+            href="/dashboard/business"
+            icon={Building2}
+            label="Business"
+            active={isActive("/dashboard/business")}
+          />
+          <SidebarLink href="/dashboard/profile" icon={User} label="Profile" active={isActive("/dashboard/profile")} />
+          <SidebarLink href="/dashboard/staff" icon={Users} label="Staff" active={isActive("/dashboard/staff")} />
         </div>
       )}
     </nav>
@@ -136,8 +166,8 @@ function SidebarLink({
         active
           ? "bg-indigo-600 text-white shadow-md shadow-indigo-200/50"
           : accent
-          ? "bg-gradient-to-r from-purple-50 to-indigo-50 text-purple-700 hover:from-purple-100 hover:to-indigo-100 border border-purple-200/60"
-          : "text-gray-600 hover:bg-indigo-50/60 hover:text-indigo-700"
+            ? "bg-gradient-to-r from-purple-50 to-indigo-50 text-purple-700 hover:from-purple-100 hover:to-indigo-100 border border-purple-200/60"
+            : "text-gray-600 hover:bg-indigo-50/60 hover:text-indigo-700"
       }`}
     >
       <Icon className={`w-4 h-4 shrink-0 ${active ? "text-white" : ""}`} />

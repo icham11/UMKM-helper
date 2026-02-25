@@ -214,7 +214,36 @@ Rules:
       };
     }
 
-    const products: AIGeneratedProduct[] = Array.isArray(parsed.products) ? parsed.products : [];
+    // Compute expiration dates from AI-estimated shelf life (same logic as parseAIProductResponse)
+    const today = new Date();
+    const toExpiryDate = (days: number): string => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + Math.max(1, Math.round(days)));
+      return d.toISOString().split("T")[0]; // YYYY-MM-DD
+    };
+
+    const products: AIGeneratedProduct[] = Array.isArray(parsed.products)
+      ? parsed.products.map((p: RawAIProductResponse) => ({
+          name: String(p.name || ""),
+          categoryName: String(p.categoryName || ""),
+          sellingPrice: Number(p.sellingPrice || 0),
+          productType: p.productType === "ReadyStock" ? "ReadyStock" : "PreOrder",
+          recipe: Array.isArray(p.recipe)
+            ? p.recipe.map((r: RawAIRecipeItem) => ({
+                ...(r.ingredientId ? { ingredientId: Number(r.ingredientId) } : {}),
+                ingredientName: String(r.ingredientName || r.name || "Unknown"),
+                unit: String(r.unit || "gram"),
+                quantity: Number(r.quantity || 0),
+                costPerUnit: r.costPerUnit ? Number(r.costPerUnit) : undefined,
+                estimatedStockQty: r.estimatedStockQty ? Number(r.estimatedStockQty) : undefined,
+                // Convert shelf-life hint → concrete expiration date for new ingredients
+                ...(!r.ingredientId && r.estimatedShelfLifeDays
+                  ? { expirationDate: toExpiryDate(r.estimatedShelfLifeDays) }
+                  : {}),
+              }))
+            : [],
+        }))
+      : [];
 
     return { isValid: true, products };
   } catch {

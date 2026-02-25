@@ -476,7 +476,7 @@ function EmptyAnalytics() {
           Untuk memulai, jalankan analisis pertama Anda. Sistem akan menghasilkan prediksi penjualan, skor kesehatan
           bisnis, dan wawasan berbasis AI untuk membantu pengambilan keputusan.
         </p>
-        {!hasSales && (
+        {hasSales === false && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6 text-left">
             <p className="text-sm text-amber-700">
               <strong>Info:</strong> Belum ada data penjualan. Analisis akan lebih akurat setelah ada transaksi.
@@ -588,7 +588,7 @@ export default function AnalyticsPage() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
-              <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 shrink-0" /> Analytics Pro
+              <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 shrink-0" /> Analytics
             </h1>
             <p className="text-indigo-200 mt-1 text-xs sm:text-sm">Wawasan bisnis, performa &amp; prediksi penjualan</p>
             <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-indigo-300 mt-1.5">
@@ -612,21 +612,41 @@ export default function AnalyticsPage() {
               )}
             </div>
           </div>
-          {showDateFilter && (
-            <div className="inline-flex items-center gap-0.5 bg-white/10 border border-white/20 rounded-xl p-0.5 sm:p-1 backdrop-blur-sm self-start shrink-0">
-              {(["today", "7d", "30d", "all"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRange(r)}
-                  className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
-                    range === r ? "bg-white text-indigo-700 shadow" : "text-white/80 hover:bg-white/20"
-                  }`}
-                >
-                  {r === "today" ? "Hari Ini" : r === "7d" ? "7 Hari" : r === "30d" ? "30 Hari" : "Semua"}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center gap-2 self-start shrink-0 flex-wrap justify-end">
+            {process.env.NODE_ENV === "development" && (
+              <button
+                onClick={handleManualGenerate}
+                disabled={generating}
+                title="Dev only — generate analytics"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-amber-400/20 border border-amber-300/40 text-amber-200 hover:bg-amber-400/30 transition disabled:opacity-50 cursor-pointer"
+              >
+                {generating ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Generating…
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-3.5 h-3.5" /> Generate (Dev)
+                  </>
+                )}
+              </button>
+            )}
+            {showDateFilter && (
+              <div className="inline-flex items-center gap-0.5 bg-white/10 border border-white/20 rounded-xl p-0.5 sm:p-1 backdrop-blur-sm">
+                {(["today", "7d", "30d", "all"] as const).map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition cursor-pointer ${
+                      range === r ? "bg-white text-indigo-700 shadow" : "text-white/80 hover:bg-white/20"
+                    }`}
+                  >
+                    {r === "today" ? "Hari Ini" : r === "7d" ? "7 Hari" : r === "30d" ? "30 Hari" : "Semua"}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

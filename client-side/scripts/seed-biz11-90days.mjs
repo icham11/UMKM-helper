@@ -34,9 +34,9 @@ const prisma = new PrismaClient({ adapter });
    CONSTANTS
    ═══════════════════════════════════════════════════════════════════════ */
 
-const BIZ = 11;
-const SEED_TAG = "[SEED90]";
-const TXN_PREFIX = "SEED90";
+const BIZ = 16;
+const SEED_TAG = "[SEED90]"; // internal cleanup marker only
+const TXN_PREFIX = "TXN";
 const DAYS = 90;
 
 // Calculate dates - 90 days ending yesterday
@@ -48,8 +48,8 @@ const START_DATE = new Date(END_DATE);
 START_DATE.setDate(START_DATE.getDate() - DAYS + 1);
 
 // Base sales per day range
-const BASE_MIN_SALES = 5;
-const BASE_MAX_SALES = 20;
+const BASE_MIN_SALES = 2;
+const BASE_MAX_SALES = 8;
 
 // Promo spike days (within 90 days)
 const PROMO_DAYS = [15, 45, 75];
@@ -304,9 +304,9 @@ async function main() {
 
   console.log("\n🧹 Cleaning up previous seed data...");
 
-  await prisma.debt.deleteMany({ where: { businessId: BIZ, notes: { contains: SEED_TAG } } });
+  await prisma.debt.deleteMany({ where: { businessId: BIZ } });
   await prisma.sale.deleteMany({ where: { businessId: BIZ, transactionNumber: { startsWith: TXN_PREFIX } } });
-  await prisma.stockDocument.deleteMany({ where: { businessId: BIZ, notes: { contains: SEED_TAG } } });
+  await prisma.stockDocument.deleteMany({ where: { businessId: BIZ } });
   await prisma.inventoryBatch.deleteMany({
     where: { ingredient: { businessId: BIZ }, createdAt: { gte: new Date("2020-01-01") } },
   });
@@ -321,8 +321,8 @@ async function main() {
   console.log("\n📦 STEP 1: Initializing inventory...");
 
   // Calculate needs - reasonable for 90 days
-  const estimatedDailyProductSales = 25; // ~15-20 sales/day * ~1.5 items avg
-  const totalEstimatedSales = estimatedDailyProductSales * DAYS * 1.5; // 1.5x buffer
+  const estimatedDailyProductSales = 10; // ~7-10 sales/day * ~1.5 items avg
+  const totalEstimatedSales = estimatedDailyProductSales * DAYS * 1.0; // 1.0x (no buffer)
 
   const ingredientNeeds = new Map();
   for (const product of products) {
@@ -341,7 +341,7 @@ async function main() {
     data: {
       businessId: BIZ,
       type: "Purchase",
-      notes: `${SEED_TAG} Initial inventory setup`,
+      notes: `Initial inventory setup`,
       createdAt: initialPurchaseDate,
       updatedAt: initialPurchaseDate,
     },
@@ -360,8 +360,8 @@ async function main() {
   };
 
   for (const ingredient of ingredients) {
-    const neededQty = ingredientNeeds.get(ingredient.id) || 100;
-    const stockQty = Math.ceil(neededQty * 2); // 2x buffer for 90 days
+    const neededQty = ingredientNeeds.get(ingredient.id) || 500;
+    const stockQty = Math.ceil(neededQty * 3.5); // 1.8x buffer for 90 days
     const unitBase = baseCosts[ingredient.unit.toLowerCase()] || [1000, 5000];
     const costPerUnit = randomInt(unitBase[0], unitBase[1]);
     const expDays = randomInt(30, 365);
@@ -430,7 +430,7 @@ async function main() {
         data: {
           businessId: BIZ,
           type: "Waste",
-          notes: `${SEED_TAG} ${wasteEvent.reason}`,
+          notes: `${wasteEvent.reason}`,
           createdAt: wasteDate,
           updatedAt: wasteDate,
         },
@@ -482,7 +482,7 @@ async function main() {
         data: {
           businessId: BIZ,
           type: "Sale",
-          notes: `${SEED_TAG} Sale`,
+          notes: `Sale`,
           createdAt: saleDate,
           updatedAt: saleDate,
         },
@@ -584,7 +584,7 @@ async function main() {
             paidAmount: 0,
             status: "Unpaid",
             dueDate,
-            notes: `${SEED_TAG} Kasbon`,
+            notes: `Kasbon`,
             createdAt: saleDate,
             updatedAt: saleDate,
           },

@@ -61,7 +61,7 @@ export default function ShiftHistoryPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
           <Clock className="w-6 h-6 text-indigo-600" />
-          Riwayat Tutup Kasir
+          Closing
         </h1>
         <p className="text-sm text-gray-500 mt-1">Rekap seluruh shift kasir</p>
       </div>
