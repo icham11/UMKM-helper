@@ -38,30 +38,51 @@ export interface StatTileProps {
   trend?: number;
 }
 
-export default function StatTile({ icon: Icon, label, value, color, subtext, trend }: StatTileProps) {
+export default function StatTile({
+  icon: Icon,
+  label,
+  value,
+  color,
+  subtext,
+  trend,
+}: StatTileProps) {
   const tile = TILE_MAP[color] ?? TILE_MAP.indigo;
   const iconStyle = ICON_MAP[color] ?? ICON_MAP.indigo;
 
   return (
-    <div className={`p-4 rounded-xl bg-linear-to-br border ${tile} hover:shadow-md transition`}>
-      <div className="flex items-start justify-between mb-2">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconStyle}`}>
-          <Icon className="w-4 h-4" />
+    <div
+      className={`p-3 sm:p-4 rounded-xl bg-linear-to-br border ${tile} hover:shadow-md transition`}
+    >
+      <div className="flex items-start justify-between mb-1.5 sm:mb-2">
+        <div
+          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center ${iconStyle}`}
+        >
+          <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
         {trend !== undefined && (
           <div
-            className={`flex items-center gap-0.5 text-xs font-medium ${
+            className={`flex items-center gap-0.5 text-[10px] sm:text-xs font-medium ${
               trend >= 0 ? "text-green-600" : "text-red-500"
             }`}
           >
-            {trend >= 0 ? <ArrowUpRight className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+            {trend >= 0 ? (
+              <ArrowUpRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            ) : (
+              <ArrowDownRight className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            )}
             {Math.abs(trend)}%
           </div>
         )}
       </div>
-      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-      <p className="text-lg font-bold text-gray-900">{value}</p>
-      {subtext && <p className="text-[10px] text-gray-400 mt-1">{subtext}</p>}
+      <p className="text-[10px] sm:text-xs text-gray-500 mb-0.5">{label}</p>
+      <p className="text-sm sm:text-lg font-bold text-gray-900 truncate">
+        {value}
+      </p>
+      {subtext && (
+        <p className="text-[10px] text-gray-400 mt-0.5 sm:mt-1 truncate">
+          {subtext}
+        </p>
+      )}
     </div>
   );
 }
