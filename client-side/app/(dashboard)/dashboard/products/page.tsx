@@ -555,8 +555,11 @@ export default function ProductsPage() {
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-4 sm:p-6 shadow-lg">
           <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Produk</h1>
-            <p className="text-indigo-100 text-sm">Kelola produk dan resep bisnis Anda.</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+              <ShoppingBag className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
+              Produk
+            </h1>
+            <p className="text-indigo-100 text-sm mt-1">Kelola produk dan resep bisnis Anda.</p>
           </div>
           <button
             onClick={() => router.push("/dashboard/products/create")}
