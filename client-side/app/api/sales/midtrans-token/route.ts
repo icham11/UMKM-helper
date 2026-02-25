@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { requireAuth, isAuthError } from "@/lib/auth/session";
 import { createSaleSchema } from "@/lib/validations/sale";
 import { createSnapTransaction } from "@/lib/midtrans/snap";
+import { getReadyStockAvailable } from "@/lib/inventory/production-engine";
 
 export const runtime = "nodejs";
 
@@ -24,8 +25,26 @@ function getEnabledPayments(paymentMethod: string) {
 async function validateInventoryAvailability(
   tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
   items: Array<{ productId: number; quantity: number }>,
+  productInfoMap: Map<number, { name: string; productType: string }>,
 ) {
   for (const item of items) {
+    const productInfo = productInfoMap.get(item.productId);
+    if (!productInfo) {
+      throw new Error(`Product with ID ${item.productId} not found`);
+    }
+
+    // ReadyStock: validate from production batches (not ingredient batches)
+    if (productInfo.productType === "ReadyStock") {
+      const available = await getReadyStockAvailable(tx, item.productId);
+      if (available < item.quantity) {
+        throw new Error(
+          `Stok produk "${productInfo.name}" tidak cukup. Tersedia: ${available}, dibutuhkan: ${item.quantity}.`,
+        );
+      }
+      continue;
+    }
+
+    // PreOrder: validate from ingredient inventory batches
     const recipes = await tx.recipe.findMany({
       where: { productId: item.productId },
       include: {
@@ -46,7 +65,9 @@ async function validateInventoryAvailability(
       const availableQty = recipe.ingredient.inventoryBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0);
 
       if (availableQty < requiredQty) {
-        throw new Error(`Insufficient stock for ingredient: ${recipe.ingredient.name}`);
+        throw new Error(
+          `Insufficient stock for ingredient: ${recipe.ingredient.name} (need ${requiredQty}, available ${availableQty})`,
+        );
       }
     }
   }
@@ -138,7 +159,7 @@ export async function POST(request: NextRequest) {
         const productIds = [...new Set(items.map((i) => i.productId))];
         const products = await tx.product.findMany({
           where: { id: { in: productIds }, businessId, deletedAt: null },
-          select: { id: true, name: true, sellingPrice: true },
+          select: { id: true, name: true, sellingPrice: true, productType: true },
         });
 
         if (products.length !== productIds.length) {
@@ -147,7 +168,11 @@ export async function POST(request: NextRequest) {
           throw new Error(`Product with ID ${missing[0]} not found`);
         }
 
-        await validateInventoryAvailability(tx, items);
+        const productInfoMap = new Map(
+          products.map((p) => [p.id, { name: p.name, productType: p.productType }]),
+        );
+
+        await validateInventoryAvailability(tx, items, productInfoMap);
 
         const productMap = new Map(products.map((p) => [p.id, { name: p.name, price: Number(p.sellingPrice) }]));
 
@@ -255,6 +280,27 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     if (isAuthError(error)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    if (
+      error instanceof Error &&
+      (
+        error.message.includes("not found") ||
+        error.message.includes("Insufficient stock") ||
+        error.message.includes("Stok produk")
+      )
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (
+      error instanceof Error &&
+      (
+        error.message.includes("Midtrans validation failed") ||
+        error.message.includes("Failed to create Midtrans transaction")
+      )
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 502 });
     }
 
     console.error("POST /api/sales/midtrans-token error:", error);

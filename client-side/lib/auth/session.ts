@@ -67,10 +67,10 @@ async function resolveUserIdFromNextAuthJwt(
   headerList: Awaited<ReturnType<typeof headers>>,
 ): Promise<number | undefined> {
   // Build a lightweight req shape accepted by next-auth getToken()
-  const req = { headers: headerList, cookies: cookieStore } as {
-    headers: Headers
-    cookies: { getAll: () => { name: string; value: string }[] }
-  }
+  const req = {
+    headers: headerList,
+    cookies: cookieStore,
+  } as unknown as NonNullable<Parameters<typeof getToken>[0]["req"]>
 
   const token = await getToken({
     req,

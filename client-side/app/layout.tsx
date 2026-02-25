@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { Toaster } from "sonner";
 import "./globals.css";
@@ -11,15 +10,19 @@ if (typeof window === "undefined") {
   import("@/lib/cleanup-scheduler");
 }
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const midtransClientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "";
+const explicitMidtransProdRaw =
+  process.env.NEXT_PUBLIC_MIDTRANS_IS_PRODUCTION ?? process.env.MIDTRANS_IS_PRODUCTION;
+const explicitMidtransProd =
+  explicitMidtransProdRaw === "true"
+    ? true
+    : explicitMidtransProdRaw === "false"
+      ? false
+      : undefined;
+const midtransIsProduction = explicitMidtransProd ?? false;
+const midtransSnapScriptSrc = midtransIsProduction
+  ? "https://app.midtrans.com/snap/snap.js"
+  : "https://app.sandbox.midtrans.com/snap/snap.js";
 
 export const viewport: Viewport = {
   themeColor: "#4f46e5",
@@ -52,9 +55,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head />
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <AppProviders>{children}</AppProviders>
 
         {/* PWA: Service Worker + Offline Detection + Install Prompt */}
@@ -65,8 +66,8 @@ export default function RootLayout({
 
         {/* Midtrans Script */}
         <Script
-          src="https://app.sandbox.midtrans.com/snap/snap.js"
-          data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
+          src={midtransSnapScriptSrc}
+          data-client-key={midtransClientKey}
           strategy="afterInteractive"
         />
       </body>

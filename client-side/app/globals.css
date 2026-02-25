@@ -54,6 +54,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --font-geist-sans: Arial, Helvetica, sans-serif;
+  --font-geist-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   /* Cuanify Design System */
   --cuanify-primary: #4f46e5;
   --cuanify-primary-dark: #4338ca;
