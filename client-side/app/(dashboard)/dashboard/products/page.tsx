@@ -530,14 +530,14 @@ export default function ProductsPage() {
     <>
       <div className="space-y-8">
         {/* HEADER */}
-        <div className="flex justify-between items-center bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-4 sm:p-6 shadow-lg">
           <div>
-            <h1 className="text-3xl font-bold text-white">Produk</h1>
-            <p className="text-indigo-100">Kelola produk dan resep bisnis Anda.</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Produk</h1>
+            <p className="text-indigo-100 text-sm">Kelola produk dan resep bisnis Anda.</p>
           </div>
           <button
             onClick={() => router.push("/dashboard/products/create")}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 font-semibold rounded-xl shadow hover:bg-indigo-50 transition"
+            className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white text-indigo-700 font-semibold rounded-xl shadow hover:bg-indigo-50 transition text-sm sm:text-base"
           >
             <Plus size={20} />
             Tambah Produk
@@ -623,21 +623,25 @@ export default function ProductsPage() {
         )}
 
         {/* STATS ROW */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl p-4 shadow border border-indigo-50">
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Produk</p>
-            <p className="text-3xl font-extrabold text-indigo-700 mt-1">{totalCount}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-indigo-50">
+            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Produk</p>
+            <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-700 mt-1">{totalCount}</p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow border border-violet-50">
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Rata-rata Harga Jual</p>
-            <p className="text-2xl font-extrabold text-violet-700 mt-1">
+          <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-violet-50">
+            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">
+              Rata-rata Harga Jual
+            </p>
+            <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-violet-700 mt-1 wrap-break-word">
               {totalCount > 0 ? formatCurrency(avgSellingPrice) : "—"}
             </p>
           </div>
-          <div className="bg-white rounded-2xl p-4 shadow border border-green-50">
-            <p className="text-xs text-gray-500 font-semibold uppercase tracking-wide">Rata-rata Margin</p>
+          <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-green-50">
+            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">
+              Rata-rata Margin
+            </p>
             <p
-              className={`text-2xl font-extrabold mt-1 ${
+              className={`text-lg sm:text-xl md:text-2xl font-extrabold mt-1 ${
                 avgMargin < 0 ? "text-red-600" : avgMargin < 20 ? "text-yellow-600" : "text-green-700"
               }`}
             >
@@ -680,7 +684,96 @@ export default function ProductsPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white rounded-3xl shadow-xl overflow-x-auto">
+            {/* ═══ MOBILE CARD VIEW ═══ */}
+            <div className="md:hidden space-y-3">
+              {products.map((product) => {
+                const sp = Number(product.sellingPrice);
+                const rc = Number(product.recipeCost);
+                const margin = sp > 0 ? Math.round(((sp - rc) / sp) * 100) : 0;
+                return (
+                  <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
+                    {/* Top row: name + category */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-slate-800 text-sm leading-tight">{product.name}</h3>
+                        {product.category && (
+                          <span className="inline-flex items-center gap-1 mt-1 bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+                            <Tag size={10} />
+                            {product.category.name}
+                          </span>
+                        )}
+                      </div>
+                      {/* Actions */}
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <button
+                          onClick={() => setRecipeModal(product)}
+                          className="p-1.5 rounded-full hover:bg-indigo-50 text-indigo-400 hover:text-indigo-600 transition"
+                          title="Lihat resep"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        <button
+                          onClick={() => setEditModal(product)}
+                          className="p-1.5 rounded-full hover:bg-green-50 text-green-500 hover:text-green-700 transition"
+                          title="Edit"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => setDeleteModal(product)}
+                          className="p-1.5 rounded-full hover:bg-red-50 text-red-300 hover:text-red-500 transition"
+                          title="Hapus"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="flex items-center gap-3 text-xs">
+                      <div className="flex-1">
+                        <span className="text-gray-400 block">Harga Jual</span>
+                        <span className="font-bold text-indigo-700 text-sm">{formatCurrency(sp)}</span>
+                      </div>
+                      <div className="flex-1">
+                        <span className="text-gray-400 block">Biaya</span>
+                        <span className="font-semibold text-slate-600 text-sm">
+                          {rc > 0 ? formatCurrency(rc) : "—"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 block">Margin</span>
+                        <span
+                          className={`inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full ${
+                            margin >= 50
+                              ? "bg-green-100 text-green-700"
+                              : margin >= 20
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-red-100 text-red-700"
+                          }`}
+                        >
+                          {margin}%
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Recipe badge */}
+                    {product.recipes.length > 0 && (
+                      <button
+                        onClick={() => setRecipeModal(product)}
+                        className="inline-flex items-center gap-1 bg-violet-50 text-violet-600 text-[11px] font-semibold px-2.5 py-1 rounded-full hover:bg-violet-100 transition"
+                      >
+                        <ChefHat size={12} />
+                        {product.recipes.length} bahan
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ═══ DESKTOP TABLE ═══ */}
+            <div className="hidden md:block bg-white rounded-3xl shadow-xl overflow-x-auto">
               <table className="w-full min-w-160 text-base">
                 <thead className="bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
                   <tr>
@@ -861,28 +954,26 @@ export default function ProductsPage() {
               </table>
             </div>
 
-            {/* PAGINATION BAR (like ingredients) */}
+            {/* PAGINATION BAR */}
             {totalPages > 1 && (
-              <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t rounded-b-3xl">
-                <div className="flex items-center gap-6">
-                  <button
-                    className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
-                    disabled={page === 1 || loading}
-                    onClick={() => fetchProducts(page - 1)}
-                  >
-                    ‹ Sebelumnya
-                  </button>
-                  <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
-                    Halaman {page} dari {totalPages}
-                  </span>
-                  <button
-                    className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
-                    disabled={page === totalPages || loading}
-                    onClick={() => fetchProducts(page + 1)}
-                  >
-                    Selanjutnya ›
-                  </button>
-                </div>
+              <div className="flex items-center justify-center gap-3 sm:gap-6 px-2 py-4 sm:py-6">
+                <button
+                  className="px-3 sm:px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 disabled:opacity-40 text-xs sm:text-base"
+                  disabled={page === 1 || loading}
+                  onClick={() => fetchProducts(page - 1)}
+                >
+                  ‹ Prev
+                </button>
+                <span className="text-xs sm:text-base font-semibold text-indigo-700 bg-indigo-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm whitespace-nowrap">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  className="px-3 sm:px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 disabled:opacity-40 text-xs sm:text-base"
+                  disabled={page === totalPages || loading}
+                  onClick={() => fetchProducts(page + 1)}
+                >
+                  Next ›
+                </button>
               </div>
             )}
           </>
@@ -890,6 +981,7 @@ export default function ProductsPage() {
       </div>
 
       {/* Modals */}
+      {recipeModal && <RecipeModal product={recipeModal} onClose={() => setRecipeModal(null)} />}
       {recipeModal && <RecipeModal product={recipeModal} onClose={() => setRecipeModal(null)} />}
 
       {/* Modal edit produk lengkap */}

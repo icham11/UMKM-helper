@@ -101,13 +101,15 @@ export default function ShiftHistoryPage() {
                 <div className="flex items-center gap-3">
                   {s.status === "Closed" ? (
                     <>
-                      <div className="text-right text-sm">
+                      <div className="text-right text-sm hidden sm:block">
                         <div className="text-xs text-gray-400">Trx</div>
                         <div className="font-bold">{s.transactionCount}</div>
                       </div>
                       <div className="text-right text-sm">
                         <div className="text-xs text-gray-400">Revenue</div>
-                        <div className="font-bold text-indigo-600">{fRp(s.totalRevenue)}</div>
+                        <div className="font-bold text-indigo-600 text-xs sm:text-sm truncate max-w-[120px] sm:max-w-none">
+                          {fRp(s.totalRevenue)}
+                        </div>
                       </div>
                       <div
                         className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${!s.discrepancy ? "text-green-600 bg-green-50" : Math.abs(s.discrepancy / (s.expectedCash || 1)) * 100 <= 5 ? "text-orange-600 bg-orange-50" : "text-red-600 bg-red-50"}`}
@@ -247,9 +249,9 @@ export default function ShiftHistoryPage() {
                 <div className="font-bold text-amber-700">{fRp(sel.kasbonTotal)}</div>
               </div>
             </div>
-            <div className="bg-indigo-600 text-white rounded-xl p-4 flex justify-between">
-              <span className="font-semibold">Total Revenue</span>
-              <span className="text-xl font-bold">{fRp(sel.totalRevenue)}</span>
+            <div className="bg-indigo-600 text-white rounded-xl p-4 flex justify-between items-center">
+              <span className="font-semibold text-sm sm:text-base">Total Revenue</span>
+              <span className="text-base sm:text-xl font-bold truncate ml-2">{fRp(sel.totalRevenue)}</span>
             </div>
             {sel.notes && (
               <div className="bg-gray-50 rounded-xl p-3 text-sm">

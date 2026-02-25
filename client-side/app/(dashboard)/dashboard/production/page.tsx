@@ -22,7 +22,11 @@ interface ProductionBatch {
 }
 
 const formatRupiah = (val: number) =>
-  new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(val);
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(val);
 
 export default function ProductionPage() {
   const [summary, setSummary] = useState<ReadyStockProduct[]>([]);
@@ -40,7 +44,9 @@ export default function ProductionPage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/production?limit=50", { credentials: "include" });
+      const res = await fetch("/api/production?limit=50", {
+        credentials: "include",
+      });
       const data = await res.json();
       if (data.success) {
         setSummary(data.summary ?? []);
@@ -67,7 +73,10 @@ export default function ProductionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ productId: selectedProduct.productId, quantity: produceQty }),
+        body: JSON.stringify({
+          productId: selectedProduct.productId,
+          quantity: produceQty,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Gagal produksi");
@@ -87,21 +96,21 @@ export default function ProductionPage() {
   return (
     <div className="space-y-6">
       {/* Header — matches indigo/purple theme */}
-      <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 rounded-2xl p-5 sm:p-8 shadow-lg shadow-indigo-200/30">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-3xl font-bold text-white flex items-center gap-3">
-              <Factory className="w-7 h-7" />
+      <div className="bg-linear-to-r from-indigo-600 via-purple-600 to-indigo-600 rounded-2xl p-4 sm:p-5 md:p-8 shadow-lg shadow-indigo-200/30">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+              <Factory className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
               Produksi
             </h1>
-            <p className="text-indigo-200 mt-1 text-sm">
+            <p className="text-indigo-200 mt-1 text-xs sm:text-sm">
               Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
             </p>
           </div>
           <button
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-sm rounded-xl text-sm font-medium text-white transition"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 bg-white/20 hover:bg-white/30 border border-white/20 backdrop-blur-sm rounded-xl text-xs sm:text-sm font-medium text-white transition shrink-0"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             Refresh
@@ -139,21 +148,21 @@ export default function ProductionPage() {
                 <p className="text-xs mt-1">Ubah tipe produk ke &quot;Ready Stock&quot; di halaman Products.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 {summary.map((p) => (
                   <div
                     key={p.productId}
-                    className="bg-white rounded-2xl border border-indigo-100 p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition"
+                    className="bg-white rounded-2xl border border-indigo-100 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-indigo-200 transition"
                   >
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-bold text-gray-900">{p.productName}</h3>
+                    <div className="flex items-start justify-between mb-2 sm:mb-3 gap-2">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight">{p.productName}</h3>
                         <p className="text-xs text-gray-500 mt-0.5">
                           Harga jual: {formatRupiah(Number(p.sellingPrice))}
                         </p>
                       </div>
                       <span
-                        className={`text-sm font-bold px-3 py-1 rounded-full ${
+                        className={`text-sm font-bold px-2.5 py-0.5 rounded-full shrink-0 ${
                           p.availableStock <= 0
                             ? "bg-red-100 text-red-600"
                             : p.availableStock <= 5
@@ -164,8 +173,10 @@ export default function ProductionPage() {
                         {p.availableStock}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400">Biaya resep: {formatRupiah(Number(p.recipeCost))}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-gray-400 truncate">
+                        Biaya resep: {formatRupiah(Number(p.recipeCost))}
+                      </span>
                       <button
                         onClick={() => {
                           setSelectedProduct(p);
@@ -173,7 +184,7 @@ export default function ProductionPage() {
                           setShowModal(true);
                           setError(null);
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition shrink-0"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Produksi
@@ -193,23 +204,31 @@ export default function ProductionPage() {
                 <p className="text-sm">Belum ada riwayat produksi.</p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl border border-indigo-100 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-indigo-50/50 text-xs font-bold text-indigo-400 uppercase">
-                      <th className="px-5 py-3 text-left">Produk</th>
-                      <th className="px-5 py-3 text-center">Qty Produksi</th>
-                      <th className="px-5 py-3 text-center">Sisa</th>
-                      <th className="px-5 py-3 text-right">Biaya/unit</th>
-                      <th className="px-5 py-3 text-right">Tanggal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-indigo-50">
-                    {batches.map((b) => (
-                      <tr key={b.id} className="hover:bg-indigo-50/30 transition">
-                        <td className="px-5 py-3 font-medium text-gray-900">{b.product.name}</td>
-                        <td className="px-5 py-3 text-center">{b.quantity}</td>
-                        <td className="px-5 py-3 text-center">
+              <>
+                {/* ═══ MOBILE CARD VIEW ═══ */}
+                <div className="md:hidden space-y-3">
+                  {batches.map((b) => (
+                    <div key={b.id} className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 space-y-2.5">
+                      {/* Product name + date */}
+                      <div className="flex items-start justify-between gap-2">
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight">{b.product.name}</h3>
+                        <span className="text-[11px] text-gray-400 whitespace-nowrap shrink-0">
+                          {new Date(b.producedAt).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Stats row */}
+                      <div className="flex items-center gap-3 text-xs">
+                        <div className="flex-1">
+                          <span className="text-gray-400 block">Qty</span>
+                          <span className="font-bold text-gray-700 text-sm">{b.quantity}</span>
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-gray-400 block">Sisa</span>
                           <span
                             className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
                               b.remainingQty <= 0 ? "bg-gray-100 text-gray-400" : "bg-indigo-100 text-indigo-700"
@@ -217,23 +236,60 @@ export default function ProductionPage() {
                           >
                             {b.remainingQty}
                           </span>
-                        </td>
-                        <td className="px-5 py-3 text-right text-gray-600">{formatRupiah(Number(b.costPerUnit))}</td>
-                        <td className="px-5 py-3 text-right text-gray-500">
-                          {new Date(b.producedAt).toLocaleDateString("id-ID", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            timeZone: "Asia/Jakarta",
-                          })}
-                        </td>
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-gray-400 block">Biaya/unit</span>
+                          <span className="font-bold text-indigo-700 text-sm">
+                            {formatRupiah(Number(b.costPerUnit))}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* ═══ DESKTOP TABLE ═══ */}
+                <div className="hidden md:block bg-white rounded-2xl border border-indigo-100 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-indigo-50/50 text-xs font-bold text-indigo-400 uppercase">
+                        <th className="px-5 py-3 text-left">Produk</th>
+                        <th className="px-5 py-3 text-center">Qty Produksi</th>
+                        <th className="px-5 py-3 text-center">Sisa</th>
+                        <th className="px-5 py-3 text-right">Biaya/unit</th>
+                        <th className="px-5 py-3 text-right">Tanggal</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-indigo-50">
+                      {batches.map((b) => (
+                        <tr key={b.id} className="hover:bg-indigo-50/30 transition">
+                          <td className="px-5 py-3 font-medium text-gray-900">{b.product.name}</td>
+                          <td className="px-5 py-3 text-center">{b.quantity}</td>
+                          <td className="px-5 py-3 text-center">
+                            <span
+                              className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                                b.remainingQty <= 0 ? "bg-gray-100 text-gray-400" : "bg-indigo-100 text-indigo-700"
+                              }`}
+                            >
+                              {b.remainingQty}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3 text-right text-gray-600">{formatRupiah(Number(b.costPerUnit))}</td>
+                          <td className="px-5 py-3 text-right text-gray-500">
+                            {new Date(b.producedAt).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </>
@@ -242,8 +298,10 @@ export default function ProductionPage() {
       {/* Produce Modal */}
       {showModal && selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-extrabold text-gray-900 mb-1">Produksi: {selectedProduct.productName}</h3>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6">
+            <h3 className="text-base sm:text-lg font-extrabold text-gray-900 mb-1">
+              Produksi: {selectedProduct.productName}
+            </h3>
             <p className="text-xs text-gray-500 mb-5">Bahan baku akan dikurangi otomatis sesuai resep produk.</p>
 
             <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Jumlah Produksi</label>

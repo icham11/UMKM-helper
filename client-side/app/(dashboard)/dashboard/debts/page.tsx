@@ -94,7 +94,11 @@ function daysUntilDue(debt: Debt): number | null {
 export default function DebtsPage() {
   const { business } = useBusiness();
   const [debts, setDebts] = useState<Debt[]>([]);
-  const [summary, setSummary] = useState<Summary>({ totalDebt: 0, unpaidCount: 0, totalCount: 0 });
+  const [summary, setSummary] = useState<Summary>({
+    totalDebt: 0,
+    unpaidCount: 0,
+    totalCount: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -122,7 +126,9 @@ export default function DebtsPage() {
       const params = new URLSearchParams();
       if (statusFilter !== "all" && statusFilter !== "overdue") params.set("status", statusFilter);
       if (search) params.set("search", search);
-      const res = await fetch(`/api/debts?${params}`, { credentials: "include" });
+      const res = await fetch(`/api/debts?${params}`, {
+        credentials: "include",
+      });
       if (!res.ok) throw new Error("Gagal memuat");
       const data = await res.json();
       setDebts(data.data || []);
@@ -191,7 +197,10 @@ export default function DebtsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ amount: Number(payAmount), notes: payNotes || undefined }),
+        body: JSON.stringify({
+          amount: Number(payAmount),
+          notes: payNotes || undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal");
@@ -281,13 +290,13 @@ export default function DebtsPage() {
     <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2.5 bg-linear-to-br from-amber-500 to-orange-500 rounded-xl text-white">
-            <BookOpen className="w-7 h-7" />
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="p-2 sm:p-2.5 bg-linear-to-br from-amber-500 to-orange-500 rounded-xl text-white">
+            <BookOpen className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           Kasbon (Piutang)
         </h1>
-        <p className="text-gray-500 mt-1">Catat dan kelola piutang pelanggan. Bayar sebagian atau lunas.</p>
+        <p className="text-gray-500 mt-1 text-sm">Catat dan kelola piutang pelanggan. Bayar sebagian atau lunas.</p>
       </motion.div>
 
       {/* ══ Overdue Warning Banner ══ */}
@@ -359,7 +368,8 @@ export default function DebtsPage() {
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm text-gray-900 truncate">{c.name}</p>
                         <p className="text-[10px] text-gray-400">
-                          {c.count} kasbon{c.overdueCount > 0 ? ` · ${c.overdueCount} jatuh tempo` : ""}
+                          {c.count} kasbon
+                          {c.overdueCount > 0 ? ` · ${c.overdueCount} jatuh tempo` : ""}
                         </p>
                       </div>
                       <div className="text-right shrink-0">
@@ -571,7 +581,9 @@ export default function DebtsPage() {
                               className={`h-full rounded-full transition-all ${
                                 debt.status === "Paid" ? "bg-green-500" : overdue ? "bg-red-500" : "bg-amber-500"
                               }`}
-                              style={{ width: `${Math.min(100, (debt.paidAmount / debt.totalAmount) * 100)}%` }}
+                              style={{
+                                width: `${Math.min(100, (debt.paidAmount / debt.totalAmount) * 100)}%`,
+                              }}
                             />
                           </div>
                         </div>
@@ -755,10 +767,13 @@ export default function DebtsPage() {
                         placeholder="0"
                       />
                       {/* Quick-pay presets */}
-                      <div className="grid grid-cols-4 gap-1.5 mt-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 mt-2">
                         {[
                           { label: "Lunas", value: payDebt.remaining },
-                          { label: "½", value: Math.round(payDebt.remaining / 2) },
+                          {
+                            label: "½",
+                            value: Math.round(payDebt.remaining / 2),
+                          },
                           ...[10000, 20000, 50000, 100000, 200000, 500000]
                             .filter(
                               (v) =>

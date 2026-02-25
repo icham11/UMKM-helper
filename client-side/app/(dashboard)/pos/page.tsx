@@ -159,6 +159,10 @@ function formatDate(date: Date): string {
 
 function formatTime(date: Date): string {
   return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
+  return date.toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 // ─── Main Component ───
@@ -182,6 +186,14 @@ export default function POSPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // ── Shift management ──
+  const {
+    shift,
+    isOpen: isShiftOpen,
+    loading: shiftLoading,
+    openShift,
+    closeShift,
+    refresh: refreshShift,
+  } = useShift();
   const {
     shift,
     isOpen: isShiftOpen,
@@ -364,8 +376,17 @@ export default function POSPage() {
 
       if (existing) {
         return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
+        return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
       }
-      return [...prev, { productId: product.id, name: product.name, price: Number(product.sellingPrice), quantity: 1 }];
+      return [
+        ...prev,
+        {
+          productId: product.id,
+          name: product.name,
+          price: Number(product.sellingPrice),
+          quantity: 1,
+        },
+      ];
     });
   };
 
@@ -427,7 +448,10 @@ export default function POSPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+            items: cart.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
             paymentMethod,
             customerName,
             customerEmail,
@@ -479,7 +503,10 @@ export default function POSPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+            items: cart.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
             paymentMethod: "Kasbon",
             paymentStatus: "Pending",
             customerName: customerName.trim(),
@@ -500,7 +527,10 @@ export default function POSPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            items: cart.map((item) => ({ productId: item.productId, quantity: item.quantity })),
+            items: cart.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+            })),
             paymentMethod: paymentMethod, // Use actual state, not hardcoded
             paymentStatus: "Paid",
             customerName: customerName || undefined,
@@ -532,7 +562,7 @@ export default function POSPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-8rem)] md:h-[calc(100dvh-3.5rem)] flex flex-col overflow-hidden pb-16 md:pb-0">
       {/* ═══ Top Bar ═══ */}
       <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -591,9 +621,9 @@ export default function POSPage() {
       )}
 
       {/* ═══ Main Content ═══ */}
-      <div className="flex-1 flex flex-col md:flex-row gap-3 sm:gap-4 p-2 sm:p-4 overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col md:flex-row gap-3 sm:gap-4 p-2 sm:p-4 overflow-auto md:overflow-hidden min-h-0">
         {/* ─── LEFT: Products ─── */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-[50vh] md:min-h-0">
           {/* Search + Categories */}
           <div className="flex gap-3 mb-3 shrink-0">
             <div className="relative flex-1">
@@ -659,7 +689,7 @@ export default function POSPage() {
                 <p className="text-sm">Tidak ada produk ditemukan</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
                 {filteredProducts.map((product) => {
                   // Reserved by OTHER cart items (exclude this product)
                   const reservedByOthers = buildReservedStock(cart, products, product.id);
@@ -692,7 +722,7 @@ export default function POSPage() {
                       key={product.id}
                       onClick={() => available && !isMaxed && addToCart(product)}
                       disabled={!available || isMaxed}
-                      className={`relative text-left rounded-xl p-4 transition-all duration-200 border min-h-65 flex flex-col justify-start ${
+                      className={`relative text-left rounded-xl p-3 sm:p-4 transition-all duration-200 border min-h-35 sm:min-h-65 flex flex-col justify-start ${
                         !available
                           ? "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
                           : isMaxed
@@ -725,13 +755,15 @@ export default function POSPage() {
 
                       {/* Name */}
                       <h3
-                        className={`font-semibold mt-2 text-sm leading-tight ${!available ? "text-gray-400" : "text-gray-900"}`}
+                        className={`font-semibold mt-2 text-xs sm:text-sm leading-tight line-clamp-2 ${!available ? "text-gray-400" : "text-gray-900"}`}
                       >
                         {product.name}
                       </h3>
 
                       {/* Price */}
-                      <p className={`text-base font-bold mt-1 ${!available ? "text-gray-300" : "text-indigo-600"}`}>
+                      <p
+                        className={`text-sm sm:text-base font-bold mt-1 ${!available ? "text-gray-300" : "text-indigo-600"}`}
+                      >
                         {formatRupiah(Number(product.sellingPrice))}
                       </p>
 
@@ -824,7 +856,7 @@ export default function POSPage() {
         </div>
 
         {/* ─── RIGHT: Cart ─── */}
-        <div className="w-full md:w-96 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden max-h-[50vh] md:max-h-none">
+        <div className="w-full md:w-80 lg:w-96 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden min-h-[40vh] md:min-h-0 md:max-h-none">
           {/* Cart header */}
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
@@ -1194,9 +1226,7 @@ export default function POSPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Dibuka</span>
-                  <span className="font-medium">
-                    {new Date(shift.openedAt).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })}
-                  </span>
+                  <span className="font-medium">{new Date(shift.openedAt).toLocaleString("id-ID")}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between">

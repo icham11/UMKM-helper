@@ -74,7 +74,11 @@ async function evaluateForecastAccuracy(businessId: number) {
     }
 
     // Match forecasts with actuals
-    const comparisons: { predicted: number; actual: number; daysAgo: number }[] = [];
+    const comparisons: {
+      predicted: number;
+      actual: number;
+      daysAgo: number;
+    }[] = [];
     for (const fc of pastForecasts) {
       const dateStr = toDateString(fc.date);
       const actual = actualByDate.get(dateStr);
@@ -177,7 +181,12 @@ async function generateForecastForBusiness(businessId: number) {
   console.log(`[FORECAST] Business ${businessId}: Using ${lookbackDays}-day adaptive lookback`);
 
   // ─── Step 2: Fetch Product Sales Data with Prices ──────────────────────
-  type DailyQtyRow = { productId: number; date: string; qty: number; avgPrice: number };
+  type DailyQtyRow = {
+    productId: number;
+    date: string;
+    qty: number;
+    avgPrice: number;
+  };
   const rawRows = await prisma.$queryRaw<DailyQtyRow[]>`
     SELECT
       si."productId"::int AS "productId",
@@ -225,7 +234,13 @@ async function generateForecastForBusiness(businessId: number) {
   // ─── Step 4: Generate Product-Level Forecasts ──────────────────────────
   const productForecastMap = new Map<
     number,
-    { date: string; qty: number; lower: number; upper: number; metadata: object }[]
+    {
+      date: string;
+      qty: number;
+      lower: number;
+      upper: number;
+      metadata: object;
+    }[]
   >();
   let skippedProducts = 0;
   const priceChangeNotes: string[] = [];
@@ -255,7 +270,12 @@ async function generateForecastForBusiness(businessId: number) {
     const currentPrice = productPriceMap.get(productId)?.sellingPrice ?? 0;
     const priceChangeInfo = detectPriceChange(historicalPrices, currentPrice);
     if (priceChangeInfo.detected) {
-      const productName = (await prisma.product.findUnique({ where: { id: productId }, select: { name: true } }))?.name;
+      const productName = (
+        await prisma.product.findUnique({
+          where: { id: productId },
+          select: { name: true },
+        })
+      )?.name;
       priceChangeNotes.push(`${productName}: ${priceChangeInfo.note}`);
     }
 
@@ -312,7 +332,13 @@ async function generateForecastForBusiness(businessId: number) {
     const qtyCap = Math.max(avgQty * 3, 1);
 
     // ─── 4g: Save Product Forecasts ──────────────────────────────────────
-    const forecastsForProduct: { date: string; qty: number; lower: number; upper: number; metadata: object }[] = [];
+    const forecastsForProduct: {
+      date: string;
+      qty: number;
+      lower: number;
+      upper: number;
+      metadata: object;
+    }[] = [];
 
     await Promise.all(
       preds.map((val, i) => {
@@ -340,7 +366,13 @@ async function generateForecastForBusiness(businessId: number) {
           priceChangeDetected: priceChangeInfo.detected,
         };
 
-        forecastsForProduct.push({ date: dateStr, qty, lower, upper, metadata });
+        forecastsForProduct.push({
+          date: dateStr,
+          qty,
+          lower,
+          upper,
+          metadata,
+        });
 
         return prisma.productForecast.upsert({
           where: { productId_date: { productId, date: new Date(dateStr) } },
@@ -603,7 +635,11 @@ async function generateHealthScoreForBusiness(businessId: number) {
 // AI INSIGHT GENERATION — brief chart labels per section
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => Promise<string> }[] = [
+const INSIGHT_SECTIONS: {
+  key: string;
+  prompt: string;
+  gather: (bid: number) => Promise<string>;
+}[] = [
   {
     key: "revenue",
     prompt:
@@ -648,8 +684,12 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const [cur, prev] = await Promise.all([
-        prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: thisMonth } } }),
-        prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: lastMonth, lt: thisMonth } } }),
+        prisma.businessMetrics.findMany({
+          where: { businessId: bid, date: { gte: thisMonth } },
+        }),
+        prisma.businessMetrics.findMany({
+          where: { businessId: bid, date: { gte: lastMonth, lt: thisMonth } },
+        }),
       ]);
       const curRev = cur.reduce((s, x) => s + Number(x.totalRevenue), 0);
       const prevRev = prev.reduce((s, x) => s + Number(x.totalRevenue), 0);
@@ -705,7 +745,9 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
           AND im."createdAt" >= ${since}
       `;
       const waste = Number(wasteMoves[0]?.totalWaste ?? 0);
-      const metrics = await prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: since } } });
+      const metrics = await prisma.businessMetrics.findMany({
+        where: { businessId: bid, date: { gte: since } },
+      });
       const rev = metrics.reduce((s, m) => s + Number(m.totalRevenue), 0);
       const pct = rev > 0 ? ((waste / rev) * 100).toFixed(1) : "0";
       return `Biaya limbah 30 hari: Rp ${waste.toLocaleString("id-ID")} (${pct}% dari pendapatan Rp ${rev.toLocaleString("id-ID")}).`;
@@ -842,7 +884,12 @@ async function generateInsightsForBusiness(businessId: number) {
       await prisma.analyticsInsight.upsert({
         where: { businessId_section: { businessId, section: section.key } },
         update: { insight, generatedAt: new Date() },
-        create: { businessId, section: section.key, insight, generatedAt: new Date() },
+        create: {
+          businessId,
+          section: section.key,
+          insight,
+          generatedAt: new Date(),
+        },
       });
     } catch (err) {
       console.error(`[CRON] Insight generation failed for biz ${businessId}, section ${section.key}:`, err);
@@ -869,7 +916,10 @@ export async function POST(req: NextRequest) {
     // If called by an authenticated user, only generate for their business
     // If called by cron (CRON_SECRET), generate for all businesses
     const businesses = authedUser
-      ? await prisma.business.findMany({ where: { id: authedUser.businessId }, select: { id: true, name: true } })
+      ? await prisma.business.findMany({
+          where: { id: authedUser.businessId },
+          select: { id: true, name: true },
+        })
       : await prisma.business.findMany({ select: { id: true, name: true } });
     const results: { businessId: number; name: string; status: string }[] = [];
 
@@ -881,7 +931,11 @@ export async function POST(req: NextRequest) {
         results.push({ businessId: biz.id, name: biz.name, status: "success" });
       } catch (err) {
         console.error(`[CRON] Forecast failed for business ${biz.id}:`, err);
-        results.push({ businessId: biz.id, name: biz.name, status: `error: ${String(err).slice(0, 100)}` });
+        results.push({
+          businessId: biz.id,
+          name: biz.name,
+          status: `error: ${String(err).slice(0, 100)}`,
+        });
       }
     }
 

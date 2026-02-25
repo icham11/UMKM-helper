@@ -187,7 +187,10 @@ export default function StaffPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: inviteEmail.trim(), businessId: inviteBusinessId }),
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          businessId: inviteBusinessId,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -309,13 +312,13 @@ export default function StaffPage() {
     <div className="space-y-8 max-w-3xl mx-auto">
       {/* ═══ Header ═══ */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="p-2.5 bg-linear-to-br from-indigo-500 to-purple-500 rounded-xl text-white">
-            <Users className="w-7 h-7" />
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="p-2 sm:p-2.5 bg-linear-to-br from-indigo-500 to-purple-500 rounded-xl text-white">
+            <Users className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
           Kelola Staff
         </h1>
-        <p className="text-gray-500 mt-1">Daftarkan kasir, atur bisnis penempatan, dan kelola tim Anda.</p>
+        <p className="text-gray-500 mt-1 text-sm">Daftarkan kasir, atur bisnis penempatan, dan kelola tim Anda.</p>
       </motion.div>
 
       {/* ═══ RBAC Explanation ═══ */}
@@ -326,7 +329,7 @@ export default function StaffPage() {
         className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5"
       >
         <h3 className="font-bold text-gray-900 text-sm mb-3">Perbedaan Hak Akses</h3>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="p-4 bg-amber-50 rounded-xl border border-amber-100">
             <div className="flex items-center gap-2 mb-2">
               <Crown className="w-4 h-4 text-amber-600" />
@@ -677,7 +680,7 @@ export default function StaffPage() {
                       <Building2 className="w-2.5 h-2.5" /> {member.businessName}
                     </span>
                     <span className="text-[10px] text-gray-400">
-                      Bergabung: {new Date(member.joinedAt).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
+                      Bergabung: {new Date(member.joinedAt).toLocaleDateString("id-ID")}
                     </span>
                   </div>
                 </div>

@@ -181,7 +181,10 @@ export default function ProfilePage() {
     try {
       const res = await apiFetch("/api/auth/profile/password", {
         method: "POST",
-        body: JSON.stringify({ currentPassword: currentPw, newPassword: newPw }),
+        body: JSON.stringify({
+          currentPassword: currentPw,
+          newPassword: newPw,
+        }),
       });
       if (res.success) {
         toast.success("Password berhasil diubah!");
@@ -226,13 +229,13 @@ export default function ProfilePage() {
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2.5 bg-linear-to-br from-violet-500 to-fuchsia-500 rounded-xl text-white">
-              <User className="w-7 h-7" />
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="p-2 sm:p-2.5 bg-linear-to-br from-violet-500 to-fuchsia-500 rounded-xl text-white">
+              <User className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
             Profil Saya
           </h1>
-          <p className="text-gray-500 mt-1">Kelola informasi akun dan keamanan Anda</p>
+          <p className="text-gray-500 mt-1 text-sm">Kelola informasi akun dan keamanan Anda</p>
         </div>
         <button
           onClick={fetchProfile}
@@ -260,7 +263,7 @@ export default function ProfilePage() {
         <div className="px-6 sm:px-8 pb-8 -mt-14 relative">
           {/* Avatar */}
           <div className="flex items-end gap-5 mb-6">
-            <div className="w-24 h-24 rounded-2xl bg-linear-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center text-white text-3xl font-bold shadow-xl border-4 border-white">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-linear-to-br from-violet-400 to-fuchsia-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold shadow-xl border-4 border-white">
               {session?.user?.image ? (
                 <Image
                   src={session.user.image}
@@ -387,6 +390,8 @@ export default function ProfilePage() {
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Terakhir Diperbarui</p>
                   <p className="text-gray-700 font-medium">{updatedAgoLabel}</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Terakhir Diperbarui</p>
+                  <p className="text-gray-700 font-medium">{timeAgo(profile.updatedAt)}</p>
                 </div>
               </div>
             </div>
@@ -399,7 +404,7 @@ export default function ProfilePage() {
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> Ringkasan Akun
         </h3>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           <AccountStat
             icon={Building2}
             label="Bisnis"

@@ -73,7 +73,8 @@ export default function DashboardError({
               Terjadi Kesalahan di Dashboard
             </h1>
             <p className="text-gray-500 mt-2 text-sm leading-relaxed">
-              Komponen ini mengalami error. Data kamu aman — coba muat ulang bagian ini.
+              Komponen ini mengalami error. Data kamu aman — coba muat ulang
+              bagian ini.
             </p>
           </div>
 
@@ -153,7 +154,7 @@ export default function DashboardError({
                 Muat Ulang
               </button>
               <Link
-                href="/dashboard"
+                href="/dashboard/business"
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-semibold hover:bg-gray-200 transition-all active:scale-[0.98]"
               >
                 <LayoutDashboard className="w-4 h-4" />
@@ -189,4 +190,3 @@ export default function DashboardError({
     </div>
   );
 }
-
