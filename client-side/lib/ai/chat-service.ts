@@ -423,9 +423,10 @@ export async function streamChatWithAssistant(
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
         controller.close();
-      } catch {
+      } catch (primaryError) {
         // Try fallback
-        console.warn("⚠️ Streaming primary failed, trying fallback...");
+        const primaryMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+        console.warn(`⚠️ Streaming primary failed (${primaryMsg}), trying fallback...`);
         try {
           const stream = await groq.chat.completions.create({
             messages: allMessages.map((m) => ({
@@ -449,8 +450,34 @@ export async function streamChatWithAssistant(
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
           controller.close();
         } catch (fallbackError) {
-          const msg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
+          const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          console.warn(`⚠️ Streaming fallback failed (${fallbackMsg}), trying non-stream fallback...`);
+
+          // Final fallback: return a normal completion as one chunk.
+          // This keeps UX working even if provider streaming fails in certain runtimes.
+          try {
+            const nonStream = await chatWithAssistant(messages, context);
+            if (nonStream) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: nonStream })}\n\n`));
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+              controller.close();
+              return;
+            }
+          } catch (nonStreamError) {
+            const nonStreamMsg =
+              nonStreamError instanceof Error ? nonStreamError.message : String(nonStreamError);
+            console.error("❌ AI Stream + non-stream fallback failed:", {
+              streaming: fallbackMsg,
+              nonStreaming: nonStreamMsg,
+            });
+            controller.enqueue(
+              encoder.encode(`data: ${JSON.stringify({ error: nonStreamMsg })}\n\n`)
+            );
+            controller.close();
+            return;
+          }
+
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: fallbackMsg })}\n\n`));
           controller.close();
         }
       }
@@ -666,6 +693,5 @@ export async function autoTitleSession(sessionId: number, businessId: number, fi
     await updateSessionTitle(sessionId, businessId, title);
   }
 }
-
 
 

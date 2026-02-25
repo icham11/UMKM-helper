@@ -301,27 +301,75 @@ export default function AIChatWidget() {
 
         const decoder = new TextDecoder();
         let fullContent = "";
+        let streamBuffer = "";
+        let streamError: string | null = null;
+
+        const processSSEEvent = (eventBlock: string) => {
+          const dataLines = eventBlock
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line.startsWith("data:"));
+
+          for (const line of dataLines) {
+            const payload = line.slice(5).trim();
+            if (!payload) continue;
+
+            let data: unknown;
+            try {
+              data = JSON.parse(payload);
+            } catch {
+              continue;
+            }
+
+            const parsed = data as {
+              done?: boolean;
+              error?: string;
+              content?: string;
+            };
+
+            if (parsed.error) {
+              streamError = parsed.error;
+              return;
+            }
+            if (parsed.done) {
+              return;
+            }
+            if (typeof parsed.content === "string" && parsed.content.length > 0) {
+              fullContent += parsed.content;
+              setStreamingContent(fullContent);
+            }
+          }
+        };
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+          streamBuffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
 
-          for (const line of lines) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.done) break;
-              if (data.error) throw new Error(data.error);
-              if (data.content) {
-                fullContent += data.content;
-                setStreamingContent(fullContent);
-              }
-            } catch {
-              /* skip */
+          let separatorIdx = streamBuffer.indexOf("\n\n");
+          while (separatorIdx !== -1) {
+            const eventBlock = streamBuffer.slice(0, separatorIdx).trim();
+            streamBuffer = streamBuffer.slice(separatorIdx + 2);
+
+            if (eventBlock) {
+              processSSEEvent(eventBlock);
             }
+            if (streamError) break;
+
+            separatorIdx = streamBuffer.indexOf("\n\n");
           }
+
+          if (streamError) break;
+        }
+
+        // Flush any trailing event that may not end with \n\n
+        if (!streamError && streamBuffer.trim()) {
+          processSSEEvent(streamBuffer.trim());
+        }
+
+        if (streamError) {
+          throw new Error(streamError);
         }
 
         setMessages((prev) => [
