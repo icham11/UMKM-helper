@@ -2,113 +2,122 @@
 
 **Bikin bisnis makin cuan.**
 
-Cuanify adalah platform **AI-powered POS (Point of Sale)** dan **inventory dinamis** untuk UMKM/MSME—berperan sebagai *virtual business consultant* yang membantu bisnis lebih rapi, cepat ambil keputusan, dan menjaga margin keuntungan. Dari pencatatan transaksi sampai insight harian berbasis AI, semuanya dibuat **simpel, sat-set, dan enak dipakai**.
+Cuanify adalah platform **AI-powered Point of Sale (POS)** dan **inventory dinamis** untuk UMKM/MSME—berperan sebagai *virtual business consultant* yang membantu bisnis lebih rapi tanpa ribet. Dari catatan penjualan sampai insight yang bikin kamu lebih paham bisnis sendiri, semuanya dibuat simpel dan enak dipakai supaya kamu nggak cuma “jalanin usaha”, tapi juga bisa ngarahin biar makin cuan.
 
 ---
 
-## Who It’s For
-Cuanify dirancang untuk:
-- Pemilik UMKM (F&B, retail, usaha rumahan) yang butuh POS + inventori rapi tanpa ribet
-- Tim operasional/kasir yang butuh flow transaksi cepat dengan stok otomatis
-- Owner yang ingin analitik & rekomendasi berbasis data untuk meningkatkan profit
+## Who is it for
+- Pemilik UMKM (terutama F&B / retail) yang butuh POS cepat + stok rapi
+- Tim operasional/kasir yang butuh flow transaksi yang sat-set
+- Owner yang ingin kontrol **HPP/COGS** dan keputusan bisnis berbasis data
 
 ---
 
-## Problem We Solve
-Banyak UMKM mengalami:
-- Pencatatan penjualan dan stok yang manual → rawan bocor & tidak akurat  
-- Sulit menghitung **HPP/COGS** real-time → margin tidak terkontrol  
-- Overstock/stockout karena forecasting lemah  
-- Insight bisnis tidak actionable (data ada, tapi tidak “ngasih arah”)  
-- SOP/dokumen bisnis tidak terpakai karena sulit dicari & dipahami cepat  
-
-Cuanify menyatukan **POS + FIFO inventory + COGS real-time + AI insights + RAG assistant** agar owner bisa **mengurangi kebocoran**, **mengoptimalkan stok**, dan **naik level** secara berkelanjutan.
+## Problem Solved
+- Stok dan bahan baku sering tidak akurat → rawan kebocoran & overstock/stockout
+- HPP/COGS susah dihitung real-time → margin tidak terkontrol
+- Data transaksi ada tapi insight kurang actionable
+- SOP/dokumen bisnis sulit dicari & dipakai operasional harian
 
 ---
 
 ## Core Features
-- **AI Product & Recipe Management**
+- **Manajemen Produk & Resep Berbasis AI**
   - Buat produk dari nama atau foto (AI)
   - Auto-generate resep, bahan baku, dan rekomendasi harga jual
   - CRUD produk, kategori, bahan baku
   - Pelacakan inventaris batch **FIFO**
-- **Smart POS + Dynamic Inventory**
-  - POS terintegrasi: transaksi cepat, status **Pre-Order (PO)** & **Ready Stock**
-  - **COGS/HPP real-time** berdasarkan resep ingredients
-  - Otomatis mengurangi stok bahan baku saat pembayaran
-- **AI Business Analytics Dashboard**
+- **Smart POS & Manajemen Inventori Dinamis**
+  - POS terintegrasi (Ready Stock & Pre-Order/PO)
+  - Potong stok bahan baku otomatis saat transaksi dibayar
+  - Hitung **HPP/COGS real-time** berdasarkan resep (ingredients)
+- **Analitik Bisnis & Dashboard Berbasis AI**
   - Skor kesehatan bisnis harian
-  - Tren penjualan, performa produk, alert inventaris
-  - Optimasi biaya resep dan insight berbasis AI (Groq)
-- **RAG-based AI Assistant (Business Docs + Internal Data)**
-  - Chatbot konsultan bisnis dengan pencarian semantik (vector database)
-  - Bisa jawab pertanyaan dari data internal (transaksi, produk) + dokumen PDF (SOP, dll)
-- **Authentication & Business Onboarding**
-  - Google OAuth + Email/Password (JWT)
-  - Buat profil bisnis, sesi multi-auth
+  - Tren penjualan, insight performa produk, alert inventaris
+  - Optimasi biaya resep berbasis AI (**Groq**)
+- **AI Assistant Berbasis RAG (Dokumen + Data Internal)**
+  - Chatbot konsultan bisnis dengan pencarian semantik (vector search)
+  - Menjawab pertanyaan berdasarkan transaksi, produk, dan dokumen PDF (SOP, dll)
+- **Authentication & Onboarding Bisnis**
+  - Login Google OAuth + Email/Password (JWT)
+  - Pembuatan profil bisnis dan manajemen sesi
 
 ---
 
 ## MVP Scope
 ### In Scope (MVP)
-1. **AI Product & Recipe Management + FIFO inventory batches**
-2. **Smart POS** dengan pengurangan stok otomatis + **COGS/HPP real-time**
-3. **AI Analytics Dashboard** (health score, insight tren, alert inventori)
-4. **RAG AI Assistant** (query data transaksi/produk + PDF upload)
+1. **AI Product & Recipe Management** (generate dari nama/foto) + CRUD + FIFO batches
+2. **Smart POS** dengan potong stok otomatis + **HPP/COGS real-time**
+3. **AI Analytics Dashboard** (health score, tren penjualan, insight, alert inventori) via Groq
+4. **RAG AI Assistant** (data internal + PDF business docs)
 5. **Auth & onboarding bisnis** (Google OAuth + Email/Password, JWT)
 
 ### Out of Scope (Post-MVP)
-- Multi-outlet advanced (role/permission kompleks lintas outlet)
-- Integrasi pajak/efaktur & akuntansi penuh
 - Offline-first POS sync
-- Integrasi payment gateway/EDC (bila belum tersedia)
-- Omnichannel (marketplace sync) dan loyalty program penuh
+- Multi-outlet enterprise (RBAC kompleks lintas outlet)
+- Integrasi akuntansi lengkap & pajak/efaktur
+- Omnichannel inventory sync (marketplace) dan loyalty program penuh
 
 ---
 
 ## System Architecture (High-Level)
 ```text
-+-------------------+               +---------------------------+
-|   Web App (UI)    |  HTTPS/API     |   App Server (API Layer) |
-|  TypeScript/CSS   +--------------->|  Auth, POS, Inventory,   |
-|  (Frontend)       |               |  Analytics, RAG Orchestr. |
-+---------+---------+               +------------+--------------+
-          |                                      |
-          |                                      | read/write
-          |                                      v
-          |                           +--------------------------+
-          |                           |   Relational Database    |
-          |                           | (Products, Recipes,      |
-          |                           |  Transactions, FIFO Batches|
-          |                           +--------------------------+
-          |
-          |  embeddings + semantic search
-          v
-+---------------------------+         +--------------------------+
-| Vector DB (Embeddings)    |<------->| Document Processor       |
-| (RAG Index for PDFs &     |         | (PDF upload -> chunk ->  |
-| internal knowledge)       |         | embed -> store)          |
-+---------------------------+         +--------------------------+
-                 |
-                 | prompts + context
-                 v
-       +----------------------+
-       | LLM Provider (Groq)  |
-       | Insights + Chatbot   |
-       +----------------------+
++-----------------------------+
+|  Web App (Next.js + React)  |
+|  UI + POS + Dashboard       |
++--------------+--------------+
+               |
+               | HTTPS (App Router / API Routes)
+               v
++-----------------------------+      +---------------------------+
+| App Server (Next.js)        |      | External Services         |
+| - Auth (NextAuth/JWT)       |----->| - Groq (LLM Insights)     |
+| - POS & Inventory Engine    |      | - ImageKit (images/files) |
+| - COGS/HPP FIFO calculator  |      | - Midtrans (payments)     |
+| - RAG Orchestrator          |      +---------------------------+
++--------------+--------------+     
+               |
+               | SQL
+               v
++-----------------------------+
+| PostgreSQL (pg)             |
+| - Prisma ORM                |
+| - pgvector for embeddings   |
++-----------------------------+
 ```
 
 ---
 
 ## Tech Stack
-> Repo ini mayoritas **TypeScript**, dengan sedikit **JavaScript** dan **CSS**.
+### Frontend
+- **Next.js** (scripts: `next dev/build/start`)
+- **React**
+- **TypeScript**
+- **Tailwind CSS**
+- UI/UX: `framer-motion`, `lucide-react`, `sonner`, tooltips
+- Forms/validation: `react-hook-form`, `@hookform/resolvers`, `zod`
+- Charts/analytics UI: `recharts`
+- Markdown rendering: `react-markdown`, `remark-gfm`
 
-- **Frontend:** TypeScript (Next.js + Tailwind CSS)
-- **Backend:** TypeScript (Next.js API routes)
-- **Database:** PostgreSQL (relational utama), pgvector (vector DB untuk RAG)
-- **LLM Provider:** Groq (untuk insights & assistant)
-- **Deployment Platform:** Vercel
-- **Additional Tools:** Prisma (ORM), JWT (auth), Google OAuth, PDF parsing library, etc.
+### Backend (within the Next.js app)
+- Auth: `next-auth` + `jsonwebtoken` + `bcryptjs`
+- Database: `pg` (PostgreSQL)
+- ORM: `prisma` + `@prisma/client` + `@prisma/adapter-pg`
+- Email: `nodemailer`
+- Payments: `midtrans-client`
+- AI/LLM: `groq-sdk`
+- RAG/document: `pdf-parse`, `pgvector`
+- Utilities: `dotenv`, `xlsx`
+
+### Database
+- **PostgreSQL** + **Prisma**
+- **pgvector** (embeddings untuk RAG)
+
+### Deployment Platform
+- TBD (umum: Vercel untuk Next.js + managed Postgres)
+
+### Additional Tools
+- **ImageKit** (asset/image management)
 
 ---
 
