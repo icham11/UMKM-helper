@@ -41,10 +41,30 @@ interface ChatSession {
 }
 
 const QUICK_PROMPTS = [
-  { icon: BarChart3, label: "Analisis Penjualan", prompt: "Berikan analisis penjualan 30 hari terakhir", color: "from-blue-500 to-indigo-500" },
-  { icon: Package, label: "Cek Stok", prompt: "Bagaimana status stok bahan baku saat ini?", color: "from-emerald-500 to-teal-500" },
-  { icon: Lightbulb, label: "Saran Bisnis", prompt: "Berikan saran untuk meningkatkan profit bisnis saya", color: "from-amber-500 to-orange-500" },
-  { icon: Trophy, label: "Top Produk", prompt: "Apa saja produk terlaris bulan ini?", color: "from-violet-500 to-purple-500" },
+  {
+    icon: BarChart3,
+    label: "Analisis Penjualan",
+    prompt: "Berikan analisis penjualan 30 hari terakhir",
+    color: "from-blue-500 to-indigo-500",
+  },
+  {
+    icon: Package,
+    label: "Cek Stok",
+    prompt: "Bagaimana status stok bahan baku saat ini?",
+    color: "from-emerald-500 to-teal-500",
+  },
+  {
+    icon: Lightbulb,
+    label: "Saran Bisnis",
+    prompt: "Berikan saran untuk meningkatkan profit bisnis saya",
+    color: "from-amber-500 to-orange-500",
+  },
+  {
+    icon: Trophy,
+    label: "Top Produk",
+    prompt: "Apa saja produk terlaris bulan ini?",
+    color: "from-violet-500 to-purple-500",
+  },
 ];
 
 export default function AIChatWidget() {
@@ -67,6 +87,24 @@ export default function AIChatWidget() {
   const [showUploadArea, setShowUploadArea] = useState(false);
   const fileInputRef2 = useRef<HTMLInputElement>(null);
 
+  // ─── Modal detection (hide widget when any modal overlay is open) ───
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  useEffect(() => {
+    const checkForModals = () => {
+      // Matches any fixed full-screen backdrop (modal overlays)
+      setIsModalOpen(!!document.querySelector("div.fixed.inset-0"));
+    };
+    const observer = new MutationObserver(checkForModals);
+    observer.observe(document.body, { childList: true, subtree: true });
+    checkForModals();
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (isModalOpen) setIsOpen(false);
+  }, [isModalOpen]);
+
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, []);
@@ -87,7 +125,9 @@ export default function AIChatWidget() {
       const res = await fetch("/api/ai/sessions");
       const data = await res.json();
       if (data.success) setSessions(data.sessions ?? []);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
@@ -107,10 +147,12 @@ export default function AIChatWidget() {
             role: m.role as "user" | "assistant",
             content: m.content,
             timestamp: new Date(m.createdAt),
-          }))
+          })),
         );
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const startNewChat = useCallback(() => {
@@ -121,16 +163,21 @@ export default function AIChatWidget() {
     setTimeout(() => inputRef.current?.focus(), 200);
   }, []);
 
-  const deleteSession = useCallback(async (sessionId: number) => {
-    try {
-      await fetch(`/api/ai/sessions?id=${sessionId}`, { method: "DELETE" });
-      if (currentSessionId === sessionId) {
-        setMessages([]);
-        setCurrentSessionId(null);
+  const deleteSession = useCallback(
+    async (sessionId: number) => {
+      try {
+        await fetch(`/api/ai/sessions?id=${sessionId}`, { method: "DELETE" });
+        if (currentSessionId === sessionId) {
+          setMessages([]);
+          setCurrentSessionId(null);
+        }
+        fetchSessions();
+      } catch {
+        /* ignore */
       }
-      fetchSessions();
-    } catch { /* ignore */ }
-  }, [currentSessionId, fetchSessions]);
+    },
+    [currentSessionId, fetchSessions],
+  );
 
   // ─── RAG Sync ───
   const handleSync = useCallback(async () => {
@@ -189,125 +236,145 @@ export default function AIChatWidget() {
     }
   }, []);
 
-  const handleWidgetDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowUploadArea(false);
-    const files = e.dataTransfer.files;
-    if (files?.[0]) handleFileUpload(files[0]);
-  }, [handleFileUpload]);
+  const handleWidgetDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowUploadArea(false);
+      const files = e.dataTransfer.files;
+      if (files?.[0]) handleFileUpload(files[0]);
+    },
+    [handleFileUpload],
+  );
 
   // ─── Send Message ───
-  const sendMessage = useCallback(async (text: string) => {
-    if (!text.trim() || isLoading) return;
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!text.trim() || isLoading) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: text.trim(),
-      timestamp: new Date(),
-    };
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        content: text.trim(),
+        timestamp: new Date(),
+      };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInput("");
-    setIsLoading(true);
-    setStreamingContent("");
+      setMessages((prev) => [...prev, userMessage]);
+      setInput("");
+      setIsLoading(true);
+      setStreamingContent("");
 
-    let sessionId = currentSessionId;
-    if (!sessionId) {
-      try {
-        const res = await fetch("/api/ai/sessions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: "Percakapan Baru" }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          sessionId = data.session.id;
-          setCurrentSessionId(sessionId);
-        }
-      } catch { /* ignore */ }
-    }
-
-    try {
-      const allMessages = [...messages, userMessage].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const response = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: allMessages, sessionId, stream: true }),
-      });
-
-      if (!response.ok) throw new Error("Failed to get response");
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No reader");
-
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
-
-        for (const line of lines) {
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.done) break;
-            if (data.error) throw new Error(data.error);
-            if (data.content) {
-              fullContent += data.content;
-              setStreamingContent(fullContent);
-            }
-          } catch { /* skip */ }
+      let sessionId = currentSessionId;
+      if (!sessionId) {
+        try {
+          const res = await fetch("/api/ai/sessions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title: "Percakapan Baru" }),
+          });
+          const data = await res.json();
+          if (data.success) {
+            sessionId = data.session.id;
+            setCurrentSessionId(sessionId);
+          }
+        } catch {
+          /* ignore */
         }
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: fullContent || "Maaf, saya tidak bisa memberikan respons.",
-          timestamp: new Date(),
-        },
-      ]);
-      setStreamingContent("");
-      fetchSessions();
-    } catch {
       try {
-        const allMessages = [...messages, userMessage].map((m) => ({ role: m.role, content: m.content }));
+        const allMessages = [...messages, userMessage].map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+
         const response = await fetch("/api/ai/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: allMessages, sessionId, stream: false }),
+          body: JSON.stringify({ messages: allMessages, sessionId, stream: true }),
         });
-        const data = await response.json();
-        if (data.success) {
-          setMessages((prev) => [
-            ...prev,
-            { id: (Date.now() + 1).toString(), role: "assistant", content: data.message.content, timestamp: new Date() },
-          ]);
-          fetchSessions();
-        } else {
-          throw new Error(data.error);
+
+        if (!response.ok) throw new Error("Failed to get response");
+
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error("No reader");
+
+        const decoder = new TextDecoder();
+        let fullContent = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n").filter((l) => l.startsWith("data: "));
+
+          for (const line of lines) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.done) break;
+              if (data.error) throw new Error(data.error);
+              if (data.content) {
+                fullContent += data.content;
+                setStreamingContent(fullContent);
+              }
+            } catch {
+              /* skip */
+            }
+          }
         }
-      } catch {
+
         setMessages((prev) => [
           ...prev,
-          { id: (Date.now() + 1).toString(), role: "assistant", content: "Maaf, terjadi kesalahan. Silakan coba lagi.", timestamp: new Date() },
+          {
+            id: (Date.now() + 1).toString(),
+            role: "assistant",
+            content: fullContent || "Maaf, saya tidak bisa memberikan respons.",
+            timestamp: new Date(),
+          },
         ]);
+        setStreamingContent("");
+        fetchSessions();
+      } catch {
+        try {
+          const allMessages = [...messages, userMessage].map((m) => ({ role: m.role, content: m.content }));
+          const response = await fetch("/api/ai/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: allMessages, sessionId, stream: false }),
+          });
+          const data = await response.json();
+          if (data.success) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                content: data.message.content,
+                timestamp: new Date(),
+              },
+            ]);
+            fetchSessions();
+          } else {
+            throw new Error(data.error);
+          }
+        } catch {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: (Date.now() + 1).toString(),
+              role: "assistant",
+              content: "Maaf, terjadi kesalahan. Silakan coba lagi.",
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isLoading, messages, currentSessionId, fetchSessions]);
+    },
+    [isLoading, messages, currentSessionId, fetchSessions],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -330,30 +397,48 @@ export default function AIChatWidget() {
   return (
     <>
       {/* ─── Floating Button ─── */}
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-shadow"
-        style={{
-          background: "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
-          boxShadow: isOpen ? "0 8px 25px rgba(99, 102, 241, 0.3)" : "0 4px 15px rgba(99, 102, 241, 0.25)",
-        }}
-        whileHover={{ scale: 1.08 }}
-        whileTap={{ scale: 0.92 }}
-        animate={{ rotate: isOpen ? 180 : 0 }}
-        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-      >
-        <AnimatePresence mode="wait">
-          {isOpen ? (
-            <motion.div key="close" initial={{ opacity: 0, rotate: -90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: 90 }} transition={{ duration: 0.15 }}>
-              <X className="w-5 h-5" />
-            </motion.div>
-          ) : (
-            <motion.div key="open" initial={{ opacity: 0, rotate: 90 }} animate={{ opacity: 1, rotate: 0 }} exit={{ opacity: 0, rotate: -90 }} transition={{ duration: 0.15 }}>
-              <MessageCircle className="w-5 h-5" />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.button>
+      <AnimatePresence>
+        {!isModalOpen && (
+          <motion.button
+            onClick={() => setIsOpen(!isOpen)}
+            className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-12 h-12 md:w-14 md:h-14 rounded-full shadow-lg flex items-center justify-center text-white hover:shadow-xl transition-shadow"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1, rotate: isOpen ? 180 : 0 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            style={{
+              background: "linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7)",
+              boxShadow: isOpen ? "0 8px 25px rgba(99, 102, 241, 0.3)" : "0 4px 15px rgba(99, 102, 241, 0.25)",
+            }}
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 260, damping: 20 }}
+          >
+            <AnimatePresence mode="wait">
+              {isOpen ? (
+                <motion.div
+                  key="close"
+                  initial={{ opacity: 0, rotate: -90 }}
+                  animate={{ opacity: 1, rotate: 0 }}
+                  exit={{ opacity: 0, rotate: 90 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <X className="w-5 h-5" />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="open"
+                  initial={{ opacity: 0, rotate: 90 }}
+                  animate={{ opacity: 1, rotate: 0 }}
+                  exit={{ opacity: 0, rotate: -90 }}
+                  transition={{ duration: 0.15 }}
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* ─── Chat Panel ─── */}
       <AnimatePresence>
@@ -365,8 +450,14 @@ export default function AIChatWidget() {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="fixed bottom-40 md:bottom-24 right-3 md:right-6 z-40 w-[calc(100vw-24px)] sm:w-[400px] h-[60vh] md:h-[600px] bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/60 flex flex-col overflow-hidden"
             style={{ boxShadow: "0 25px 50px -12px rgba(99, 102, 241, 0.15), 0 12px 24px -8px rgba(0, 0, 0, 0.1)" }}
-            onDragOver={(e) => { e.preventDefault(); if (view === "chat") setShowUploadArea(true); }}
-            onDragLeave={(e) => { e.preventDefault(); setShowUploadArea(false); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (view === "chat") setShowUploadArea(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setShowUploadArea(false);
+            }}
             onDrop={handleWidgetDrop}
           >
             {/* ─── Header ─── */}
@@ -414,16 +505,29 @@ export default function AIChatWidget() {
                         <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
                         <AnimatePresence>
                           {syncStatus === "success" && (
-                            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border border-purple-600" />
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-400 rounded-full border border-purple-600"
+                            />
                           )}
                           {syncStatus === "error" && (
-                            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-400 rounded-full border border-purple-600" />
+                            <motion.span
+                              initial={{ scale: 0 }}
+                              animate={{ scale: 1 }}
+                              exit={{ scale: 0 }}
+                              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-400 rounded-full border border-purple-600"
+                            />
                           )}
                         </AnimatePresence>
                       </motion.button>
                       {/* History */}
                       <motion.button
-                        onClick={() => { fetchSessions(); setView("history"); }}
+                        onClick={() => {
+                          fetchSessions();
+                          setView("history");
+                        }}
                         className="text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition"
                         title="Riwayat chat"
                         whileHover={{ scale: 1.1 }}
@@ -476,10 +580,18 @@ export default function AIChatWidget() {
                     </div>
                   )}
                   {uploadStatus && (
-                    <div className={`flex items-center gap-2 px-4 py-2 text-xs border-b ${
-                      uploadStatus.type === "success" ? "bg-emerald-50/80 text-emerald-700 border-emerald-100/50" : "bg-red-50/80 text-red-700 border-red-100/50"
-                    }`}>
-                      {uploadStatus.type === "success" ? <CheckCircle className="w-3.5 h-3.5 shrink-0" /> : <AlertTriangle className="w-3.5 h-3.5 shrink-0" />}
+                    <div
+                      className={`flex items-center gap-2 px-4 py-2 text-xs border-b ${
+                        uploadStatus.type === "success"
+                          ? "bg-emerald-50/80 text-emerald-700 border-emerald-100/50"
+                          : "bg-red-50/80 text-red-700 border-red-100/50"
+                      }`}
+                    >
+                      {uploadStatus.type === "success" ? (
+                        <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      )}
                       <span className="truncate font-medium">{uploadStatus.message}</span>
                     </div>
                   )}
@@ -499,10 +611,7 @@ export default function AIChatWidget() {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleWidgetDrop}
                 >
-                  <motion.div
-                    animate={{ y: [0, -8, 0] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                  >
+                  <motion.div animate={{ y: [0, -8, 0] }} transition={{ repeat: Infinity, duration: 1.5 }}>
                     <Upload className="w-12 h-12 text-white mb-3" />
                   </motion.div>
                   <p className="text-white font-semibold text-sm">Lepaskan file PDF di sini</p>
@@ -545,32 +654,41 @@ export default function AIChatWidget() {
                   </motion.button>
                 </div>
                 <div className="px-3 pb-3 space-y-1">
-                  {sessions.filter((s) => s._count.messages > 0).map((session, i) => (
-                    <motion.div
-                      key={session.id}
-                      initial={{ opacity: 0, x: -15 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.03 }}
-                      className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
-                        currentSessionId === session.id
-                          ? "bg-indigo-50 border border-indigo-200 shadow-sm"
-                          : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => loadSession(session.id)}
-                    >
-                      <MessageCircle className={`w-4 h-4 shrink-0 ${currentSessionId === session.id ? "text-indigo-500" : "text-gray-400"}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-800 truncate">{session.title}</p>
-                        <p className="text-[10px] text-gray-400">{session._count.messages} pesan · {formatRelativeTime(session.updatedAt)}</p>
-                      </div>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); deleteSession(session.id); }}
-                        className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 rounded-md hover:bg-red-50"
+                  {sessions
+                    .filter((s) => s._count.messages > 0)
+                    .map((session, i) => (
+                      <motion.div
+                        key={session.id}
+                        initial={{ opacity: 0, x: -15 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.03 }}
+                        className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all ${
+                          currentSessionId === session.id
+                            ? "bg-indigo-50 border border-indigo-200 shadow-sm"
+                            : "hover:bg-gray-50"
+                        }`}
+                        onClick={() => loadSession(session.id)}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  ))}
+                        <MessageCircle
+                          className={`w-4 h-4 shrink-0 ${currentSessionId === session.id ? "text-indigo-500" : "text-gray-400"}`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">{session.title}</p>
+                          <p className="text-[10px] text-gray-400">
+                            {session._count.messages} pesan · {formatRelativeTime(session.updatedAt)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSession(session.id);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition p-1 rounded-md hover:bg-red-50"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </motion.div>
+                    ))}
                   {sessions.filter((s) => s._count.messages > 0).length === 0 && (
                     <div className="text-center py-10">
                       <MessageCircle className="w-8 h-8 text-gray-200 mx-auto mb-2" />
@@ -614,10 +732,14 @@ export default function AIChatWidget() {
                             whileHover={{ y: -1 }}
                             whileTap={{ scale: 0.97 }}
                           >
-                            <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${qp.color} flex items-center justify-center shrink-0 shadow-sm group-hover:shadow transition-shadow`}>
+                            <div
+                              className={`w-7 h-7 rounded-lg bg-gradient-to-br ${qp.color} flex items-center justify-center shrink-0 shadow-sm group-hover:shadow transition-shadow`}
+                            >
                               <qp.icon className="w-3.5 h-3.5 text-white" />
                             </div>
-                            <span className="text-gray-600 group-hover:text-gray-800 font-medium leading-tight transition-colors">{qp.label}</span>
+                            <span className="text-gray-600 group-hover:text-gray-800 font-medium leading-tight transition-colors">
+                              {qp.label}
+                            </span>
                           </motion.button>
                         ))}
                       </div>
@@ -645,12 +767,19 @@ export default function AIChatWidget() {
                               ? "text-white rounded-br-md shadow-md"
                               : "bg-white text-gray-700 border border-gray-100 rounded-bl-md shadow-sm"
                           }`}
-                          style={msg.role === "user" ? { background: "linear-gradient(135deg, #6366f1, #8b5cf6)" } : undefined}
+                          style={
+                            msg.role === "user"
+                              ? { background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }
+                              : undefined
+                          }
                         >
                           {msg.role === "assistant" ? <MarkdownRenderer content={msg.content} /> : msg.content}
                         </div>
                         {msg.role === "user" && (
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-0.5 shadow-sm" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+                          <div
+                            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 mb-0.5 shadow-sm"
+                            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                          >
                             <User className="w-3.5 h-3.5 text-white" />
                           </div>
                         )}
@@ -660,7 +789,11 @@ export default function AIChatWidget() {
 
                   {/* Streaming */}
                   {streamingContent && (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-start"
+                    >
                       <div className="flex items-end gap-2 max-w-[90%]">
                         <div className="w-6 h-6 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-full flex items-center justify-center shrink-0 mb-0.5 shadow-sm">
                           <Bot className="w-3.5 h-3.5 text-indigo-600" />
@@ -675,16 +808,32 @@ export default function AIChatWidget() {
 
                   {/* Loading dots */}
                   {isLoading && !streamingContent && (
-                    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex justify-start">
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex justify-start"
+                    >
                       <div className="flex items-end gap-2">
                         <div className="w-6 h-6 bg-gradient-to-br from-indigo-100 to-violet-100 rounded-full flex items-center justify-center shrink-0 shadow-sm">
                           <Bot className="w-3.5 h-3.5 text-indigo-600" />
                         </div>
                         <div className="bg-white rounded-2xl px-4 py-3 border border-gray-100 shadow-sm">
                           <div className="flex gap-1">
-                            <motion.div className="w-1.5 h-1.5 bg-indigo-400 rounded-full" animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.7, delay: 0 }} />
-                            <motion.div className="w-1.5 h-1.5 bg-violet-400 rounded-full" animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.7, delay: 0.15 }} />
-                            <motion.div className="w-1.5 h-1.5 bg-purple-400 rounded-full" animate={{ y: [0, -5, 0] }} transition={{ repeat: Infinity, duration: 0.7, delay: 0.3 }} />
+                            <motion.div
+                              className="w-1.5 h-1.5 bg-indigo-400 rounded-full"
+                              animate={{ y: [0, -5, 0] }}
+                              transition={{ repeat: Infinity, duration: 0.7, delay: 0 }}
+                            />
+                            <motion.div
+                              className="w-1.5 h-1.5 bg-violet-400 rounded-full"
+                              animate={{ y: [0, -5, 0] }}
+                              transition={{ repeat: Infinity, duration: 0.7, delay: 0.15 }}
+                            />
+                            <motion.div
+                              className="w-1.5 h-1.5 bg-purple-400 rounded-full"
+                              animate={{ y: [0, -5, 0] }}
+                              transition={{ repeat: Infinity, duration: 0.7, delay: 0.3 }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -744,7 +893,10 @@ export default function AIChatWidget() {
                       style={
                         !input.trim() || isLoading
                           ? { background: "#d1d5db" }
-                          : { background: "linear-gradient(135deg, #6366f1, #8b5cf6)", boxShadow: "0 2px 8px rgba(99,102,241,0.25)" }
+                          : {
+                              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                              boxShadow: "0 2px 8px rgba(99,102,241,0.25)",
+                            }
                       }
                       whileHover={{ scale: !input.trim() || isLoading ? 1 : 1.05 }}
                       whileTap={{ scale: !input.trim() || isLoading ? 1 : 0.92 }}
@@ -764,4 +916,3 @@ export default function AIChatWidget() {
     </>
   );
 }
-

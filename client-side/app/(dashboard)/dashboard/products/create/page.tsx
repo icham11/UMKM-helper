@@ -66,50 +66,77 @@ function NewIngredientEditRow({
       }`}
     >
       {/* ── Main row: Name / Unit / Cost / status+toggle ── */}
-      <div className="grid grid-cols-12 gap-2 items-start px-3 py-2.5">
-        {/* Name */}
-        <div className="col-span-5">
-          <input
-            value={ingredient.ingredientName}
-            onChange={(e) => onChange({ ingredientName: e.target.value })}
-            placeholder="Nama bahan"
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 focus:ring-2 outline-none bg-white ${
-              nameErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
-            }`}
-          />
-          {nameErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+      <div className="px-3 py-2.5 flex flex-col sm:grid sm:grid-cols-12 gap-2 sm:items-start">
+        {/* Name + mobile actions (inline on mobile only) */}
+        <div className="flex gap-2 items-start sm:contents">
+          <div className="flex-1 min-w-0 sm:col-span-5">
+            <input
+              value={ingredient.ingredientName}
+              onChange={(e) => onChange({ ingredientName: e.target.value })}
+              placeholder="Nama bahan"
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 focus:ring-2 outline-none bg-white ${
+                nameErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
+              }`}
+            />
+            {nameErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+          </div>
+          {/* Actions — mobile only (inline right of name) */}
+          <div className="sm:hidden flex items-center gap-1 pt-1">
+            {confirmed ? (
+              <CheckCircle2 size={14} className="text-green-500 shrink-0" />
+            ) : touched && hasError ? (
+              <AlertTriangle size={14} className="text-red-400 shrink-0" />
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              title={expanded ? "Sembunyikan" : "Stok awal & kadaluarsa"}
+              className="p-1 rounded text-amber-500 hover:text-amber-700 hover:bg-amber-50 transition"
+            >
+              {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              title="Hapus bahan ini"
+              className="p-1 rounded text-red-300 hover:text-red-600 hover:bg-red-50 transition"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
 
-        {/* Unit */}
-        <div className="col-span-3">
-          <input
-            value={ingredient.unit ?? ""}
-            onChange={(e) => onChange({ unit: e.target.value })}
-            placeholder="e.g. kg"
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 outline-none bg-white ${
-              unitErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
-            }`}
-          />
-          {unitErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+        {/* Unit + Cost — side by side on mobile via grid-cols-2 */}
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <div className="sm:col-span-3">
+            <input
+              value={ingredient.unit ?? ""}
+              onChange={(e) => onChange({ unit: e.target.value })}
+              placeholder="e.g. kg"
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 outline-none bg-white ${
+                unitErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
+              }`}
+            />
+            {unitErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+          </div>
+
+          <div className="sm:col-span-3">
+            <input
+              type="number"
+              min={0}
+              value={ingredient.costPerUnit ?? ""}
+              onChange={(e) => onChange({ costPerUnit: e.target.value === "" ? null : Number(e.target.value) })}
+              placeholder="0"
+              className={`w-full border rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 outline-none bg-white ${
+                costErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
+              }`}
+            />
+            {costErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
+          </div>
         </div>
 
-        {/* Cost / unit */}
-        <div className="col-span-3">
-          <input
-            type="number"
-            min={0}
-            value={ingredient.costPerUnit ?? ""}
-            onChange={(e) => onChange({ costPerUnit: e.target.value === "" ? null : Number(e.target.value) })}
-            placeholder="0"
-            className={`w-full border rounded-lg px-3 py-1.5 text-sm text-slate-700 focus:ring-2 outline-none bg-white ${
-              costErr ? "border-red-400 focus:ring-red-300" : "border-amber-200 focus:ring-amber-400"
-            }`}
-          />
-          {costErr && <p className="text-[10px] text-red-500 mt-0.5 pl-1">Wajib diisi</p>}
-        </div>
-
-        {/* Status indicator + expand toggle + delete */}
-        <div className="col-span-1 flex flex-col items-center justify-start pt-1 gap-1">
+        {/* Status indicator + expand toggle + delete — desktop only */}
+        <div className="hidden sm:flex sm:col-span-1 flex-col items-center justify-start pt-1 gap-1">
           {confirmed ? (
             <CheckCircle2 size={14} className="text-green-500 shrink-0" />
           ) : touched && hasError ? (
@@ -468,18 +495,18 @@ export default function CreateProductsPage() {
           {/* Option 1: Generate from photo */}
           <button
             onClick={() => setPhotoModalOpen(true)}
-            className="w-full flex items-center gap-5 p-6 bg-linear-to-r from-indigo-50 via-white to-violet-50 rounded-2xl border-2 border-indigo-200 hover:border-indigo-400 shadow hover:shadow-md transition text-left group"
+            className="w-full flex items-center gap-3 sm:gap-5 p-4 sm:p-6 bg-linear-to-r from-indigo-50 via-white to-violet-50 rounded-2xl border-2 border-indigo-200 hover:border-indigo-400 shadow hover:shadow-md transition text-left group"
           >
-            <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-100 text-indigo-600 group-hover:bg-indigo-200 transition">
-              <ImageIcon size={28} />
+            <span className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-2xl bg-indigo-100 text-indigo-600 group-hover:bg-indigo-200 transition">
+              <ImageIcon size={24} />
             </span>
-            <div>
-              <p className="text-lg font-bold text-indigo-700">Generate Produk dari Foto</p>
+            <div className="flex-1 min-w-0">
+              <p className="text-base sm:text-lg font-bold text-indigo-700">Generate Produk dari Foto</p>
               <p className="text-sm text-gray-500 mt-0.5">
                 Upload menu atau daftar harga — AI akan mengekstrak semua produk sekaligus.
               </p>
             </div>
-            <Sparkles size={20} className="ml-auto text-indigo-300 group-hover:text-indigo-500 transition" />
+            <Sparkles size={20} className="ml-auto shrink-0 text-indigo-300 group-hover:text-indigo-500 transition" />
           </button>
 
           {/* Divider */}
@@ -492,13 +519,13 @@ export default function CreateProductsPage() {
           {/* Option 2: Manual */}
           <button
             onClick={() => setMode("manual")}
-            className="w-full flex items-center gap-5 p-6 bg-white rounded-2xl border-2 border-gray-200 hover:border-indigo-300 shadow hover:shadow-md transition text-left group"
+            className="w-full flex items-center gap-3 sm:gap-5 p-4 sm:p-6 bg-white rounded-2xl border-2 border-gray-200 hover:border-indigo-300 shadow hover:shadow-md transition text-left group"
           >
-            <span className="flex items-center justify-center w-14 h-14 rounded-2xl bg-gray-100 text-gray-600 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition">
-              <Plus size={28} />
+            <span className="flex items-center justify-center w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-2xl bg-gray-100 text-gray-600 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition">
+              <Plus size={24} />
             </span>
-            <div>
-              <p className="text-lg font-bold text-gray-700 group-hover:text-indigo-700 transition">
+            <div className="flex-1 min-w-0">
+              <p className="text-base sm:text-lg font-bold text-gray-700 group-hover:text-indigo-700 transition">
                 Tambah Produk Satu per Satu
               </p>
               <p className="text-sm text-gray-400 mt-0.5">
@@ -568,8 +595,8 @@ export default function CreateProductsPage() {
                 </p>
               </div>
 
-              {/* Column headers */}
-              <div className="grid grid-cols-12 gap-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
+              {/* Column headers - desktop only */}
+              <div className="hidden sm:grid grid-cols-12 gap-2 px-3 text-[10px] font-bold text-gray-400 uppercase tracking-wide">
                 <div className="col-span-5">Nama</div>
                 <div className="col-span-3">Satuan</div>
                 <div className="col-span-3">Biaya / Satuan (Rp)</div>
@@ -675,11 +702,11 @@ export default function CreateProductsPage() {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-2">
             <button
               onClick={discardDrafts}
               disabled={discarding}
-              className="px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition disabled:opacity-50"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition disabled:opacity-50"
             >
               {discarding ? "Membersihkan…" : "Batal"}
             </button>
@@ -691,7 +718,7 @@ export default function CreateProductsPage() {
                 drafts.length === 0 ||
                 (localNewIngredients.length > 0 && !newIngredientsConfirmed)
               }
-              className="flex items-center gap-2 px-8 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow"
             >
               {submitting ? (
                 <>
@@ -699,7 +726,10 @@ export default function CreateProductsPage() {
                   Menyimpan…
                 </>
               ) : (
-                `Konfirmasi & Simpan ${drafts.length} Produk`
+                <>
+                  <span className="hidden sm:inline">Konfirmasi &amp; Simpan {drafts.length} Produk</span>
+                  <span className="sm:hidden">Simpan {drafts.length} Produk</span>
+                </>
               )}
             </button>
           </div>

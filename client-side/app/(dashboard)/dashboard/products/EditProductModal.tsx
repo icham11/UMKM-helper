@@ -8,22 +8,11 @@ import { getIngredientOptions } from "@/lib/api/products";
 import type { IngredientOption } from "@/lib/api/products";
 import { Plus, X, Loader2, CheckCircle2, AlertTriangle } from "lucide-react";
 
-export default function EditProductModal({
-  product,
-  categories,
-  onClose,
-  onSaved,
-}: EditProductModalProps) {
+export default function EditProductModal({ product, categories, onClose, onSaved }: EditProductModalProps) {
   const [name, setName] = useState<string>(product.name);
-  const [categoryId, setCategoryId] = useState<number>(
-    product.categoryId ?? categories[0]?.id ?? 0,
-  );
-  const [sellingPrice, setSellingPrice] = useState<number>(
-    Number(product.sellingPrice),
-  );
-  const [productType, setProductType] = useState<"ReadyStock" | "PreOrder">(
-    product.productType ?? "PreOrder",
-  );
+  const [categoryId, setCategoryId] = useState<number>(product.categoryId ?? categories[0]?.id ?? 0);
+  const [sellingPrice, setSellingPrice] = useState<number>(Number(product.sellingPrice));
+  const [productType, setProductType] = useState<"ReadyStock" | "PreOrder">(product.productType ?? "PreOrder");
   const [recipe, setRecipe] = useState<DraftRecipeRowWithClientId[]>(() =>
     product.recipes.map((r, idx) => ({
       ingredientId: r.ingredient.id,
@@ -35,9 +24,7 @@ export default function EditProductModal({
       _clientId: `edit-${r.ingredient.id}-${idx}`,
     })),
   );
-  const [ingredientOptions, setIngredientOptions] = useState<
-    IngredientOption[]
-  >([]);
+  const [ingredientOptions, setIngredientOptions] = useState<IngredientOption[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -48,25 +35,15 @@ export default function EditProductModal({
       .catch(() => {});
   }, []);
 
-  const recipeCost = recipe.reduce(
-    (s, r) => s + r.quantity * (r.costPerUnit ?? 0),
-    0,
-  );
-  const margin =
-    sellingPrice > 0
-      ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100)
-      : 0;
+  const recipeCost = recipe.reduce((s, r) => s + r.quantity * (r.costPerUnit ?? 0), 0);
+  const margin = sellingPrice > 0 ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100) : 0;
 
   const validate = () => {
     if (!name.trim()) return "Nama produk wajib diisi.";
     if (!categoryId) return "Kategori wajib diisi.";
-    if (!sellingPrice || sellingPrice <= 0)
-      return "Harga jual harus lebih dari 0.";
-    const hasInvalid = recipe.some(
-      (r) => !r.ingredientName.trim() || r.quantity <= 0,
-    );
-    if (recipe.length > 0 && hasInvalid)
-      return "Setiap bahan membutuhkan nama dan jumlah yang valid.";
+    if (!sellingPrice || sellingPrice <= 0) return "Harga jual harus lebih dari 0.";
+    const hasInvalid = recipe.some((r) => !r.ingredientName.trim() || r.quantity <= 0);
+    if (recipe.length > 0 && hasInvalid) return "Setiap bahan membutuhkan nama dan jumlah yang valid.";
     return null;
   };
 
@@ -108,9 +85,7 @@ export default function EditProductModal({
         const details = data.details;
         if (details && typeof details === "object") {
           const msgs = Object.entries(details)
-            .map(
-              ([field, errs]) => `${field}: ${(errs as string[]).join(", ")}`,
-            )
+            .map(([field, errs]) => `${field}: ${(errs as string[]).join(", ")}`)
             .join("; ");
           throw new Error(msgs || data.error || "Gagal update produk");
         }
@@ -126,8 +101,7 @@ export default function EditProductModal({
 
   const updateRow = (index: number, updated: DraftRecipeRowWithClientId) =>
     setRecipe((prev) => prev.map((r, i) => (i === index ? updated : r)));
-  const removeRow = (index: number) =>
-    setRecipe((prev) => prev.filter((_, i) => i !== index));
+  const removeRow = (index: number) => setRecipe((prev) => prev.filter((_, i) => i !== index));
   const addRow = () =>
     setRecipe((prev) => [
       ...prev,
@@ -143,16 +117,18 @@ export default function EditProductModal({
     ]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-2 sm:p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 bg-linear-to-r from-yellow-50 to-indigo-50">
-          <h2 className="text-base sm:text-lg font-extrabold text-yellow-700">
-            Edit Produk
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition"
-          >
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 200 }}
+    >
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden mb-14 sm:mb-0">
+        {/* Drag handle (mobile only) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-5 border-b border-gray-100 bg-linear-to-r from-yellow-50 to-indigo-50 shrink-0">
+          <h2 className="text-base sm:text-lg font-extrabold text-yellow-700">Edit Produk</h2>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
             <X size={18} />
           </button>
         </div>
@@ -171,9 +147,7 @@ export default function EditProductModal({
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
-                Nama Produk
-              </label>
+              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Nama Produk</label>
               <input
                 type="text"
                 value={name}
@@ -183,9 +157,7 @@ export default function EditProductModal({
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
-                Kategori
-              </label>
+              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Kategori</label>
               <select
                 value={categoryId}
                 onChange={(e) => setCategoryId(Number(e.target.value))}
@@ -201,9 +173,7 @@ export default function EditProductModal({
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
-                Harga Jual (Rp)
-              </label>
+              <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Harga Jual (Rp)</label>
               <input
                 type="number"
                 min={1}
@@ -243,9 +213,7 @@ export default function EditProductModal({
 
           {/* Product Type */}
           <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">
-              Tipe Produk
-            </label>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Tipe Produk</label>
             <div className="flex gap-2">
               <button
                 type="button"
@@ -257,9 +225,7 @@ export default function EditProductModal({
                 }`}
               >
                 🍳 Made to Order
-                <div className="text-[9px] font-normal mt-0.5 text-gray-400">
-                  Bahan dikurangi saat dijual
-                </div>
+                <div className="text-[9px] font-normal mt-0.5 text-gray-400">Bahan dikurangi saat dijual</div>
               </button>
               <button
                 type="button"
@@ -271,17 +237,13 @@ export default function EditProductModal({
                 }`}
               >
                 📦 Ready Stock
-                <div className="text-[9px] font-normal mt-0.5 text-gray-400">
-                  Bahan dikurangi saat produksi
-                </div>
+                <div className="text-[9px] font-normal mt-0.5 text-gray-400">Bahan dikurangi saat produksi</div>
               </button>
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">
-              Resep Produk
-            </label>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-1">Resep Produk</label>
             <div className="space-y-2">
               {recipe.map((row, idx) => (
                 <IngredientSelectorRow
@@ -289,16 +251,8 @@ export default function EditProductModal({
                   row={row}
                   index={idx}
                   ingredientOptions={ingredientOptions}
-                  usedIngredientIds={
-                    new Set(
-                      recipe
-                        .filter((_, i) => i !== idx)
-                        .map((r) => r.ingredientId),
-                    )
-                  }
-                  onChange={(updated) =>
-                    updateRow(idx, updated as DraftRecipeRowWithClientId)
-                  }
+                  usedIngredientIds={new Set(recipe.filter((_, i) => i !== idx).map((r) => r.ingredientId))}
+                  onChange={(updated) => updateRow(idx, updated as DraftRecipeRowWithClientId)}
                   onRemove={() => removeRow(idx)}
                   unitError={submitted && (!row.unit || !row.unit.trim())}
                   costError={submitted && row.costPerUnit == null}
@@ -314,7 +268,7 @@ export default function EditProductModal({
             </div>
           </div>
         </form>
-        <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-gray-100">
+        <div className="flex gap-3 px-4 sm:px-6 py-4 border-t border-gray-100 shrink-0">
           <button
             onClick={onClose}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
@@ -328,11 +282,7 @@ export default function EditProductModal({
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-yellow-500 text-white font-bold text-sm rounded-xl hover:bg-yellow-600 transition disabled:opacity-50"
             type="submit"
           >
-            {saving ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <CheckCircle2 size={16} />
-            )}
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
             Simpan
           </button>
         </div>
