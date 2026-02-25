@@ -114,7 +114,7 @@ Cuanify adalah platform **AI-powered Point of Sale (POS)** dan **inventory dinam
 - **pgvector** (embeddings untuk RAG)
 
 ### Deployment Platform
-- TBD (umum: Vercel untuk Next.js + managed Postgres)
+- Vercel - [link](https://cuanify-chi.vercel.app/)
 
 ### Additional Tools
 - **ImageKit** (asset/image management)
