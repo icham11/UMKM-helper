@@ -1,14 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import {
-  Clock,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-  Banknote,
-  ChevronLeft,
-  ChevronRight,
-} from "lucide-react";
+import { Clock, CheckCircle, AlertTriangle, XCircle, Banknote, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface S {
   id: number;
@@ -36,12 +28,10 @@ const fD = (d: string) =>
     day: "numeric",
     month: "short",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 const fT = (d: string) =>
-  new Date(d).toLocaleTimeString("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  new Date(d).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
 
 export default function ShiftHistoryPage() {
   const [shifts, setShifts] = useState<S[]>([]);
@@ -126,9 +116,7 @@ export default function ShiftHistoryPage() {
                       >
                         {!s.discrepancy ? (
                           <CheckCircle className="w-3.5 h-3.5" />
-                        ) : Math.abs(s.discrepancy / (s.expectedCash || 1)) *
-                            100 <=
-                          5 ? (
+                        ) : Math.abs(s.discrepancy / (s.expectedCash || 1)) * 100 <= 5 ? (
                           <AlertTriangle className="w-3.5 h-3.5" />
                         ) : (
                           <XCircle className="w-3.5 h-3.5" />
@@ -181,10 +169,7 @@ export default function ShiftHistoryPage() {
           >
             <div className="flex justify-between">
               <h2 className="text-lg font-bold">📋 Settlement</h2>
-              <button
-                onClick={() => setSel(null)}
-                className="text-gray-400 text-xl"
-              >
+              <button onClick={() => setSel(null)} className="text-gray-400 text-xl">
                 ×
               </button>
             </div>
@@ -198,8 +183,7 @@ export default function ShiftHistoryPage() {
               <div className="flex justify-between">
                 <span className="text-gray-500">Ditutup</span>
                 <span>
-                  {sel.closedAt && `${fD(sel.closedAt)} ${fT(sel.closedAt)}`} —{" "}
-                  {sel.closedBy}
+                  {sel.closedAt && `${fD(sel.closedAt)} ${fT(sel.closedAt)}`} — {sel.closedBy}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -219,9 +203,7 @@ export default function ShiftHistoryPage() {
                 </div>
                 <div className="flex justify-between">
                   <span>+ Cash Sales</span>
-                  <span className="font-semibold text-green-600">
-                    +{fRp(sel.cashSalesTotal)}
-                  </span>
+                  <span className="font-semibold text-green-600">+{fRp(sel.cashSalesTotal)}</span>
                 </div>
                 <hr className="border-blue-200" />
                 <div className="flex justify-between font-bold">
@@ -248,42 +230,28 @@ export default function ShiftHistoryPage() {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="bg-green-50 rounded-lg p-3">
                 <div className="text-xs text-gray-500">💵 Cash</div>
-                <div className="font-bold text-green-700">
-                  {fRp(sel.cashSalesTotal)}
-                </div>
+                <div className="font-bold text-green-700">{fRp(sel.cashSalesTotal)}</div>
               </div>
               <div className="bg-purple-50 rounded-lg p-3">
                 <div className="text-xs text-gray-500">📱 QRIS</div>
-                <div className="font-bold text-purple-700">
-                  {fRp(sel.qrisSalesTotal)}
-                </div>
+                <div className="font-bold text-purple-700">{fRp(sel.qrisSalesTotal)}</div>
               </div>
               <div className="bg-blue-50 rounded-lg p-3">
                 <div className="text-xs text-gray-500">🏦 Transfer</div>
-                <div className="font-bold text-blue-700">
-                  {fRp(sel.transferSalesTotal)}
-                </div>
+                <div className="font-bold text-blue-700">{fRp(sel.transferSalesTotal)}</div>
               </div>
               <div className="bg-indigo-50 rounded-lg p-3">
                 <div className="text-xs text-gray-500">💳 Digital</div>
-                <div className="font-bold text-indigo-700">
-                  {fRp(sel.digitalSalesTotal)}
-                </div>
+                <div className="font-bold text-indigo-700">{fRp(sel.digitalSalesTotal)}</div>
               </div>
               <div className="bg-amber-50 rounded-lg p-3 col-span-2">
                 <div className="text-xs text-gray-500">📝 Kasbon</div>
-                <div className="font-bold text-amber-700">
-                  {fRp(sel.kasbonTotal)}
-                </div>
+                <div className="font-bold text-amber-700">{fRp(sel.kasbonTotal)}</div>
               </div>
             </div>
             <div className="bg-indigo-600 text-white rounded-xl p-4 flex justify-between items-center">
-              <span className="font-semibold text-sm sm:text-base">
-                Total Revenue
-              </span>
-              <span className="text-base sm:text-xl font-bold truncate ml-2">
-                {fRp(sel.totalRevenue)}
-              </span>
+              <span className="font-semibold text-sm sm:text-base">Total Revenue</span>
+              <span className="text-base sm:text-xl font-bold truncate ml-2">{fRp(sel.totalRevenue)}</span>
             </div>
             {sel.notes && (
               <div className="bg-gray-50 rounded-xl p-3 text-sm">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   AreaChart,
@@ -20,6 +20,7 @@ import {
   Cell,
   Legend,
   ComposedChart,
+  ErrorBar,
 } from "recharts";
 import {
   TrendingUp,
@@ -30,6 +31,7 @@ import {
   Trash2,
   BookOpen,
   AlertTriangle,
+  AlertCircle,
   CheckCircle2,
   Clock,
   ArrowUpRight,
@@ -38,7 +40,12 @@ import {
   Sparkles,
   Loader2,
   Zap,
+  DollarSign,
+  ShoppingCart,
+  Percent,
+  Users,
 } from "lucide-react";
+import StatTile from "@/app/components/StatTile";
 import { useDateRange } from "@/context/DateRangeContext";
 
 // ═══════════════════════════════════════════════════════
@@ -159,16 +166,7 @@ type TopDebtor = {
 // CONSTANTS
 // ═══════════════════════════════════════════════════════
 
-const COLORS = [
-  "#6366f1",
-  "#10b981",
-  "#f59e0b",
-  "#ef4444",
-  "#8b5cf6",
-  "#06b6d4",
-  "#ec4899",
-  "#84cc16",
-];
+const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16"];
 
 const SCORE_LINES = [
   {
@@ -213,27 +211,21 @@ const SCORE_LINES = [
   },
 ];
 
-const _now = new Date();
-function _monthLabel(offset: number) {
-  const d = new Date(_now.getFullYear(), _now.getMonth() - offset, 1);
-  return d.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+// Moved _now and MONTHS out of module scope to avoid stale module-cache
+// and SSR/client timezone divergence. Use buildMonths() inside components.
+function buildMonths() {
+  const now = new Date();
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const label =
+      i === 0
+        ? "Bulan Ini"
+        : d.toLocaleDateString("id-ID", { month: "long", year: "numeric", timeZone: "Asia/Jakarta" });
+    return { year: d.getFullYear(), month: d.getMonth() + 1, label };
+  }).reverse(); // oldest → newest left-to-right, matching the trend chart direction
 }
-const MONTHS = Array.from({ length: 6 }, (_, i) => {
-  const d = new Date(_now.getFullYear(), _now.getMonth() - i, 1);
-  return {
-    year: d.getFullYear(),
-    month: d.getMonth() + 1,
-    label: i === 0 ? "This Month" : _monthLabel(i),
-  };
-});
 
-type TabKey =
-  | "overview"
-  | "products"
-  | "growth"
-  | "health"
-  | "waste"
-  | "kasbon";
+type TabKey = "overview" | "products" | "growth" | "health" | "waste" | "kasbon";
 const TABS: { key: TabKey; label: string; badge?: string }[] = [
   { key: "overview", label: "Ringkasan" },
   { key: "products", label: "Produk" },
@@ -247,19 +239,11 @@ const TABS: { key: TabKey; label: string; badge?: string }[] = [
 // SHARED HELPER COMPONENTS
 // ═══════════════════════════════════════════════════════
 
-function SummaryCard({
-  title,
-  value,
-}: {
-  title: string;
-  value: string | number;
-}) {
+function SummaryCard({ title, value }: { title: string; value: string | number }) {
   return (
-    <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-      <p className="text-xs sm:text-sm text-gray-500">{title}</p>
-      <h3 className="text-lg sm:text-xl md:text-2xl font-semibold mt-1 sm:mt-2 text-gray-900 wrap-break-word">
-        {value}
-      </h3>
+    <div className="p-4 rounded-xl bg-linear-to-br from-indigo-50 to-indigo-100/50 border border-indigo-100 hover:shadow-md transition">
+      <p className="text-xs text-gray-500 mb-0.5">{title}</p>
+      <p className="text-lg font-bold text-gray-900">{String(value)}</p>
     </div>
   );
 }
@@ -320,14 +304,8 @@ function GaugeBar({
 function GrowthBadge({ value }: { value: number }) {
   const up = value >= 0;
   return (
-    <span
-      className={`flex items-center gap-1 text-sm font-semibold ${up ? "text-green-600" : "text-red-500"}`}
-    >
-      {up ? (
-        <ArrowUpRight className="w-4 h-4" />
-      ) : (
-        <ArrowDownRight className="w-4 h-4" />
-      )}
+    <span className={`flex items-center gap-1 text-sm font-semibold ${up ? "text-green-600" : "text-red-500"}`}>
+      {up ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
       {Math.abs(value).toFixed(1)}%
     </span>
   );
@@ -407,15 +385,9 @@ function EmptyAnalytics() {
         const now = new Date();
         const from = new Date(now);
         from.setDate(from.getDate() - 30);
-        const salesRes = await fetch(
-          `/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`,
-        );
+        const salesRes = await fetch(`/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`);
         const salesJson = await salesRes.json();
-        setHasSales(
-          (salesJson.data ?? []).some(
-            (d: { revenue: number }) => d.revenue > 0,
-          ),
-        );
+        setHasSales((salesJson.data ?? []).some((d: { revenue: number }) => d.revenue > 0));
       } catch {
         // On error, allow proceeding
         setHasProducts(true);
@@ -435,9 +407,7 @@ function EmptyAnalytics() {
       toast.success("Analisis berhasil dibuat! Memuat ulang...");
       setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Gagal menghasilkan analisis",
-      );
+      toast.error(err instanceof Error ? err.message : "Gagal menghasilkan analisis");
     } finally {
       setGenerating(false);
     }
@@ -460,13 +430,10 @@ function EmptyAnalytics() {
           <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Package className="w-10 h-10 text-amber-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">
-            Tambahkan Produk Terlebih Dahulu
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-800 mb-3">Tambahkan Produk Terlebih Dahulu</h2>
           <p className="text-gray-500 mb-6 leading-relaxed">
-            Untuk menggunakan fitur analitik, Anda perlu menambahkan produk
-            terlebih dahulu. Sistem akan menganalisis performa penjualan produk
-            Anda.
+            Untuk menggunakan fitur analitik, Anda perlu menambahkan produk terlebih dahulu. Sistem akan menganalisis
+            performa penjualan produk Anda.
           </p>
           <a
             href="/dashboard/products"
@@ -487,19 +454,15 @@ function EmptyAnalytics() {
         <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6">
           <BarChart3 className="w-10 h-10 text-indigo-500" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-3">
-          Belum Ada Data Analitik
-        </h2>
+        <h2 className="text-2xl font-bold text-gray-800 mb-3">Belum Ada Data Analitik</h2>
         <p className="text-gray-500 mb-6 leading-relaxed">
-          Untuk memulai, jalankan analisis pertama Anda. Sistem akan
-          menghasilkan prediksi penjualan, skor kesehatan bisnis, dan wawasan
-          berbasis AI untuk membantu pengambilan keputusan.
+          Untuk memulai, jalankan analisis pertama Anda. Sistem akan menghasilkan prediksi penjualan, skor kesehatan
+          bisnis, dan wawasan berbasis AI untuk membantu pengambilan keputusan.
         </p>
         {!hasSales && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6 text-left">
             <p className="text-sm text-amber-700">
-              <strong>Info:</strong> Belum ada data penjualan. Analisis akan
-              lebih akurat setelah ada transaksi.
+              <strong>Info:</strong> Belum ada data penjualan. Analisis akan lebih akurat setelah ada transaksi.
             </p>
           </div>
         )}
@@ -520,9 +483,7 @@ function EmptyAnalytics() {
             </>
           )}
         </button>
-        <p className="text-xs text-gray-400 mt-4">
-          Analisis akan diperbarui otomatis setiap hari.
-        </p>
+        <p className="text-xs text-gray-400 mt-4">Analisis akan diperbarui otomatis setiap hari.</p>
       </div>
     </div>
   );
@@ -563,13 +524,9 @@ export default function AnalyticsPage() {
         const now = new Date();
         const from = new Date(now);
         from.setDate(from.getDate() - 30);
-        const res = await fetch(
-          `/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`,
-        );
+        const res = await fetch(`/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`);
         const json = await res.json();
-        setHasData(
-          (json.data ?? []).some((d: { revenue: number }) => d.revenue > 0),
-        );
+        setHasData((json.data ?? []).some((d: { revenue: number }) => d.revenue > 0));
       } catch {
         setHasData(true); // assume data exists on error
       }
@@ -611,36 +568,14 @@ export default function AnalyticsPage() {
     <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-blue-50 py-4 sm:py-8 px-2 md:px-8">
       <div className="max-w-7xl mx-auto space-y-3 sm:space-y-5">
         {/* Page header */}
-        <div className="space-y-3">
-          {/* Title row + generate button */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-indigo-700 flex items-center gap-2">
-                <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8 shrink-0" />{" "}
-                Analitik
-              </h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                Wawasan bisnis, performa & prediksi penjualan
-              </p>
-            </div>
-            <button
-              onClick={handleManualGenerate}
-              disabled={generating}
-              className="inline-flex items-center gap-1.5 bg-violet-600 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-50 cursor-pointer shadow-sm shrink-0"
-            >
-              {generating ? (
-                <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
-              ) : (
-                <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              )}
-              {generating ? "Memproses..." : "Perbarui Analisis"}
-            </button>
-          </div>
-
-          {/* Last updated + date range */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-1.5 text-[11px] sm:text-xs text-gray-400">
-              <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" />
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-indigo-700 flex items-center gap-2">
+              <BarChart3 className="w-8 h-8" /> Analytics Pro
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">Wawasan bisnis, performa & prediksi penjualan</p>
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+              <Clock className="w-3.5 h-3.5 shrink-0" />
               {lastUpdated ? (
                 <span>
                   Terakhir diperbarui:{" "}
@@ -651,6 +586,7 @@ export default function AnalyticsPage() {
                       year: "numeric",
                       hour: "2-digit",
                       minute: "2-digit",
+                      timeZone: "Asia/Jakarta",
                     })}
                   </span>
                 </span>
@@ -665,18 +601,10 @@ export default function AnalyticsPage() {
                     key={r}
                     onClick={() => setRange(r)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer ${
-                      range === r
-                        ? "bg-indigo-600 text-white shadow"
-                        : "text-gray-500 hover:bg-indigo-50"
+                      range === r ? "bg-indigo-600 text-white shadow" : "text-gray-500 hover:bg-indigo-50"
                     }`}
                   >
-                    {r === "today"
-                      ? "Hari Ini"
-                      : r === "7d"
-                        ? "7 Hari"
-                        : r === "30d"
-                          ? "30 Hari"
-                          : "Semua"}
+                    {r === "today" ? "Hari Ini" : r === "7d" ? "7 Hari" : r === "30d" ? "30 Hari" : "Semua"}
                   </button>
                 ))}
               </div>
@@ -737,10 +665,7 @@ function OverviewSection() {
     async function fetchData() {
       setLoading(true);
       try {
-        const prodUrl = new URL(
-          "/api/analytics/products",
-          window.location.origin,
-        );
+        const prodUrl = new URL("/api/analytics/products", window.location.origin);
         if (start) prodUrl.searchParams.set("from", start.toISOString());
         prodUrl.searchParams.set("to", end!.toISOString());
 
@@ -768,51 +693,41 @@ function OverviewSection() {
   }, [start, end]);
 
   const margin =
-    summary && summary.totalRevenue > 0
-      ? ((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1)
-      : "0";
+    summary && summary.totalRevenue > 0 ? ((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1) : "0";
 
   return (
     <div className="space-y-6">
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl h-28 animate-pulse shadow-sm border border-gray-100"
-            />
+            <div key={i} className="bg-white rounded-2xl h-28 animate-pulse shadow-sm border border-gray-100" />
           ))}
         </div>
       ) : summary ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <p className="text-xs sm:text-sm text-gray-500">Pendapatan</p>
-            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-indigo-600 mt-1 sm:mt-2 wrap-break-word">
-              Rp {summary.totalRevenue.toLocaleString("id-ID")}
-            </h3>
-            <p className="text-xs text-gray-400 mt-1">
-              {range === "today"
+          <StatTile
+            icon={DollarSign}
+            label="Pendapatan"
+            value={`Rp ${summary.totalRevenue.toLocaleString("id-ID")}`}
+            color="indigo"
+            subtext={
+              range === "today"
                 ? "Hari ini"
                 : range === "7d"
                   ? "7 hari terakhir"
                   : range === "30d"
                     ? "30 hari terakhir"
-                    : "Semua waktu"}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-            <p className="text-xs sm:text-sm text-gray-500">Laba</p>
-            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-green-600 mt-1 sm:mt-2 wrap-break-word">
-              Rp {summary.totalProfit.toLocaleString("id-ID")}
-            </h3>
-          </div>
-          <SummaryCard title="Qty Terjual" value={summary.totalQuantity} />
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-            <p className="text-xs sm:text-sm text-gray-500">Margin</p>
-            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mt-1 sm:mt-2">
-              {margin}%
-            </h3>
-          </div>
+                    : "Semua waktu"
+            }
+          />
+          <StatTile
+            icon={TrendingUp}
+            label="Laba"
+            value={`Rp ${summary.totalProfit.toLocaleString("id-ID")}`}
+            color="emerald"
+          />
+          <StatTile icon={Package} label="Qty Terjual" value={String(summary.totalQuantity)} color="purple" />
+          <StatTile icon={Percent} label="Margin" value={`${margin}%`} color="amber" />
         </div>
       ) : (
         <div className="bg-white rounded-2xl p-8 text-center text-gray-400 shadow-sm border border-gray-100">
@@ -836,9 +751,7 @@ function OverviewSection() {
                     {i + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-700 truncate">
-                      {p.productName}
-                    </p>
+                    <p className="text-sm font-medium text-gray-700 truncate">{p.productName}</p>
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
                       <div
                         className="h-1.5 rounded-full bg-indigo-400"
@@ -869,12 +782,8 @@ function OverviewSection() {
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-gray-600">Skor Keseluruhan</span>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl font-bold text-indigo-700">
-                    {health.overallScore.toFixed(1)}
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-bold ${classColors(health.classification)}`}
-                  >
+                  <span className="text-2xl font-bold text-indigo-700">{health.overallScore.toFixed(1)}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${classColors(health.classification)}`}>
                     {health.classification}
                   </span>
                 </div>
@@ -942,9 +851,7 @@ function OverviewSection() {
             >
               {item.icon}
             </span>
-            <span className="text-sm font-semibold text-gray-700">
-              {item.label}
-            </span>
+            <span className="text-sm font-semibold text-gray-700">{item.label}</span>
           </button>
         ))}
       </div>
@@ -960,13 +867,9 @@ function ProductsSection() {
   const { start, end, range } = useDateRange();
   const [data, setData] = useState<ProductAnalytics[]>([]);
   const [summary, setSummary] = useState<ProductSummary | null>(null);
-  const [previousSummary, setPreviousSummary] = useState<ProductSummary | null>(
-    null,
-  );
+  const [previousSummary, setPreviousSummary] = useState<ProductSummary | null>(null);
   const [categoryData, setCategoryData] = useState<CategoryAnalytics[]>([]);
-  const [productTab, setProductTab] = useState<"products" | "categories">(
-    "products",
-  );
+  const [productTab, setProductTab] = useState<"products" | "categories">("products");
   const [loading, setLoading] = useState(true);
   const insights = useInsights();
   const [page, setPage] = useState(1);
@@ -986,26 +889,16 @@ function ProductsSection() {
     async function fetchData() {
       setLoading(true);
       try {
-        const currentUrl = new URL(
-          "/api/analytics/products",
-          window.location.origin,
-        );
+        const currentUrl = new URL("/api/analytics/products", window.location.origin);
         if (start) currentUrl.searchParams.set("from", start.toISOString());
         currentUrl.searchParams.set("to", end!.toISOString());
 
         const { prevStart, prevEnd } = getPreviousRange(start, end);
-        const prevUrl = new URL(
-          "/api/analytics/products",
-          window.location.origin,
-        );
-        if (prevStart)
-          prevUrl.searchParams.set("from", prevStart.toISOString());
+        const prevUrl = new URL("/api/analytics/products", window.location.origin);
+        if (prevStart) prevUrl.searchParams.set("from", prevStart.toISOString());
         if (prevEnd) prevUrl.searchParams.set("to", prevEnd.toISOString());
 
-        const catUrl = new URL(
-          "/api/analytics/category",
-          window.location.origin,
-        );
+        const catUrl = new URL("/api/analytics/category", window.location.origin);
         if (start) catUrl.searchParams.set("from", start.toISOString());
         catUrl.searchParams.set("to", end!.toISOString());
 
@@ -1015,20 +908,14 @@ function ProductsSection() {
           fetch(catUrl.toString()),
         ]);
 
-        const [curJson, prevJson, catJson] = await Promise.all([
-          curRes.json(),
-          prevRes.json(),
-          catRes.json(),
-        ]);
+        const [curJson, prevJson, catJson] = await Promise.all([curRes.json(), prevRes.json(), catRes.json()]);
 
         setData(curJson.products ?? []);
         setSummary(curJson.summary ?? null);
         setPreviousSummary(prevJson.summary ?? null);
         setCategoryData(catJson.categories ?? []);
       } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Failed to fetch analytics",
-        );
+        toast.error(err instanceof Error ? err.message : "Failed to fetch analytics");
       } finally {
         setLoading(false);
       }
@@ -1045,16 +932,10 @@ function ProductsSection() {
     );
   }
 
-  const margin =
-    summary.totalRevenue > 0
-      ? ((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1)
-      : "0";
+  const margin = summary.totalRevenue > 0 ? ((summary.totalProfit / summary.totalRevenue) * 100).toFixed(1) : "0";
   let revenueGrowth = 0;
   if (previousSummary && previousSummary.totalRevenue > 0) {
-    revenueGrowth =
-      ((summary.totalRevenue - previousSummary.totalRevenue) /
-        previousSummary.totalRevenue) *
-      100;
+    revenueGrowth = ((summary.totalRevenue - previousSummary.totalRevenue) / previousSummary.totalRevenue) * 100;
   }
 
   return (
@@ -1079,43 +960,36 @@ function ProductsSection() {
       {productTab === "products" && (
         <>
           {/* Summary cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-            <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100">
-              <p className="text-xs sm:text-sm text-gray-500">Pendapatan</p>
-              <h3 className="text-xl sm:text-2xl md:text-3xl font-semibold mt-2 sm:mt-3 text-indigo-600 wrap-break-word">
-                Rp {summary.totalRevenue.toLocaleString("id-ID")}
-              </h3>
-              {previousSummary && range !== "all" && (
-                <p
-                  className={`text-sm mt-2 font-medium ${revenueGrowth >= 0 ? "text-green-600" : "text-red-600"}`}
-                >
-                  {revenueGrowth >= 0 ? "▲" : "▼"}{" "}
-                  {Math.abs(revenueGrowth).toFixed(1)}% dari periode sebelumnya
-                </p>
-              )}
-            </div>
-            <SummaryCard
-              title="Laba"
-              value={`Rp ${summary.totalProfit.toLocaleString("id-ID")}`}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <StatTile
+              icon={DollarSign}
+              label="Pendapatan"
+              value={`Rp ${summary.totalRevenue.toLocaleString("id-ID")}`}
+              color="indigo"
+              subtext={
+                previousSummary && range !== "all"
+                  ? `${revenueGrowth >= 0 ? "▲" : "▼"} ${Math.abs(revenueGrowth).toFixed(1)}% dari periode sebelumnya`
+                  : undefined
+              }
             />
-            <SummaryCard title="Jumlah Terjual" value={summary.totalQuantity} />
-            <SummaryCard title="Margin" value={`${margin}%`} />
+            <StatTile
+              icon={TrendingUp}
+              label="Laba"
+              value={`Rp ${summary.totalProfit.toLocaleString("id-ID")}`}
+              color="emerald"
+            />
+            <StatTile icon={Package} label="Jumlah Terjual" value={String(summary.totalQuantity)} color="purple" />
+            <StatTile icon={Percent} label="Margin" value={`${margin}%`} color="amber" />
           </div>
 
           {/* Revenue by product chart */}
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-            <h2 className="text-lg font-semibold mb-6 text-indigo-700">
-              Pendapatan per Produk
-            </h2>
+            <h2 className="text-lg font-semibold mb-6 text-indigo-700">Pendapatan per Produk</h2>
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={data}>
                 <XAxis dataKey="productName" tick={{ fontSize: 11 }} />
                 <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                <Tooltip
-                  formatter={(v: unknown) =>
-                    `Rp ${Number(v).toLocaleString("id-ID")}`
-                  }
-                />
+                <Tooltip formatter={(v: unknown) => `Rp ${Number(v).toLocaleString("id-ID")}`} />
                 <Bar dataKey="revenue" radius={[8, 8, 0, 0]} fill="#6366F1" />
               </BarChart>
             </ResponsiveContainer>
@@ -1130,24 +1004,18 @@ function ProductsSection() {
           {/* Product table */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-x-auto">
             <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-indigo-700">
-                Rincian Detail
-              </h2>
+              <h2 className="text-lg font-bold text-indigo-700">Rincian Detail</h2>
             </div>
             <table className="w-full text-sm min-w-175">
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
                   <th className="text-left px-6 py-3 font-semibold">Produk</th>
                   <th className="text-right px-6 py-3 font-semibold">Qty</th>
-                  <th className="text-right px-6 py-3 font-semibold">
-                    Pendapatan
-                  </th>
+                  <th className="text-right px-6 py-3 font-semibold">Pendapatan</th>
                   <th className="text-right px-6 py-3 font-semibold">Biaya</th>
                   <th className="text-right px-6 py-3 font-semibold">Laba</th>
                   <th className="text-right px-6 py-3 font-semibold">Margin</th>
-                  <th className="text-right px-6 py-3 font-semibold">
-                    Kontribusi
-                  </th>
+                  <th className="text-right px-6 py-3 font-semibold">Kontribusi</th>
                 </tr>
               </thead>
               <tbody>
@@ -1158,48 +1026,39 @@ function ProductsSection() {
                     </td>
                   </tr>
                 ) : (
-                  data
-                    .slice((page - 1) * pageSize, page * pageSize)
-                    .map((p, idx) => {
-                      const contribution =
-                        summary.totalRevenue > 0
-                          ? (p.revenue / summary.totalRevenue) * 100
-                          : 0;
-                      return (
-                        <tr
-                          key={p.productId}
-                          className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-indigo-50"} hover:bg-indigo-100`}
-                        >
-                          <td className="px-6 py-4 font-semibold text-indigo-700">
-                            <span className="inline-block bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1 text-xs font-medium">
-                              {p.productName}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right text-gray-700">
-                            {p.quantitySold}
-                          </td>
-                          <td className="px-6 py-4 text-right font-semibold text-gray-700">
-                            Rp {p.revenue.toLocaleString("id-ID")}
-                          </td>
-                          <td className="px-6 py-4 text-right text-gray-700">
-                            Rp {p.cost.toLocaleString("id-ID")}
-                          </td>
-                          <td className="px-6 py-4 text-right text-green-600 font-bold">
-                            Rp {p.profit.toLocaleString("id-ID")}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="bg-green-50 text-green-700 rounded px-2 py-0.5 text-xs font-semibold">
-                              {p.profitMargin.toFixed(1)}%
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <span className="bg-yellow-50 text-yellow-700 rounded px-2 py-0.5 text-xs font-semibold">
-                              {contribution.toFixed(1)}%
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
+                  data.slice((page - 1) * pageSize, page * pageSize).map((p, idx) => {
+                    const contribution = summary.totalRevenue > 0 ? (p.revenue / summary.totalRevenue) * 100 : 0;
+                    return (
+                      <tr
+                        key={p.productId}
+                        className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-indigo-50"} hover:bg-indigo-100`}
+                      >
+                        <td className="px-6 py-4 font-semibold text-indigo-700">
+                          <span className="inline-block bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1 text-xs font-medium">
+                            {p.productName}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-gray-700">{p.quantitySold}</td>
+                        <td className="px-6 py-4 text-right font-semibold text-gray-700">
+                          Rp {p.revenue.toLocaleString("id-ID")}
+                        </td>
+                        <td className="px-6 py-4 text-right text-gray-700">Rp {p.cost.toLocaleString("id-ID")}</td>
+                        <td className="px-6 py-4 text-right text-green-600 font-bold">
+                          Rp {p.profit.toLocaleString("id-ID")}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="bg-green-50 text-green-700 rounded px-2 py-0.5 text-xs font-semibold">
+                            {p.profitMargin.toFixed(1)}%
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <span className="bg-yellow-50 text-yellow-700 rounded px-2 py-0.5 text-xs font-semibold">
+                            {contribution.toFixed(1)}%
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -1207,8 +1066,7 @@ function ProductsSection() {
             {totalPages > 1 && (
               <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50">
                 <span className="text-sm text-gray-500">
-                  Page <strong>{page}</strong> dari{" "}
-                  <strong>{totalPages}</strong>
+                  Page <strong>{page}</strong> dari <strong>{totalPages}</strong>
                 </span>
                 <div className="flex gap-1">
                   <button
@@ -1219,25 +1077,15 @@ function ProductsSection() {
                     ‹
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter(
-                      (p) =>
-                        p === 1 || p === totalPages || Math.abs(p - page) <= 1,
-                    )
+                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
                     .reduce<(number | "...")[]>((acc, p, idx, arr) => {
-                      if (
-                        idx > 0 &&
-                        (p as number) - (arr[idx - 1] as number) > 1
-                      )
-                        acc.push("...");
+                      if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push("...");
                       acc.push(p);
                       return acc;
                     }, [])
                     .map((item, idx) =>
                       item === "..." ? (
-                        <span
-                          key={`e${idx}`}
-                          className="w-8 h-8 flex items-center justify-center text-gray-400"
-                        >
+                        <span key={`e${idx}`} className="w-8 h-8 flex items-center justify-center text-gray-400">
                           …
                         </span>
                       ) : (
@@ -1283,13 +1131,9 @@ function ProductsSection() {
         <>
           {/* Category pie chart */}
           <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
-            <h2 className="text-lg font-semibold mb-6 text-indigo-700">
-              Kontribusi Pendapatan per Kategori
-            </h2>
+            <h2 className="text-lg font-semibold mb-6 text-indigo-700">Kontribusi Pendapatan per Kategori</h2>
             {categoryData.length === 0 ? (
-              <div className="flex items-center justify-center h-48 text-gray-400">
-                Belum ada data kategori
-              </div>
+              <div className="flex items-center justify-center h-48 text-gray-400">Belum ada data kategori</div>
             ) : (
               <div className="flex flex-col md:flex-row gap-8 items-center">
                 <ResponsiveContainer width="100%" height={300}>
@@ -1302,38 +1146,26 @@ function ProductsSection() {
                       cy="50%"
                       outerRadius={110}
                       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                      label={(props: any) =>
-                        `${props.categoryName} ${Number(props.contribution).toFixed(1)}%`
-                      }
+                      label={(props: any) => `${props.categoryName} ${Number(props.contribution).toFixed(1)}%`}
                     >
                       {categoryData.map((_, idx) => (
                         <Cell key={idx} fill={COLORS[idx % COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v: unknown, name?: string) => [
-                        `Rp ${Number(v).toLocaleString("id-ID")}`,
-                        name ?? "",
-                      ]}
+                      formatter={(v: unknown, name?: string) => [`Rp ${Number(v).toLocaleString("id-ID")}`, name ?? ""]}
                     />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-col gap-2 min-w-40">
                   {categoryData.map((cat, idx) => (
-                    <div
-                      key={cat.categoryId ?? idx}
-                      className="flex items-center gap-2 text-sm"
-                    >
+                    <div key={cat.categoryId ?? idx} className="flex items-center gap-2 text-sm">
                       <span
                         className="w-3 h-3 rounded-full shrink-0"
                         style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                       />
-                      <span className="text-gray-700 font-medium">
-                        {cat.categoryName}
-                      </span>
-                      <span className="ml-auto text-indigo-600 font-semibold">
-                        {cat.contribution.toFixed(1)}%
-                      </span>
+                      <span className="text-gray-700 font-medium">{cat.categoryName}</span>
+                      <span className="ml-auto text-indigo-600 font-semibold">{cat.contribution.toFixed(1)}%</span>
                     </div>
                   ))}
                 </div>
@@ -1344,26 +1176,18 @@ function ProductsSection() {
           {/* Category table */}
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-x-auto">
             <div className="p-6 border-b border-gray-100">
-              <h2 className="text-lg font-bold text-indigo-700">
-                Rincian Kategori
-              </h2>
+              <h2 className="text-lg font-bold text-indigo-700">Rincian Kategori</h2>
             </div>
             <table className="w-full text-sm min-w-150">
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-semibold">
-                    Kategori
-                  </th>
+                  <th className="text-left px-6 py-3 font-semibold">Kategori</th>
                   <th className="text-right px-6 py-3 font-semibold">Qty</th>
-                  <th className="text-right px-6 py-3 font-semibold">
-                    Pendapatan
-                  </th>
+                  <th className="text-right px-6 py-3 font-semibold">Pendapatan</th>
                   <th className="text-right px-6 py-3 font-semibold">Biaya</th>
                   <th className="text-right px-6 py-3 font-semibold">Laba</th>
                   <th className="text-right px-6 py-3 font-semibold">Margin</th>
-                  <th className="text-right px-6 py-3 font-semibold">
-                    Kontribusi
-                  </th>
+                  <th className="text-right px-6 py-3 font-semibold">Kontribusi</th>
                 </tr>
               </thead>
               <tbody>
@@ -1387,20 +1211,14 @@ function ProductsSection() {
                               backgroundColor: COLORS[idx % COLORS.length],
                             }}
                           />
-                          <span className="text-indigo-700">
-                            {cat.categoryName}
-                          </span>
+                          <span className="text-indigo-700">{cat.categoryName}</span>
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-700">
-                        {cat.quantitySold}
-                      </td>
+                      <td className="px-6 py-4 text-right text-gray-700">{cat.quantitySold}</td>
                       <td className="px-6 py-4 text-right font-semibold text-gray-700">
                         Rp {cat.revenue.toLocaleString("id-ID")}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-700">
-                        Rp {cat.cost.toLocaleString("id-ID")}
-                      </td>
+                      <td className="px-6 py-4 text-right text-gray-700">Rp {cat.cost.toLocaleString("id-ID")}</td>
                       <td className="px-6 py-4 text-right text-green-600 font-bold">
                         Rp {cat.profit.toLocaleString("id-ID")}
                       </td>
@@ -1462,35 +1280,21 @@ function GrowthSection() {
         const now = new Date();
         const from = new Date(now);
         from.setDate(from.getDate() - days);
-        const res = await fetch(
-          `/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`,
-        );
+        const res = await fetch(`/api/analytics/daily?from=${from.toISOString()}&to=${now.toISOString()}`);
         const json = await res.json();
         setDailyData(json.data ?? []);
       } else {
         const now = new Date();
         const months: MonthlyPoint[] = [];
         for (let i = 5; i >= 0; i--) {
-          const y = new Date(
-            now.getFullYear(),
-            now.getMonth() - i,
-          ).getFullYear();
-          const m =
-            new Date(now.getFullYear(), now.getMonth() - i).getMonth() + 1;
-          const res = await fetch(
-            `/api/analytics/monthly?year=${y}&month=${m}`,
-          );
+          const y = new Date(now.getFullYear(), now.getMonth() - i).getFullYear();
+          const m = new Date(now.getFullYear(), now.getMonth() - i).getMonth() + 1;
+          const res = await fetch(`/api/analytics/monthly?year=${y}&month=${m}`);
           const json = await res.json();
           months.push({
             date: `${y}-${String(m).padStart(2, "0")}`,
-            revenue: (json.data ?? []).reduce(
-              (s: number, d: { revenue: number }) => s + d.revenue,
-              0,
-            ),
-            profit: (json.data ?? []).reduce(
-              (s: number, d: { profit: number }) => s + d.profit,
-              0,
-            ),
+            revenue: (json.data ?? []).reduce((s: number, d: { revenue: number }) => s + d.revenue, 0),
+            profit: (json.data ?? []).reduce((s: number, d: { profit: number }) => s + d.profit, 0),
           });
         }
         setMonthlyData(months);
@@ -1505,9 +1309,7 @@ function GrowthSection() {
   async function fetchGrowth() {
     try {
       const now = new Date();
-      const res = await fetch(
-        `/api/analytics/growth?year=${now.getFullYear()}&month=${now.getMonth() + 1}`,
-      );
+      const res = await fetch(`/api/analytics/growth?year=${now.getFullYear()}&month=${now.getMonth() + 1}`);
       const json = await res.json();
       if (json.data) setGrowth(json.data);
     } catch {
@@ -1549,9 +1351,7 @@ function GrowthSection() {
       ? hourlyData.reduce((s, d) => s + d.revenue, 0)
       : dailyData.reduce((s, d) => s + d.revenue, 0);
   const totalProfit =
-    granularity === "24h"
-      ? hourlyData.reduce((s, d) => s + d.profit, 0)
-      : dailyData.reduce((s, d) => s + d.profit, 0);
+    granularity === "24h" ? hourlyData.reduce((s, d) => s + d.profit, 0) : dailyData.reduce((s, d) => s + d.profit, 0);
   const activeHours = hourlyData.filter((d) => d.revenue > 0).length;
   const aov =
     granularity === "24h"
@@ -1562,22 +1362,15 @@ function GrowthSection() {
         ? Math.round(totalRevenue / dailyData.length)
         : 0;
   const last7 = dailyData.slice(-7);
-  const avg7rev =
-    last7.length > 0
-      ? Math.round(last7.reduce((s, d) => s + d.revenue, 0) / last7.length)
-      : 0;
+  const avg7rev = last7.length > 0 ? Math.round(last7.reduce((s, d) => s + d.revenue, 0) / last7.length) : 0;
 
   // Chart-ready data with forecast appended
   const movingAvgValues = rollingAvg(dailyData, 7);
   const dailyChartData = dailyData.map((d, i) => ({
     ...d,
-    label: new Date(d.date).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-    }),
+    label: new Date(d.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" }),
     movingAvg: movingAvgValues[i],
-    marginPct:
-      d.revenue > 0 ? Math.round((d.profit / d.revenue) * 1000) / 10 : null,
+    marginPct: d.revenue > 0 ? Math.round((d.profit / d.revenue) * 1000) / 10 : null,
     isForecast: false,
     predicted: null as number | null,
     predictedRevenue: null as number | null,
@@ -1588,16 +1381,13 @@ function GrowthSection() {
   const hourlyChartData = hourlyData.map((d) => ({
     ...d,
     label: d.hour,
-    marginPct:
-      d.revenue > 0 ? Math.round((d.profit / d.revenue) * 1000) / 10 : null,
+    marginPct: d.revenue > 0 ? Math.round((d.profit / d.revenue) * 1000) / 10 : null,
   }));
 
   // Append forecast points to chart (semi-transparent predicted bars)
   // Calculate rolling 7-day average for forecast (continuing from actual data)
   // Combine last 6 actual revenues with forecast revenues for rolling calculation
-  const lastActualRevenues = dailyChartData
-    .slice(-6)
-    .map((d) => d.revenue ?? 0);
+  const lastActualRevenues = dailyChartData.slice(-6).map((d) => d.revenue ?? 0);
   const forecastRevenues = forecastData.map((f) => f.predictedRevenue);
   const combinedRevenues = [...lastActualRevenues, ...forecastRevenues];
 
@@ -1607,21 +1397,14 @@ function GrowthSection() {
     const startIdx = i; // starts at 0 which means lastActualRevenues[0..5] + forecastRevenues[0]
     const windowValues = combinedRevenues.slice(startIdx, startIdx + 7);
     const rollingAvg =
-      windowValues.length > 0
-        ? Math.round(
-            windowValues.reduce((sum, v) => sum + v, 0) / windowValues.length,
-          )
-        : 0;
+      windowValues.length > 0 ? Math.round(windowValues.reduce((sum, v) => sum + v, 0) / windowValues.length) : 0;
 
     return {
       date: f.date,
       revenue: null as number | null,
       profit: null as number | null,
       growthRate: 0,
-      label: new Date(f.date).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-      }),
+      label: new Date(f.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" }),
       movingAvg: null,
       marginPct: null,
       isForecast: true,
@@ -1629,6 +1412,12 @@ function GrowthSection() {
       predictedRevenue: f.predictedRevenue,
       predictedProfit: f.predictedProfit,
       predictedMovingAvg: rollingAvg,
+      lowerBound: f.lowerBound,
+      upperBound: f.upperBound,
+      confidenceScore: f.confidenceScore,
+      // Asymmetric error deltas for ErrorBar
+      revBoundLower: f.predictedRevenue - f.lowerBound,
+      revBoundUpper: f.upperBound - f.predictedRevenue,
     };
   });
 
@@ -1638,13 +1427,13 @@ function GrowthSection() {
       ? [...dailyChartData, ...forecastPoints]
       : dailyChartData;
 
-  const avgMargin =
-    totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 1000) / 10 : 0;
+  const avgMargin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 1000) / 10 : 0;
   const monthlyChartData = monthlyData.map((d) => ({
     ...d,
     label: new Date(d.date + "-01").toLocaleDateString("id-ID", {
       month: "short",
       year: "2-digit",
+      timeZone: "Asia/Jakarta",
     }),
   }));
 
@@ -1668,139 +1457,104 @@ function GrowthSection() {
             (granularity === "30d" || granularity === "7d") &&
             " Batang transparan di ujung kanan menunjukkan prediksi AI untuk 7 hari ke depan."}
         </p>
-        {!hasSufficientData &&
-          (granularity === "30d" || granularity === "7d") && (
-            <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-              <div className="flex items-start gap-3">
-                <svg
-                  className="w-5 h-5 text-amber-500 shrink-0 mt-0.5"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-800">
-                    Data belum cukup untuk prediksi AI
-                  </p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Diperlukan minimal{" "}
-                    <span className="font-bold">{minDataDays} hari</span> dengan
-                    transaksi dalam 30 hari terakhir.
-                  </p>
-                  {/* Progress bar */}
-                  <div className="mt-2">
-                    <div className="flex justify-between text-xs text-amber-700 mb-1">
-                      <span>Progress data</span>
-                      <span className="font-bold">
-                        {nonZeroRevenueDays} / {minDataDays} hari
-                      </span>
-                    </div>
-                    <div className="w-full bg-amber-200 rounded-full h-2">
-                      <div
-                        className="bg-amber-500 h-2 rounded-full transition-all duration-500"
-                        style={{
-                          width: `${Math.min(100, (nonZeroRevenueDays / minDataDays) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-amber-600 mt-1">
-                      {nonZeroRevenueDays === 0
-                        ? "Belum ada transaksi tercatat."
-                        : `Butuh ${Math.max(0, minDataDays - nonZeroRevenueDays)} hari lagi untuk mengaktifkan prediksi.`}
-                    </p>
+        {!hasSufficientData && (granularity === "30d" || granularity === "7d") && (
+          <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path
+                  fillRule="evenodd"
+                  d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800">Data belum cukup untuk prediksi AI</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Diperlukan minimal <span className="font-bold">{minDataDays} hari</span> dengan transaksi dalam 30
+                  hari terakhir.
+                </p>
+                {/* Progress bar */}
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-amber-700 mb-1">
+                    <span>Progress data</span>
+                    <span className="font-bold">
+                      {nonZeroRevenueDays} / {minDataDays} hari
+                    </span>
                   </div>
+                  <div className="w-full bg-amber-200 rounded-full h-2">
+                    <div
+                      className="bg-amber-500 h-2 rounded-full transition-all duration-500"
+                      style={{
+                        width: `${Math.min(100, (nonZeroRevenueDays / minDataDays) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                  <p className="text-xs text-amber-600 mt-1">
+                    {nonZeroRevenueDays === 0
+                      ? "Belum ada transaksi tercatat."
+                      : `Butuh ${Math.max(0, minDataDays - nonZeroRevenueDays)} hari lagi untuk mengaktifkan prediksi.`}
+                  </p>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
       </div>
 
       {/* KPI cards - for hourly and daily views */}
-      {(isHourly || isDaily) &&
-        (hourlyData.length > 0 || dailyData.length > 0) && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 sm:p-5">
-              <p className="text-[10px] sm:text-xs text-gray-400 font-medium uppercase tracking-wide">
-                Total Pendapatan
-              </p>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-indigo-600 mt-1 sm:mt-2 wrap-break-word">
-                Rp {totalRevenue.toLocaleString("id-ID")}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {granularity === "24h"
-                  ? "24 jam terakhir"
-                  : granularity === "7d"
-                    ? "7 hari terakhir"
-                    : "30 hari terakhir"}
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 sm:p-5">
-              <p className="text-[10px] sm:text-xs text-gray-400 font-medium uppercase tracking-wide">
-                Total Laba
-              </p>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-emerald-600 mt-1 sm:mt-2 wrap-break-word">
-                Rp {totalProfit.toLocaleString("id-ID")}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                Margin:{" "}
-                {totalRevenue > 0
-                  ? ((totalProfit / totalRevenue) * 100).toFixed(1)
-                  : "0"}
-                %
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 sm:p-5">
-              <p className="text-[10px] sm:text-xs text-gray-400 font-medium uppercase tracking-wide">
-                {isHourly ? "Rata-rata Per Jam" : "Rata-rata Harian"}
-              </p>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 mt-1 sm:mt-2 wrap-break-word">
-                {aov > 0 ? `Rp ${aov.toLocaleString("id-ID")}` : "-"}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {isHourly
-                  ? `Dari ${activeHours} jam aktif`
-                  : `${dailyData.length} hari terakhir`}
-              </p>
-            </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-3 sm:p-5">
-              <p className="text-[10px] sm:text-xs text-gray-400 font-medium uppercase tracking-wide">
-                {isHourly ? "Total Transaksi" : "Rata-rata 7 Hari"}
-              </p>
-              <p className="text-lg sm:text-xl md:text-2xl font-bold text-violet-600 mt-1 sm:mt-2 wrap-break-word">
-                {isHourly
-                  ? hourlyData.reduce((s, d) => s + d.transactions, 0)
-                  : avg7rev > 0
-                    ? `Rp ${avg7rev.toLocaleString("id-ID")}`
-                    : "-"}
-              </p>
-              <p className="text-xs text-gray-400 mt-1">
-                {isHourly ? "Dalam 24 jam terakhir" : "Rata-rata bergulir"}
-              </p>
-            </div>
-          </div>
-        )}
+      {(isHourly || isDaily) && (hourlyData.length > 0 || dailyData.length > 0) && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatTile
+            icon={DollarSign}
+            label="Total Pendapatan"
+            value={`Rp ${totalRevenue.toLocaleString("id-ID")}`}
+            color="indigo"
+            subtext={
+              granularity === "24h" ? "24 jam terakhir" : granularity === "7d" ? "7 hari terakhir" : "30 hari terakhir"
+            }
+          />
+          <StatTile
+            icon={TrendingUp}
+            label="Total Laba"
+            value={`Rp ${totalProfit.toLocaleString("id-ID")}`}
+            color="emerald"
+            subtext={`Margin: ${totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : "0"}%`}
+          />
+          <StatTile
+            icon={BarChart3}
+            label={isHourly ? "Rata-rata Per Jam" : "Rata-rata Harian"}
+            value={aov > 0 ? `Rp ${aov.toLocaleString("id-ID")}` : "-"}
+            color="purple"
+            subtext={isHourly ? `Dari ${activeHours} jam aktif` : `${dailyData.length} hari terakhir`}
+          />
+          <StatTile
+            icon={Zap}
+            label={isHourly ? "Total Transaksi" : "Rata-rata 7 Hari"}
+            value={
+              isHourly
+                ? String(hourlyData.reduce((s, d) => s + d.transactions, 0))
+                : avg7rev > 0
+                  ? `Rp ${avg7rev.toLocaleString("id-ID")}`
+                  : "-"
+            }
+            color="blue"
+            subtext={isHourly ? "Dalam 24 jam terakhir" : "Rata-rata bergulir"}
+          />
+        </div>
+      )}
 
       {/* MoM comparison strip */}
       {growth && !isHourly && (
         <div className="flex flex-col sm:flex-row flex-wrap gap-3">
           <div className="flex items-center gap-2 sm:gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-3 sm:px-4 py-2 sm:py-3 min-w-0">
-            <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">
-              Pendapatan MoM
-            </span>
+            <span className="text-xs text-indigo-600 font-semibold whitespace-nowrap">Pendapatan MoM</span>
             <span className="text-xs sm:text-sm font-bold text-indigo-800 truncate">
               Rp {growth.currentRevenue.toLocaleString("id-ID")}
             </span>
             <GrowthBadge value={growth.revenueGrowth} />
           </div>
           <div className="flex items-center gap-2 sm:gap-3 bg-emerald-50 border border-emerald-100 rounded-xl px-3 sm:px-4 py-2 sm:py-3 min-w-0">
-            <span className="text-xs text-emerald-600 font-semibold whitespace-nowrap">
-              Laba MoM
-            </span>
+            <span className="text-xs text-emerald-600 font-semibold whitespace-nowrap">Laba MoM</span>
             <span className="text-xs sm:text-sm font-bold text-emerald-800 truncate">
               Rp {growth.currentProfit.toLocaleString("id-ID")}
             </span>
@@ -1825,13 +1579,7 @@ function GrowthSection() {
                 : "bg-white border border-gray-200 text-gray-600 hover:bg-indigo-50"
             }`}
           >
-            {g === "24h"
-              ? "24 Jam"
-              : g === "7d"
-                ? "7 Hari"
-                : g === "30d"
-                  ? "30 Hari"
-                  : "6 Bulan"}
+            {g === "24h" ? "24 Jam" : g === "7d" ? "7 Hari" : g === "30d" ? "30 Hari" : "6 Bulan"}
           </button>
         ))}
       </div>
@@ -1845,9 +1593,7 @@ function GrowthSection() {
           {/* Hourly chart */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
             <div className="flex items-start justify-between mb-1">
-              <h3 className="text-base font-bold text-indigo-700">
-                Pendapatan &amp; Laba Per Jam (24 Jam Terakhir)
-              </h3>
+              <h3 className="text-base font-bold text-indigo-700">Pendapatan &amp; Laba Per Jam (24 Jam Terakhir)</h3>
             </div>
             <div className="flex flex-wrap gap-4 mb-5 mt-1">
               <span className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -1860,21 +1606,11 @@ function GrowthSection() {
               </span>
             </div>
             {hourlyChartData.length === 0 ? (
-              <p className="text-center text-gray-400 py-12">
-                Tidak ada data untuk periode ini.
-              </p>
+              <p className="text-center text-gray-400 py-12">Tidak ada data untuk periode ini.</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart
-                  data={hourlyChartData}
-                  barCategoryGap="15%"
-                  barGap={2}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f3f4f6"
-                    vertical={false}
-                  />
+                <ComposedChart data={hourlyChartData} barCategoryGap="15%" barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 10, fill: "#9ca3af" }}
@@ -1890,29 +1626,12 @@ function GrowthSection() {
                   />
                   <Tooltip
                     formatter={(v, name) => {
-                      if (name === "profit")
-                        return [
-                          `Rp ${Number(v).toLocaleString("id-ID")}`,
-                          "Laba",
-                        ];
-                      return [
-                        `Rp ${Number(v).toLocaleString("id-ID")}`,
-                        "Pendapatan",
-                      ];
+                      if (name === "profit") return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Laba"];
+                      return [`Rp ${Number(v).toLocaleString("id-ID")}`, "Pendapatan"];
                     }}
                   />
-                  <Bar
-                    dataKey="revenue"
-                    fill="#818cf8"
-                    radius={[4, 4, 0, 0]}
-                    name="revenue"
-                  />
-                  <Bar
-                    dataKey="profit"
-                    fill="#6ee7b7"
-                    radius={[4, 4, 0, 0]}
-                    name="profit"
-                  />
+                  <Bar dataKey="revenue" fill="#818cf8" radius={[4, 4, 0, 0]} name="revenue" />
+                  <Bar dataKey="profit" fill="#6ee7b7" radius={[4, 4, 0, 0]} name="profit" />
                 </ComposedChart>
               </ResponsiveContainer>
             )}
@@ -1969,25 +1688,24 @@ function GrowthSection() {
                     <span className="inline-block w-6 border-t-2 border-dashed border-violet-500" />
                     Prediksi Rata-rata 7 hari
                   </span>
+                  <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <span className="inline-flex items-center justify-center w-4">
+                      <span className="block w-px h-3 bg-violet-700 relative">
+                        <span className="absolute -top-px left-1/2 -translate-x-1/2 w-2 h-px bg-violet-700" />
+                        <span className="absolute -bottom-px left-1/2 -translate-x-1/2 w-2 h-px bg-violet-700" />
+                      </span>
+                    </span>
+                    Rentang 95%
+                  </span>
                 </>
               )}
             </div>
             {combinedChartData.length === 0 ? (
-              <p className="text-center text-gray-400 py-12">
-                Tidak ada data untuk periode ini.
-              </p>
+              <p className="text-center text-gray-400 py-12">Tidak ada data untuk periode ini.</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart
-                  data={combinedChartData}
-                  barCategoryGap="15%"
-                  barGap={2}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f3f4f6"
-                    vertical={false}
-                  />
+                <ComposedChart data={combinedChartData} barCategoryGap="15%" barGap={2}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 10, fill: "#9ca3af" }}
@@ -2002,50 +1720,59 @@ function GrowthSection() {
                     tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
                   />
                   <Tooltip
-                    formatter={(v, name) => {
-                      if (name === "movingAvg")
-                        return [
-                          `Rp ${Number(v).toLocaleString("id-ID")}`,
-                          "Rata-rata 7 hari",
-                        ];
-                      if (name === "profit")
-                        return [
-                          `Rp ${Number(v).toLocaleString("id-ID")}`,
-                          "Laba",
-                        ];
-                      if (name === "predictedRevenue")
-                        return [
-                          `Rp ${Number(v).toLocaleString("id-ID")}`,
-                          "Prediksi Pendapatan",
-                        ];
-                      if (name === "predictedProfit")
-                        return [
-                          `Rp ${Number(v).toLocaleString("id-ID")}`,
-                          "Prediksi Laba",
-                        ];
-                      if (name === "predictedMovingAvg")
-                        return [
-                          `Rp ${Number(v).toLocaleString("id-ID")}`,
-                          "Prediksi Rata-rata 7 hari",
-                        ];
-                      return [
-                        `Rp ${Number(v).toLocaleString("id-ID")}`,
-                        "Pendapatan",
-                      ];
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0]?.payload as {
+                        isForecast?: boolean;
+                        predictedRevenue?: number;
+                        predictedProfit?: number;
+                        lowerBound?: number;
+                        upperBound?: number;
+                        confidenceScore?: number;
+                      };
+                      if (d?.isForecast) {
+                        return (
+                          <div className="bg-white border border-violet-200 rounded-xl shadow-lg p-3 text-xs space-y-0.5">
+                            <p className="font-semibold text-violet-700 mb-1">{label} — Prediksi</p>
+                            <p className="text-indigo-600">
+                              Pendapatan: Rp {(d.predictedRevenue ?? 0).toLocaleString("id-ID")}
+                            </p>
+                            <p className="text-emerald-600">
+                              Laba: Rp {(d.predictedProfit ?? 0).toLocaleString("id-ID")}
+                            </p>
+                            <div className="mt-1.5 pt-1.5 border-t border-gray-100">
+                              <p className="text-gray-500 font-medium">Rentang 95%:</p>
+                              <p className="text-gray-500">↓ Min: Rp {(d.lowerBound ?? 0).toLocaleString("id-ID")}</p>
+                              <p className="text-gray-500">↑ Maks: Rp {(d.upperBound ?? 0).toLocaleString("id-ID")}</p>
+                              <p className="text-gray-400 mt-0.5">Kepercayaan: {d.confidenceScore ?? 0}%</p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      const labelMap: Record<string, string> = {
+                        revenue: "Pendapatan",
+                        profit: "Laba",
+                        movingAvg: "Rata-rata 7 hari",
+                        predictedRevenue: "Prediksi Pendapatan",
+                        predictedProfit: "Prediksi Laba",
+                        predictedMovingAvg: "Prediksi Rata-rata 7 hari",
+                      };
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs space-y-0.5">
+                          <p className="font-semibold text-gray-700 mb-1">{label}</p>
+                          {payload.map((p, i) =>
+                            p.value != null ? (
+                              <p key={i} style={{ color: p.color }}>
+                                {labelMap[p.name as string] ?? p.name}: Rp {Number(p.value).toLocaleString("id-ID")}
+                              </p>
+                            ) : null,
+                          )}
+                        </div>
+                      );
                     }}
                   />
-                  <Bar
-                    dataKey="revenue"
-                    fill="#818cf8"
-                    radius={[4, 4, 0, 0]}
-                    name="revenue"
-                  />
-                  <Bar
-                    dataKey="profit"
-                    fill="#6ee7b7"
-                    radius={[4, 4, 0, 0]}
-                    name="profit"
-                  />
+                  <Bar dataKey="revenue" fill="#818cf8" radius={[4, 4, 0, 0]} name="revenue" />
+                  <Bar dataKey="profit" fill="#6ee7b7" radius={[4, 4, 0, 0]} name="profit" />
                   {/* Forecast bars — semi-transparent, appended after actual data */}
                   {hasSufficientData && forecastData.length > 0 && (
                     <Bar
@@ -2057,7 +1784,23 @@ function GrowthSection() {
                       strokeDasharray="4 2"
                       stroke="#818cf8"
                       strokeWidth={1}
-                    />
+                    >
+                      <ErrorBar
+                        dataKey={(d: {
+                          isForecast?: boolean;
+                          predictedRevenue?: number | null;
+                          revBoundLower?: number;
+                          revBoundUpper?: number;
+                        }) =>
+                          d.isForecast && d.predictedRevenue != null
+                            ? [d.revBoundLower ?? 0, d.revBoundUpper ?? 0]
+                            : [0, 0]
+                        }
+                        width={4}
+                        strokeWidth={1.5}
+                        stroke="#7c3aed"
+                      />
+                    </Bar>
                   )}
                   {hasSufficientData && forecastData.length > 0 && (
                     <Bar
@@ -2072,22 +1815,20 @@ function GrowthSection() {
                     />
                   )}
                   {/* Forecast boundary reference line */}
-                  {hasSufficientData &&
-                    forecastData.length > 0 &&
-                    dailyChartData.length > 0 && (
-                      <ReferenceLine
-                        x={dailyChartData[dailyChartData.length - 1].label}
-                        stroke="#8b5cf6"
-                        strokeDasharray="6 4"
-                        strokeWidth={1.5}
-                        label={{
-                          value: "Prediksi →",
-                          position: "top",
-                          fontSize: 10,
-                          fill: "#7c3aed",
-                        }}
-                      />
-                    )}
+                  {hasSufficientData && forecastData.length > 0 && dailyChartData.length > 0 && (
+                    <ReferenceLine
+                      x={dailyChartData[dailyChartData.length - 1].label}
+                      stroke="#8b5cf6"
+                      strokeDasharray="6 4"
+                      strokeWidth={1.5}
+                      label={{
+                        value: "Prediksi →",
+                        position: "top",
+                        fontSize: 10,
+                        fill: "#7c3aed",
+                      }}
+                    />
+                  )}
                   <Line
                     type="monotone"
                     dataKey="movingAvg"
@@ -2125,55 +1866,51 @@ function GrowthSection() {
           </div>
 
           {/* Forecast summary card */}
-          {hasSufficientData &&
-            forecastData.length > 0 &&
-            (granularity === "30d" || granularity === "7d") && (
-              <div className="bg-linear-to-r from-violet-50 to-indigo-50 rounded-2xl border border-violet-200 p-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="w-5 h-5 text-violet-600" />
-                  <h3 className="text-sm font-bold text-violet-700">
-                    Prediksi 7 Hari ke Depan
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
-                  {forecastData.map((f) => (
-                    <div key={f.date} className="bg-white/70 rounded-xl p-3">
-                      <p className="text-xs text-gray-500">
-                        {new Date(f.date).toLocaleDateString("id-ID", {
-                          weekday: "short",
-                          day: "numeric",
-                          month: "short",
-                        })}
-                      </p>
-                      <p className="text-sm font-bold text-violet-700 mt-1">
-                        Rp {f.predictedRevenue.toLocaleString("id-ID")}
-                      </p>
-                      <p className="text-xs text-emerald-600 font-semibold">
-                        Laba: Rp{" "}
-                        {(f.predictedProfit ?? 0).toLocaleString("id-ID")}
-                      </p>
-                      <ConfidenceBadge score={f.confidenceScore} />
-                    </div>
-                  ))}
-                </div>
-                {/* AI Insight for forecast */}
-                {insights.forecast?.insight && (
-                  <div className="mt-3">
-                    <AIInsightLabel text={insights.forecast.insight} />
-                  </div>
-                )}
+          {hasSufficientData && forecastData.length > 0 && (granularity === "30d" || granularity === "7d") && (
+            <div className="bg-linear-to-r from-violet-50 to-indigo-50 rounded-2xl border border-violet-200 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-5 h-5 text-violet-600" />
+                <h3 className="text-sm font-bold text-violet-700">Prediksi 7 Hari ke Depan</h3>
               </div>
-            )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                {forecastData.map((f) => (
+                  <div key={f.date} className="bg-white/70 rounded-xl p-3">
+                    <p className="text-xs text-gray-500">
+                      {new Date(f.date).toLocaleDateString("id-ID", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                        timeZone: "Asia/Jakarta",
+                      })}
+                    </p>
+                    <p className="text-sm font-bold text-violet-700 mt-1">
+                      Rp {f.predictedRevenue.toLocaleString("id-ID")}
+                    </p>
+                    <p className="text-xs text-emerald-600 font-semibold">
+                      Laba: Rp {(f.predictedProfit ?? 0).toLocaleString("id-ID")}
+                    </p>
+                    <p className="text-[10px] text-gray-400 mt-1 leading-tight">
+                      ↕ Rp {f.lowerBound.toLocaleString("id-ID")}–{f.upperBound.toLocaleString("id-ID")}
+                    </p>
+                    <ConfidenceBadge score={f.confidenceScore} />
+                  </div>
+                ))}
+              </div>
+              {/* AI Insight for forecast */}
+              {insights.forecast?.insight && (
+                <div className="mt-3">
+                  <AIInsightLabel text={insights.forecast.insight} />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── Sales day frequency strip ──────────────────── */}
           {dailyChartData.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="text-base font-bold text-indigo-700 mb-1">
-                Sekilas Hari Penjualan
-              </h3>
+              <h3 className="text-base font-bold text-indigo-700 mb-1">Sekilas Hari Penjualan</h3>
               <p className="text-xs text-gray-400 mb-4">
-                Setiap batang = satu hari. Tinggi = pendapatan relatif. Arahkan
-                kursor untuk detail.
+                Setiap batang = satu hari. Tinggi = pendapatan relatif. Arahkan kursor untuk detail.
               </p>
               <ResponsiveContainer width="100%" height={100}>
                 <BarChart data={dailyChartData} barCategoryGap="15%">
@@ -2191,23 +1928,13 @@ function GrowthSection() {
                       return (
                         <div className="bg-gray-800 text-white text-[10px] rounded-lg px-2.5 py-1.5 shadow-lg">
                           <div className="font-semibold">{d.label}</div>
-                          <div>
-                            Pendapatan: Rp{" "}
-                            {Number(d.revenue).toLocaleString("id-ID")}
-                          </div>
-                          <div>
-                            Laba: Rp {Number(d.profit).toLocaleString("id-ID")}
-                          </div>
+                          <div>Pendapatan: Rp {Number(d.revenue).toLocaleString("id-ID")}</div>
+                          <div>Laba: Rp {Number(d.profit).toLocaleString("id-ID")}</div>
                         </div>
                       );
                     }}
                   />
-                  <Bar
-                    dataKey="revenue"
-                    radius={[3, 3, 0, 0]}
-                    fill="#a5b4fc"
-                    activeBar={{ fill: "#6366f1" }}
-                  />
+                  <Bar dataKey="revenue" radius={[3, 3, 0, 0]} fill="#a5b4fc" activeBar={{ fill: "#6366f1" }} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -2217,36 +1944,23 @@ function GrowthSection() {
           {dailyChartData.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex items-center justify-between mb-1">
-                <h3 className="text-base font-bold text-indigo-700">
-                  Tren Margin
-                </h3>
+                <h3 className="text-base font-bold text-indigo-700">Tren Margin</h3>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700">
                   Rata-rata {avgMargin}%
                 </span>
               </div>
               <p className="text-xs text-gray-400 mb-4">
-                Persentase margin laba harian. Area berwarna memudahkan deteksi
-                penurunan di bawah rata-rata.
+                Persentase margin laba harian. Area berwarna memudahkan deteksi penurunan di bawah rata-rata.
               </p>
               <ResponsiveContainer width="100%" height={180}>
-                <AreaChart
-                  data={dailyChartData.filter((d) => d.marginPct !== null)}
-                >
+                <AreaChart data={dailyChartData.filter((d) => d.marginPct !== null)}>
                   <defs>
                     <linearGradient id="marginGrad" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#10b981" stopOpacity={0.3} />
-                      <stop
-                        offset="100%"
-                        stopColor="#10b981"
-                        stopOpacity={0.02}
-                      />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.02} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f3f4f6"
-                    vertical={false}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
                   <XAxis
                     dataKey="label"
                     tick={{ fontSize: 10, fill: "#9ca3af" }}
@@ -2281,13 +1995,8 @@ function GrowthSection() {
                         <div className="bg-gray-800 text-white text-[11px] rounded-lg px-3 py-2 shadow-lg">
                           <div className="font-semibold">{d.label}</div>
                           <div>Margin: {d.marginPct}%</div>
-                          <div>
-                            Laba: Rp {Number(d.profit).toLocaleString("id-ID")}
-                          </div>
-                          <div>
-                            Pendapatan: Rp{" "}
-                            {Number(d.revenue).toLocaleString("id-ID")}
-                          </div>
+                          <div>Laba: Rp {Number(d.profit).toLocaleString("id-ID")}</div>
+                          <div>Pendapatan: Rp {Number(d.revenue).toLocaleString("id-ID")}</div>
                         </div>
                       );
                     }}
@@ -2310,57 +2019,34 @@ function GrowthSection() {
           {dailyChartData.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
-                <h3 className="font-bold text-indigo-700 text-sm">
-                  Ringkasan Harian
-                </h3>
+                <h3 className="font-bold text-indigo-700 text-sm">Ringkasan Harian</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Rincian{" "}
-                  {granularity === "7d"
-                    ? "7 hari terakhir"
-                    : "30 hari terakhir"}{" "}
-                  — pendapatan, laba, margin &amp; perubahan harian.
+                  Rincian {granularity === "7d" ? "7 hari terakhir" : "30 hari terakhir"} — pendapatan, laba, margin
+                  &amp; perubahan harian.
                 </p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-indigo-50 text-indigo-700">
                     <tr>
-                      <th className="text-left px-6 py-3 font-semibold">
-                        Tanggal
-                      </th>
-                      <th className="text-right px-6 py-3 font-semibold">
-                        Pendapatan
-                      </th>
-                      <th className="text-right px-6 py-3 font-semibold">
-                        Laba
-                      </th>
-                      <th className="text-right px-6 py-3 font-semibold">
-                        Margin
-                      </th>
-                      <th className="text-right px-6 py-3 font-semibold">
-                        vs Hari Sebelumnya
-                      </th>
+                      <th className="text-left px-6 py-3 font-semibold">Tanggal</th>
+                      <th className="text-right px-6 py-3 font-semibold">Pendapatan</th>
+                      <th className="text-right px-6 py-3 font-semibold">Laba</th>
+                      <th className="text-right px-6 py-3 font-semibold">Margin</th>
+                      <th className="text-right px-6 py-3 font-semibold">vs Hari Sebelumnya</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dailyChartData.map((d, i) => {
                       const prev = dailyChartData[i - 1];
-                      const dod =
-                        prev && prev.revenue > 0
-                          ? ((d.revenue - prev.revenue) / prev.revenue) * 100
-                          : null;
-                      const margin =
-                        d.revenue > 0
-                          ? ((d.profit / d.revenue) * 100).toFixed(1)
-                          : null;
+                      const dod = prev && prev.revenue > 0 ? ((d.revenue - prev.revenue) / prev.revenue) * 100 : null;
+                      const margin = d.revenue > 0 ? ((d.profit / d.revenue) * 100).toFixed(1) : null;
                       return (
                         <tr
                           key={d.date}
                           className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}`}
                         >
-                          <td className="px-6 py-3 font-medium text-gray-700">
-                            {d.label}
-                          </td>
+                          <td className="px-6 py-3 font-medium text-gray-700">{d.label}</td>
                           <td className="px-6 py-3 text-right font-semibold text-indigo-700">
                             {d.revenue > 0 ? (
                               `Rp ${d.revenue.toLocaleString("id-ID")}`
@@ -2408,31 +2094,15 @@ function GrowthSection() {
               Pendapatan &amp; Laba Bulanan — 6 Bulan Terakhir
             </h3>
             <p className="text-xs text-gray-400 mb-4">
-              Batang berdampingan menunjukkan jarak antara pendapatan dan laba
-              setiap bulan.
+              Batang berdampingan menunjukkan jarak antara pendapatan dan laba setiap bulan.
             </p>
             {monthlyChartData.length === 0 ? (
-              <p className="text-center text-gray-400 py-12">
-                Belum ada data bulanan.
-              </p>
+              <p className="text-center text-gray-400 py-12">Belum ada data bulanan.</p>
             ) : (
               <ResponsiveContainer width="100%" height={280}>
-                <BarChart
-                  data={monthlyChartData}
-                  barCategoryGap="25%"
-                  barGap={4}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="#f3f4f6"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11, fill: "#9ca3af" }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
+                <BarChart data={monthlyChartData} barCategoryGap="25%" barGap={4}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
                   <YAxis
                     tick={{ fontSize: 11, fill: "#9ca3af" }}
                     axisLine={false}
@@ -2445,75 +2115,43 @@ function GrowthSection() {
                       name === "revenue" ? "Pendapatan" : "Laba",
                     ]}
                   />
-                  <Legend
-                    formatter={(value) =>
-                      value === "revenue" ? "Pendapatan" : "Laba"
-                    }
-                  />
-                  <Bar
-                    dataKey="revenue"
-                    fill="#818cf8"
-                    radius={[4, 4, 0, 0]}
-                    name="revenue"
-                  />
-                  <Bar
-                    dataKey="profit"
-                    fill="#6ee7b7"
-                    radius={[4, 4, 0, 0]}
-                    name="profit"
-                  />
+                  <Legend formatter={(value) => (value === "revenue" ? "Pendapatan" : "Laba")} />
+                  <Bar dataKey="revenue" fill="#818cf8" radius={[4, 4, 0, 0]} name="revenue" />
+                  <Bar dataKey="profit" fill="#6ee7b7" radius={[4, 4, 0, 0]} name="profit" />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
 
           {/* AI Insight for growth */}
-          {monthlyChartData.length > 0 && (
-            <AIInsightLabel text={insights.growth?.insight} />
-          )}
+          {monthlyChartData.length > 0 && <AIInsightLabel text={insights.growth?.insight} />}
 
           {monthlyChartData.length > 0 && (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="p-5 border-b border-gray-100">
-                <h3 className="font-bold text-indigo-700 text-sm">
-                  Ringkasan Bulanan
-                </h3>
+                <h3 className="font-bold text-indigo-700 text-sm">Ringkasan Bulanan</h3>
               </div>
               <table className="w-full text-sm">
                 <thead className="bg-indigo-50 text-indigo-700">
                   <tr>
                     <th className="text-left px-6 py-3 font-semibold">Bulan</th>
-                    <th className="text-right px-6 py-3 font-semibold">
-                      Pendapatan
-                    </th>
+                    <th className="text-right px-6 py-3 font-semibold">Pendapatan</th>
                     <th className="text-right px-6 py-3 font-semibold">Laba</th>
-                    <th className="text-right px-6 py-3 font-semibold">
-                      Margin
-                    </th>
-                    <th className="text-right px-6 py-3 font-semibold">
-                      vs Sebelumnya
-                    </th>
+                    <th className="text-right px-6 py-3 font-semibold">Margin</th>
+                    <th className="text-right px-6 py-3 font-semibold">vs Sebelumnya</th>
                   </tr>
                 </thead>
                 <tbody>
                   {monthlyChartData.map((m, i) => {
                     const prev = monthlyChartData[i - 1];
-                    const mom =
-                      prev && prev.revenue > 0
-                        ? ((m.revenue - prev.revenue) / prev.revenue) * 100
-                        : null;
-                    const margin =
-                      m.revenue > 0
-                        ? ((m.profit / m.revenue) * 100).toFixed(1)
-                        : null;
+                    const mom = prev && prev.revenue > 0 ? ((m.revenue - prev.revenue) / prev.revenue) * 100 : null;
+                    const margin = m.revenue > 0 ? ((m.profit / m.revenue) * 100).toFixed(1) : null;
                     return (
                       <tr
                         key={m.date}
                         className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}`}
                       >
-                        <td className="px-6 py-3 font-medium text-gray-700">
-                          {m.label}
-                        </td>
+                        <td className="px-6 py-3 font-medium text-gray-700">{m.label}</td>
                         <td className="px-6 py-3 text-right font-semibold text-indigo-700">
                           {m.revenue > 0 ? (
                             `Rp ${m.revenue.toLocaleString("id-ID")}`
@@ -2589,10 +2227,7 @@ function HealthSection() {
 
   const chartData = series.map((d) => ({
     ...d,
-    date: new Date(d.date).toLocaleDateString("id-ID", {
-      day: "numeric",
-      month: "short",
-    }),
+    date: new Date(d.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", timeZone: "Asia/Jakarta" }),
   }));
 
   return (
@@ -2603,8 +2238,7 @@ function HealthSection() {
             <HeartPulse className="w-5 h-5 sm:w-6 sm:h-6" /> Kesehatan Bisnis
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            Skor dihitung dari pendapatan, margin profit, efisiensi limbah, dan
-            stabilitas penjualan 30 hari terakhir
+            Skor dihitung dari pendapatan, margin profit, efisiensi limbah, dan stabilitas penjualan 30 hari terakhir
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -2635,9 +2269,7 @@ function HealthSection() {
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-gray-800">Snapshot Saat Ini</h3>
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-bold ${classColors(latest.classification)}`}
-              >
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${classColors(latest.classification)}`}>
                 {latest.classification}
               </span>
             </div>
@@ -2666,14 +2298,9 @@ function HealthSection() {
                   title={s.tip}
                 >
                   <p className="text-xs text-gray-500 mb-1">{s.label}</p>
-                  <p
-                    className="text-lg sm:text-2xl font-bold"
-                    style={{ color: s.color }}
-                  >
+                  <p className="text-lg sm:text-2xl font-bold" style={{ color: s.color }}>
                     {val.toFixed(1)}
-                    <span className="text-sm font-normal text-gray-400">
-                      /{s.max}
-                    </span>
+                    <span className="text-sm font-normal text-gray-400">/{s.max}</span>
                   </p>
                   <div className="w-full bg-gray-100 rounded-full h-1.5 mt-2">
                     <div
@@ -2684,15 +2311,93 @@ function HealthSection() {
                       }}
                     />
                   </div>
-                  <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1">
-                    {s.description}
-                  </p>
+                  <p className="text-[10px] text-gray-400 mt-1.5 line-clamp-1">{s.description}</p>
                 </div>
               );
             })}
           </div>
         </div>
       )}
+
+      {/* AI Insight */}
+      {series.length > 0 && insights.health?.insight && <AIInsightLabel text={insights.health.insight} />}
+
+      {/* Cara Perhitungan Skor */}
+      <div className="bg-linear-to-br from-indigo-50 to-white rounded-2xl shadow-sm border border-indigo-100 p-6">
+        <h3 className="font-bold text-indigo-700 mb-5 flex items-center gap-2">
+          <Info className="w-4 h-4" /> Cara Perhitungan Skor
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <h4 className="font-semibold text-gray-700 text-sm">Sub-Skor (masing-masing 0–25 poin)</h4>
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
+              <p className="text-sm font-semibold text-emerald-800">Pendapatan</p>
+              <p className="text-xs text-emerald-700 mt-1">
+                Target = 120% dari rata-rata pendapatan bulanan bisnis kamu sendiri (min Rp 100.000). Skor naik
+                proporsional hingga target tercapai.
+              </p>
+              <code className="text-xs bg-white/70 px-2 py-0.5 rounded mt-1.5 inline-block text-emerald-900 font-mono">
+                min(25, pendapatan30h / target × 25)
+              </code>
+            </div>
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-100">
+              <p className="text-sm font-semibold text-amber-800">Margin Profit</p>
+              <p className="text-xs text-amber-700 mt-1">
+                Target margin 50%. Linear: 0% margin = 0 poin, 50% ke atas = 25 poin penuh.
+              </p>
+              <code className="text-xs bg-white/70 px-2 py-0.5 rounded mt-1.5 inline-block text-amber-900 font-mono">
+                min(25, margin% / 50 × 25)
+              </code>
+            </div>
+            <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+              <p className="text-sm font-semibold text-red-800">Efisiensi Limbah</p>
+              <p className="text-xs text-red-700 mt-1">
+                Skor terbalik: limbah rendah = poin tinggi. Di bawah 1% = 25 poin. Setiap +1% mengurangi 5 poin. 5% ke
+                atas = 0 poin.
+              </p>
+              <code className="text-xs bg-white/70 px-2 py-0.5 rounded mt-1.5 inline-block text-red-900 font-mono">
+                max(0, 25 - (waste% × 5))
+              </code>
+            </div>
+            <div className="p-3 bg-violet-50 rounded-xl border border-violet-100">
+              <p className="text-sm font-semibold text-violet-800">Stabilitas Penjualan</p>
+              <p className="text-xs text-violet-700 mt-1">
+                Menggunakan Coefficient of Variation (CoV) pendapatan harian. CoV = standar deviasi dibagi rata-rata.
+                CoV mendekati 0 (sangat konsisten) = 25 poin. CoV 1 ke atas (sangat fluktuatif) = 0 poin. Default 12.5
+                jika data kurang dari 7 hari.
+              </p>
+              <code className="text-xs bg-white/70 px-2 py-0.5 rounded mt-1.5 inline-block text-violet-900 font-mono">
+                max(0, min(25, 25 - CoV × 25))
+              </code>
+            </div>
+          </div>
+          <div className="space-y-4">
+            <h4 className="font-semibold text-gray-700 text-sm">Klasifikasi Skor Total (0–100)</h4>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-4 py-2.5 bg-green-50 rounded-xl border border-green-100">
+                <span className="text-sm font-bold text-green-700">Excellent</span>
+                <span className="text-xs text-green-600 font-semibold">80–100 poin</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 bg-blue-50 rounded-xl border border-blue-100">
+                <span className="text-sm font-bold text-blue-700">Healthy</span>
+                <span className="text-xs text-blue-600 font-semibold">60–79 poin</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 bg-yellow-50 rounded-xl border border-yellow-100">
+                <span className="text-sm font-bold text-yellow-700">Warning</span>
+                <span className="text-xs text-yellow-600 font-semibold">40–59 poin</span>
+              </div>
+              <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 rounded-xl border border-red-100">
+                <span className="text-sm font-bold text-red-700">Critical</span>
+                <span className="text-xs text-red-600 font-semibold">Di bawah 40 poin</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Skor dihitung otomatis setiap hari dari data 30 hari terakhir. Keempat sub-skor dijumlahkan menjadi skor
+              total 0 hingga 100.
+            </p>
+          </div>
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
         <h3 className="text-lg font-bold text-indigo-700 mb-6">Tren Skor</h3>
@@ -2701,29 +2406,13 @@ function HealthSection() {
             <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
           </div>
         ) : chartData.length === 0 ? (
-          <p className="text-center text-gray-400 py-10">
-            Belum ada data skor kesehatan.
-          </p>
+          <p className="text-center text-gray-400 py-10">Belum ada data skor kesehatan.</p>
         ) : (
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={chartData}>
-              <CartesianGrid
-                strokeDasharray="3 3"
-                stroke="#f3f4f6"
-                vertical={false}
-              />
-              <XAxis
-                dataKey="date"
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
-                axisLine={false}
-                tickLine={false}
-              />
-              <YAxis
-                domain={[0, 100]}
-                tick={{ fontSize: 11, fill: "#9ca3af" }}
-                axisLine={false}
-                tickLine={false}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
               <Tooltip />
               <Legend />
               {SCORE_LINES.map((s) => (
@@ -2742,11 +2431,6 @@ function HealthSection() {
           </ResponsiveContainer>
         )}
       </div>
-
-      {/* AI Insight for health - placed after snapshot for relevance */}
-      {series.length > 0 && insights.health?.insight && (
-        <AIInsightLabel text={insights.health.insight} />
-      )}
 
       {series.length > 0 && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -2780,23 +2464,14 @@ function HealthSection() {
                           day: "numeric",
                           month: "short",
                           year: "2-digit",
+                          timeZone: "Asia/Jakarta",
                         })}
                       </td>
-                      <td className="px-6 py-2.5 text-right font-bold text-indigo-700">
-                        {d.overallScore.toFixed(1)}
-                      </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
-                        {d.revenueScore.toFixed(1)}
-                      </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
-                        {d.profitScore.toFixed(1)}
-                      </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
-                        {d.wasteScore.toFixed(1)}
-                      </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
-                        {d.stabilityScore.toFixed(1)}
-                      </td>
+                      <td className="px-6 py-2.5 text-right font-bold text-indigo-700">{d.overallScore.toFixed(1)}</td>
+                      <td className="px-6 py-2.5 text-right text-gray-600">{d.revenueScore.toFixed(1)}</td>
+                      <td className="px-6 py-2.5 text-right text-gray-600">{d.profitScore.toFixed(1)}</td>
+                      <td className="px-6 py-2.5 text-right text-gray-600">{d.wasteScore.toFixed(1)}</td>
+                      <td className="px-6 py-2.5 text-right text-gray-600">{d.stabilityScore.toFixed(1)}</td>
                       <td className="px-6 py-2.5 text-center">
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs font-semibold ${classColors(d.classification)}`}
@@ -2811,71 +2486,6 @@ function HealthSection() {
           </div>
         </div>
       )}
-
-      {/* Classification Legend */}
-      <div className="bg-linear-to-br from-indigo-50 to-white rounded-2xl shadow-sm border border-indigo-100 p-6">
-        <h3 className="font-bold text-indigo-700 mb-4 flex items-center gap-2">
-          <Info className="w-4 h-4" /> Cara Perhitungan Skor
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-semibold text-gray-700 mb-2">
-              Sub-Skor (masing-masing 0-25)
-            </h4>
-            <ul className="text-sm text-gray-600 space-y-1.5">
-              <li className="flex items-start gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 mt-1.5"></span>
-                <span>
-                  <strong>Pendapatan:</strong> Target 120% dari rata-rata
-                  bulanan Anda = 25 poin
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 mt-1.5"></span>
-                <span>
-                  <strong>Margin:</strong> Target profit margin 50% = 25 poin
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-500 mt-1.5"></span>
-                <span>
-                  <strong>Efisiensi:</strong> Limbah &lt;1% dari revenue = 25
-                  poin
-                </span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-2 h-2 rounded-full bg-violet-500 mt-1.5"></span>
-                <span>
-                  <strong>Stabilitas:</strong> Konsistensi pendapatan harian
-                  (CoV rendah)
-                </span>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-semibold text-gray-700 mb-2">Klasifikasi</h4>
-            <div className="flex flex-wrap gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                Excellent (80-100)
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
-                Healthy (60-79)
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-700">
-                Warning (40-59)
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-600">
-                Critical (&lt;40)
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-3">
-              Skor dihitung otomatis setiap hari berdasarkan data 30 hari
-              terakhir. Jalankan analisis untuk memperbarui skor kesehatan
-              bisnis Anda.
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -2885,11 +2495,13 @@ function HealthSection() {
 // ═══════════════════════════════════════════════════════
 
 function WasteSection() {
-  const [selected, setSelected] = useState(0);
+  // Build months oldest→newest so buttons and chart share the same direction
+  const MONTHS = useMemo(() => buildMonths(), []);
+  // Default selection = last index (current month)
+  const [selected, setSelected] = useState(MONTHS.length - 1);
+  const [specialFilter, setSpecialFilter] = useState<"all" | "7d" | "30d" | null>(null);
   const [data, setData] = useState<WasteData | null>(null);
-  const [trendData, setTrendData] = useState<
-    { label: string; cost: number; pct: number }[]
-  >([]);
+  const [trendData, setTrendData] = useState<{ label: string; cost: number; pct: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const insights = useInsights();
 
@@ -2897,26 +2509,21 @@ function WasteSection() {
     fetchAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch all 6 months for the trend chart and default to current month stats
   async function fetchAll() {
     setLoading(true);
     try {
-      const [currentRes, ...trendRes] = await Promise.all(
-        MONTHS.map((m) =>
-          fetch(`/api/analytics/waste?year=${m.year}&month=${m.month}`).then(
-            (r) => r.json(),
-          ),
-        ),
+      const results = await Promise.all(
+        MONTHS.map((m) => fetch(`/api/analytics/waste?year=${m.year}&month=${m.month}`).then((r) => r.json())),
       );
-      setData(currentRes.data ?? null);
-      const trend = [currentRes, ...trendRes].map((r, i) => ({
-        label:
-          MONTHS[i].label === "This Month"
-            ? "Now"
-            : MONTHS[i].label.split(" ")[0],
+      // Current month is the last entry (MONTHS is oldest→newest)
+      setData(results[results.length - 1].data ?? null);
+      const trend = results.map((r, i) => ({
+        label: MONTHS[i].label === "Bulan Ini" ? "Skrg" : MONTHS[i].label.split(" ")[0],
         cost: r.data?.totalWasteCost ?? 0,
         pct: r.data?.wastePercentage ?? 0,
       }));
-      setTrendData(trend.reverse());
+      setTrendData(trend);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error");
     } finally {
@@ -2926,12 +2533,11 @@ function WasteSection() {
 
   async function fetchMonth(idx: number) {
     setSelected(idx);
+    setSpecialFilter(null);
     setLoading(true);
     try {
       const m = MONTHS[idx];
-      const res = await fetch(
-        `/api/analytics/waste?year=${m.year}&month=${m.month}`,
-      );
+      const res = await fetch(`/api/analytics/waste?year=${m.year}&month=${m.month}`);
       const json = await res.json();
       setData(json.data ?? null);
     } catch (err) {
@@ -2941,23 +2547,68 @@ function WasteSection() {
     }
   }
 
+  async function fetchSpecial(mode: "all" | "7d" | "30d") {
+    setSpecialFilter(mode);
+    setLoading(true);
+    try {
+      const url =
+        mode === "all"
+          ? "/api/analytics/waste?all=true"
+          : mode === "7d"
+            ? "/api/analytics/waste?days=7"
+            : "/api/analytics/waste?days=30";
+      const res = await fetch(url);
+      const json = await res.json();
+      setData(json.data ?? null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const SPECIAL_FILTERS: { key: "all" | "7d" | "30d"; label: string }[] = [
+    { key: "all", label: "Semua" },
+    { key: "7d", label: "7 Hari" },
+    { key: "30d", label: "30 Hari" },
+  ];
+
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold text-red-600 flex items-center gap-2">
           <Trash2 className="w-6 h-6" /> Analitik Limbah
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Kuantitas limbah, biaya, dan persentase dari pendapatan
-        </p>
+        <p className="text-sm text-gray-500 mt-1">Kuantitas limbah, biaya, dan persentase dari pendapatan</p>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {/* Quick range filters */}
+        {SPECIAL_FILTERS.map((sf) => (
+          <button
+            key={sf.key}
+            onClick={() => fetchSpecial(sf.key)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer ${
+              specialFilter === sf.key
+                ? "bg-red-500 text-white shadow"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"
+            }`}
+          >
+            {sf.label}
+          </button>
+        ))}
+        {/* Divider */}
+        <span className="w-px h-5 bg-gray-200" />
+        {/* Calendar month filters — oldest first (left) to newest (right) */}
         {MONTHS.map((m, i) => (
           <button
             key={i}
             onClick={() => fetchMonth(i)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer ${selected === i ? "bg-red-500 text-white shadow" : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"}`}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer ${
+              specialFilter === null && selected === i
+                ? "bg-red-500 text-white shadow"
+                : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"
+            }`}
           >
             {m.label}
           </button>
@@ -2967,67 +2618,47 @@ function WasteSection() {
       {loading ? (
         <div className="grid grid-cols-3 gap-4">
           {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl shadow p-6 animate-pulse h-28"
-            />
+            <div key={i} className="bg-white rounded-2xl shadow p-6 animate-pulse h-28" />
           ))}
         </div>
       ) : data ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <p className="text-xs sm:text-sm text-gray-500">Total Qty Limbah</p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-red-500 mt-1 sm:mt-2">
-              {data.totalWasteQty.toFixed(2)} unit
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <p className="text-xs sm:text-sm text-gray-500">Biaya Limbah</p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-bold text-orange-600 mt-1 sm:mt-2 wrap-break-word">
-              Rp {data.totalWasteCost.toLocaleString("id-ID")}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
-            <p className="text-xs sm:text-sm text-gray-500">
-              Limbah % dari Pendapatan
-            </p>
-            <p
-              className={`text-xl sm:text-2xl md:text-3xl font-bold mt-1 sm:mt-2 ${data.wastePercentage > 10 ? "text-red-600" : data.wastePercentage > 5 ? "text-yellow-600" : "text-green-600"}`}
-            >
-              {data.wastePercentage}%
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {data.wastePercentage > 10
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatTile
+            icon={Trash2}
+            label="Total Qty Limbah"
+            value={`${data.totalWasteQty.toFixed(2)} unit`}
+            color="red"
+          />
+          <StatTile
+            icon={DollarSign}
+            label="Biaya Limbah"
+            value={`Rp ${data.totalWasteCost.toLocaleString("id-ID")}`}
+            color="amber"
+          />
+          <StatTile
+            icon={AlertTriangle}
+            label="Limbah % dari Pendapatan"
+            value={`${data.wastePercentage}%`}
+            color={data.wastePercentage > 10 ? "red" : data.wastePercentage > 5 ? "yellow" : "green"}
+            subtext={
+              data.wastePercentage > 10
                 ? "⚠ Tinggi — periksa sumber limbah"
                 : data.wastePercentage > 5
                   ? "Sedang — perlu dipantau"
-                  : "✓ Dalam batas wajar"}
-            </p>
-          </div>
+                  : "✓ Dalam batas wajar"
+            }
+          />
         </div>
       ) : (
-        <p className="text-gray-400 text-center py-8">
-          Tidak ada data limbah untuk periode ini.
-        </p>
+        <p className="text-gray-400 text-center py-8">Tidak ada data limbah untuk periode ini.</p>
       )}
 
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-6">
-          Tren Biaya Limbah 6 Bulan
-        </h3>
+        <h3 className="text-lg font-bold text-gray-800 mb-6">Tren Biaya Limbah 6 Bulan</h3>
         <ResponsiveContainer width="100%" height={260}>
           <BarChart data={trendData} barSize={36}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#f3f4f6"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="label"
-              tick={{ fontSize: 11, fill: "#9ca3af" }}
-              axisLine={false}
-              tickLine={false}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
             <YAxis
               tick={{ fontSize: 11, fill: "#9ca3af" }}
               axisLine={false}
@@ -3036,24 +2667,23 @@ function WasteSection() {
             />
             <Tooltip
               formatter={(v: unknown, name?: string) =>
-                name === "cost"
-                  ? [`Rp ${Number(v).toLocaleString("id-ID")}`, "Biaya Limbah"]
-                  : [`${v}%`, "Limbah %"]
+                name === "cost" ? [`Rp ${Number(v).toLocaleString("id-ID")}`, "Biaya Limbah"] : [`${v}%`, "Limbah %"]
               }
             />
             <Bar dataKey="cost" radius={[6, 6, 0, 0]} name="cost">
-              {trendData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={
-                    entry.pct > 10
-                      ? "#ef4444"
-                      : entry.pct > 5
-                        ? "#f97316"
-                        : "#22c55e"
-                  }
-                />
-              ))}
+              {trendData.map((entry, i) => {
+                const isSelected = specialFilter === null && i === selected;
+                const baseColor = entry.pct > 10 ? "#ef4444" : entry.pct > 5 ? "#f97316" : "#22c55e";
+                return (
+                  <Cell
+                    key={i}
+                    fill={baseColor}
+                    opacity={isSelected ? 1 : 0.45}
+                    stroke={isSelected ? baseColor : "none"}
+                    strokeWidth={2}
+                  />
+                );
+              })}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -3061,7 +2691,9 @@ function WasteSection() {
           {trendData.map((d, i) => (
             <div key={i} className="text-center">
               <span
-                className={`text-xs font-semibold ${d.pct > 10 ? "text-red-500" : d.pct > 5 ? "text-orange-500" : "text-green-600"}`}
+                className={`text-xs font-semibold ${
+                  specialFilter === null && i === selected ? "underline underline-offset-2" : ""
+                } ${d.pct > 10 ? "text-red-500" : d.pct > 5 ? "text-orange-500" : "text-green-600"}`}
               >
                 {d.pct}%
               </span>
@@ -3072,23 +2704,18 @@ function WasteSection() {
 
       <div className="flex items-center gap-4 text-xs text-gray-500">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-green-500 inline-block" /> ≤5% —
-          Sehat
+          <span className="w-3 h-3 rounded bg-green-500 inline-block" /> ≤5% — Sehat
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-orange-500 inline-block" /> 5–10%
-          — Sedang
+          <span className="w-3 h-3 rounded bg-orange-500 inline-block" /> 5–10% — Sedang
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-red-500 inline-block" /> &gt;10% —
-          Tinggi
+          <span className="w-3 h-3 rounded bg-red-500 inline-block" /> &gt;10% — Tinggi
         </span>
       </div>
 
       {/* AI Insight for waste */}
-      {insights.waste?.insight && (
-        <AIInsightLabel text={insights.waste.insight} />
-      )}
+      {insights.waste?.insight && <AIInsightLabel text={insights.waste.insight} />}
     </div>
   );
 }
@@ -3137,54 +2764,39 @@ function KasbonSection() {
         <h2 className="text-2xl font-bold text-amber-700 flex items-center gap-2">
           <BookOpen className="w-6 h-6" /> Analitik Kasbon
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
-          Penagihan hutang, saldo terutang, dan tren pembayaran
-        </p>
+        <p className="text-sm text-gray-500 mt-1">Penagihan hutang, saldo terutang, dan tren pembayaran</p>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="bg-white rounded-2xl shadow p-6 animate-pulse h-28"
-            />
+            <div key={i} className="bg-white rounded-2xl shadow p-6 animate-pulse h-28" />
           ))}
         </div>
       ) : summary ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 col-span-2 md:col-span-1">
-            <p className="text-sm text-gray-500">Belum Lunas</p>
-            <p className="text-2xl font-bold text-red-600 mt-1">
-              Rp {summary.totalOutstanding.toLocaleString("id-ID")}
-            </p>
+          <div className="col-span-2 md:col-span-1">
+            <StatTile
+              icon={AlertCircle}
+              label="Belum Lunas"
+              value={`Rp ${summary.totalOutstanding.toLocaleString("id-ID")}`}
+              color="red"
+            />
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="text-sm text-gray-500">Total Dibayar</p>
-            <p className="text-2xl font-bold text-green-600 mt-1">
-              Rp {summary.totalPaid.toLocaleString("id-ID")}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="text-sm text-gray-500">Tingkat Penagihan</p>
-            <p className={`text-2xl font-bold mt-1 ${collectionColor}`}>
-              {summary.collectionRate}%
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="text-sm text-gray-500">Jatuh Tempo</p>
-            <p
-              className={`text-2xl font-bold mt-1 ${summary.overdueCount > 0 ? "text-red-600" : "text-gray-700"}`}
-            >
-              {summary.overdueCount}
-            </p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <p className="text-sm text-gray-500">Debitur Aktif</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">
-              {summary.totalDebtors}
-            </p>
-          </div>
+          <StatTile
+            icon={CheckCircle2}
+            label="Total Dibayar"
+            value={`Rp ${summary.totalPaid.toLocaleString("id-ID")}`}
+            color="emerald"
+          />
+          <StatTile icon={TrendingUp} label="Tingkat Penagihan" value={`${summary.collectionRate}%`} color="indigo" />
+          <StatTile
+            icon={Clock}
+            label="Jatuh Tempo"
+            value={String(summary.overdueCount)}
+            color={summary.overdueCount > 0 ? "red" : "green"}
+          />
+          <StatTile icon={Users} label="Debitur Aktif" value={String(summary.totalDebtors)} color="purple" />
         </div>
       ) : null}
 
@@ -3192,9 +2804,7 @@ function KasbonSection() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-bold text-gray-800">Tingkat Penagihan</h3>
-            <span className={`text-lg font-bold ${collectionColor}`}>
-              {summary.collectionRate}%
-            </span>
+            <span className={`text-lg font-bold ${collectionColor}`}>{summary.collectionRate}%</span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-4">
             <div
@@ -3202,11 +2812,7 @@ function KasbonSection() {
               style={{
                 width: `${Math.min(100, summary.collectionRate)}%`,
                 backgroundColor:
-                  summary.collectionRate >= 80
-                    ? "#22c55e"
-                    : summary.collectionRate >= 50
-                      ? "#f59e0b"
-                      : "#ef4444",
+                  summary.collectionRate >= 80 ? "#22c55e" : summary.collectionRate >= 50 ? "#f59e0b" : "#ef4444",
               }}
             />
           </div>
@@ -3219,22 +2825,11 @@ function KasbonSection() {
       )}
 
       <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
-        <h3 className="text-lg font-bold text-amber-700 mb-4">
-          Tren Penagihan Bulanan
-        </h3>
+        <h3 className="text-lg font-bold text-amber-700 mb-4">Tren Penagihan Bulanan</h3>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={trend} barSize={36}>
-            <CartesianGrid
-              strokeDasharray="3 3"
-              stroke="#f3f4f6"
-              vertical={false}
-            />
-            <XAxis
-              dataKey="month"
-              tick={{ fontSize: 11, fill: "#9ca3af" }}
-              axisLine={false}
-              tickLine={false}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
+            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
             <YAxis
               tick={{ fontSize: 11, fill: "#9ca3af" }}
               axisLine={false}
@@ -3243,17 +2838,12 @@ function KasbonSection() {
             />
             <Tooltip
               formatter={(v: unknown, name?: string) =>
-                name === "collected"
-                  ? [`Rp ${Number(v).toLocaleString("id-ID")}`, "Terkumpul"]
-                  : [`${v}`, "Pembayaran"]
+                name === "collected" ? [`Rp ${Number(v).toLocaleString("id-ID")}`, "Terkumpul"] : [`${v}`, "Pembayaran"]
               }
             />
             <Bar dataKey="collected" radius={[6, 6, 0, 0]} name="collected">
               {trend.map((_, i) => (
-                <Cell
-                  key={i}
-                  fill={i === trend.length - 1 ? "#f59e0b" : "#6366f1"}
-                />
+                <Cell key={i} fill={i === trend.length - 1 ? "#f59e0b" : "#6366f1"} />
               ))}
             </Bar>
           </BarChart>
@@ -3268,9 +2858,7 @@ function KasbonSection() {
 
       <div className="bg-white rounded-2xl shadow border border-gray-100 overflow-hidden">
         <div className="p-5 border-b border-gray-100">
-          <h3 className="font-bold text-amber-700">
-            Pelanggan dengan Hutang Terbesar
-          </h3>
+          <h3 className="font-bold text-amber-700">Pelanggan dengan Hutang Terbesar</h3>
         </div>
         {topDebtors.length === 0 ? (
           <div className="p-10 text-center">
@@ -3282,33 +2870,18 @@ function KasbonSection() {
             <table className="w-full text-sm">
               <thead className="bg-amber-50 text-amber-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-semibold">
-                    Pelanggan
-                  </th>
+                  <th className="text-left px-6 py-3 font-semibold">Pelanggan</th>
                   <th className="text-left px-6 py-3 font-semibold">Telepon</th>
-                  <th className="text-right px-6 py-3 font-semibold">
-                    Belum Lunas
-                  </th>
-                  <th className="text-center px-6 py-3 font-semibold">
-                    Jatuh Tempo
-                  </th>
-                  <th className="text-center px-6 py-3 font-semibold">
-                    Status
-                  </th>
+                  <th className="text-right px-6 py-3 font-semibold">Belum Lunas</th>
+                  <th className="text-center px-6 py-3 font-semibold">Jatuh Tempo</th>
+                  <th className="text-center px-6 py-3 font-semibold">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {topDebtors.map((d, i) => (
-                  <tr
-                    key={i}
-                    className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-amber-50/30"}`}
-                  >
-                    <td className="px-6 py-3 font-semibold text-gray-800">
-                      {d.customerName}
-                    </td>
-                    <td className="px-6 py-3 text-gray-500">
-                      {d.customerPhone ?? "—"}
-                    </td>
+                  <tr key={i} className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-amber-50/30"}`}>
+                    <td className="px-6 py-3 font-semibold text-gray-800">{d.customerName}</td>
+                    <td className="px-6 py-3 text-gray-500">{d.customerPhone ?? "—"}</td>
                     <td className="px-6 py-3 text-right font-bold text-amber-700">
                       Rp {d.outstanding.toLocaleString("id-ID")}
                     </td>
@@ -3318,6 +2891,7 @@ function KasbonSection() {
                             day: "numeric",
                             month: "short",
                             year: "2-digit",
+                            timeZone: "Asia/Jakarta",
                           })
                         : "—"}
                     </td>

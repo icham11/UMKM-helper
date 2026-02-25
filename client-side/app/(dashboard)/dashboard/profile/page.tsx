@@ -65,10 +65,13 @@ function formatDate(d: string) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "Asia/Jakarta",
   });
 }
 
 function timeAgo(d: string) {
+  // Use a stable reference: always computed on the client (never during SSR).
+  // Callers must ensure this runs inside a useEffect or event handler.
   const diff = Date.now() - new Date(d).getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
   if (days === 0) return "Hari ini";
@@ -99,6 +102,9 @@ export default function ProfilePage() {
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
+  // Client-only values to avoid SSR/client hydration mismatches
+  const [updatedAgoLabel, setUpdatedAgoLabel] = useState("");
+  const [currentYear, setCurrentYear] = useState("");
 
   // Edit name
   const [editingName, setEditingName] = useState(false);
@@ -116,6 +122,11 @@ export default function ProfilePage() {
 
   const isOAuth = !!session?.user; // Google login = has session
 
+  // Compute time-dependent labels only on the client
+  useEffect(() => {
+    setCurrentYear(String(new Date().getFullYear()));
+  }, []);
+
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
@@ -123,6 +134,8 @@ export default function ProfilePage() {
       if (res.success) {
         setProfile(res.data);
         setNameVal(res.data.name);
+        // Compute time-relative label on client after data arrives
+        setUpdatedAgoLabel(timeAgo(res.data.updatedAt));
       }
     } catch {
       toast.error("Gagal memuat profil");
@@ -161,10 +174,8 @@ export default function ProfilePage() {
   /* ---- Change password ---- */
   async function handleChangePw() {
     if (!currentPw || !newPw) return toast.error("Semua field wajib diisi");
-    if (newPw.length < 6)
-      return toast.error("Password baru minimal 6 karakter");
-    if (newPw !== confirmPw)
-      return toast.error("Konfirmasi password tidak cocok");
+    if (newPw.length < 6) return toast.error("Password baru minimal 6 karakter");
+    if (newPw !== confirmPw) return toast.error("Konfirmasi password tidak cocok");
 
     setSavingPw(true);
     try {
@@ -224,9 +235,7 @@ export default function ProfilePage() {
             </div>
             Profil Saya
           </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            Kelola informasi akun dan keamanan Anda
-          </p>
+          <p className="text-gray-500 mt-1 text-sm">Kelola informasi akun dan keamanan Anda</p>
         </div>
         <button
           onClick={fetchProfile}
@@ -310,9 +319,7 @@ export default function ProfilePage() {
                 <User className="w-5 h-5 text-violet-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Nama Lengkap
-                </p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Nama Lengkap</p>
                 {editingName ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -327,11 +334,7 @@ export default function ProfilePage() {
                       disabled={savingName}
                       className="p-2 bg-violet-500 text-white rounded-lg hover:bg-violet-600 cursor-pointer disabled:opacity-50"
                     >
-                      {savingName ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Check className="w-4 h-4" />
-                      )}
+                      {savingName ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
                     </button>
                     <button
                       onClick={() => {
@@ -345,9 +348,7 @@ export default function ProfilePage() {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 group">
-                    <p className="text-xl font-bold text-gray-900">
-                      {profile.name}
-                    </p>
+                    <p className="text-xl font-bold text-gray-900">{profile.name}</p>
                     <button
                       onClick={() => setEditingName(true)}
                       className="opacity-0 group-hover:opacity-100 p-1.5 text-gray-400 hover:text-violet-500 hover:bg-violet-50 rounded-lg transition-all cursor-pointer"
@@ -365,13 +366,9 @@ export default function ProfilePage() {
                 <Mail className="w-5 h-5 text-blue-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                  Email
-                </p>
+                <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Email</p>
                 <p className="text-gray-700 font-medium">{profile.email}</p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Email tidak dapat diubah
-                </p>
+                <p className="text-xs text-gray-400 mt-0.5">Email tidak dapat diubah</p>
               </div>
             </div>
 
@@ -382,12 +379,8 @@ export default function ProfilePage() {
                   <Calendar className="w-5 h-5 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                    Bergabung
-                  </p>
-                  <p className="text-gray-700 font-medium">
-                    {formatDate(profile.createdAt)}
-                  </p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Bergabung</p>
+                  <p className="text-gray-700 font-medium">{formatDate(profile.createdAt)}</p>
                 </div>
               </div>
               <div className="flex items-start gap-4">
@@ -395,12 +388,10 @@ export default function ProfilePage() {
                   <Clock className="w-5 h-5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">
-                    Terakhir Diperbarui
-                  </p>
-                  <p className="text-gray-700 font-medium">
-                    {timeAgo(profile.updatedAt)}
-                  </p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Terakhir Diperbarui</p>
+                  <p className="text-gray-700 font-medium">{updatedAgoLabel}</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wider mb-1">Terakhir Diperbarui</p>
+                  <p className="text-gray-700 font-medium">{timeAgo(profile.updatedAt)}</p>
                 </div>
               </div>
             </div>
@@ -409,11 +400,7 @@ export default function ProfilePage() {
       </motion.div>
 
       {/* ───── Stats Overview ───── */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-      >
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
         <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
           <Sparkles className="w-4 h-4" /> Ringkasan Akun
         </h3>
@@ -463,9 +450,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">Keamanan Akun</h3>
-              <p className="text-sm text-gray-500">
-                Kelola password dan keamanan
-              </p>
+              <p className="text-sm text-gray-500">Kelola password dan keamanan</p>
             </div>
           </div>
         </div>
@@ -480,8 +465,7 @@ export default function ProfilePage() {
               <div className="flex-1">
                 <p className="font-medium text-gray-700">Password</p>
                 <p className="text-sm text-gray-400">
-                  Akun Google tidak memerlukan password. Keamanan dikelola oleh
-                  Google.
+                  Akun Google tidak memerlukan password. Keamanan dikelola oleh Google.
                 </p>
               </div>
               <span className="px-3 py-1 bg-green-50 text-green-700 text-xs font-bold rounded-full border border-green-100">
@@ -499,9 +483,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex-1 text-left">
                   <p className="font-medium text-gray-700">Ubah Password</p>
-                  <p className="text-sm text-gray-400">
-                    Ganti password login Anda secara berkala
-                  </p>
+                  <p className="text-sm text-gray-400">Ganti password login Anda secara berkala</p>
                 </div>
                 <ChevronRight
                   className={`w-5 h-5 text-gray-300 transition-transform ${showPwForm ? "rotate-90" : ""}`}
@@ -518,9 +500,7 @@ export default function ProfilePage() {
                 >
                   {/* Current password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password Saat Ini
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password Saat Ini</label>
                     <div className="relative">
                       <input
                         type={showCurrentPw ? "text" : "password"}
@@ -534,20 +514,14 @@ export default function ProfilePage() {
                         onClick={() => setShowCurrentPw(!showCurrentPw)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                       >
-                        {showCurrentPw ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
+                        {showCurrentPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
 
                   {/* New password */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Password Baru
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru</label>
                     <div className="relative">
                       <input
                         type={showNewPw ? "text" : "password"}
@@ -561,11 +535,7 @@ export default function ProfilePage() {
                         onClick={() => setShowNewPw(!showNewPw)}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                       >
-                        {showNewPw ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
+                        {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                     {/* Strength indicator */}
@@ -599,9 +569,7 @@ export default function ProfilePage() {
 
                   {/* Confirm */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Konfirmasi Password Baru
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password Baru</label>
                     <input
                       type="password"
                       value={confirmPw}
@@ -614,9 +582,7 @@ export default function ProfilePage() {
                       }`}
                     />
                     {confirmPw && confirmPw !== newPw && (
-                      <p className="text-xs text-red-500 mt-1">
-                        Password tidak cocok
-                      </p>
+                      <p className="text-xs text-red-500 mt-1">Password tidak cocok</p>
                     )}
                   </div>
 
@@ -624,16 +590,10 @@ export default function ProfilePage() {
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={handleChangePw}
-                      disabled={
-                        savingPw || !currentPw || !newPw || newPw !== confirmPw
-                      }
+                      disabled={savingPw || !currentPw || !newPw || newPw !== confirmPw}
                       className="flex items-center gap-2 px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition"
                     >
-                      {savingPw ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Lock className="w-4 h-4" />
-                      )}
+                      {savingPw ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}
                       Ubah Password
                     </button>
                     <button
@@ -663,7 +623,7 @@ export default function ProfilePage() {
         className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-xl text-xs text-gray-400"
       >
         <span>User ID: #{profile.id}</span>
-        <span>Cuanify • {new Date().getFullYear()}</span>
+        <span>Cuanify • {currentYear}</span>
       </motion.div>
     </div>
   );
@@ -713,9 +673,7 @@ function AccountStat({
 
   return (
     <div className={`p-4 rounded-xl bg-linear-to-br border ${c.bg}`}>
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${c.icon}`}
-      >
+      <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${c.icon}`}>
         <Icon className="w-4.5 h-4.5" />
       </div>
       <p className="text-xs text-gray-500 mb-0.5">{label}</p>

@@ -83,9 +83,7 @@ async function evaluateForecastAccuracy(businessId: number) {
       const dateStr = toDateString(fc.date);
       const actual = actualByDate.get(dateStr);
       if (actual !== undefined && actual > 0) {
-        const daysAgo = Math.floor(
-          (now.getTime() - fc.date.getTime()) / (1000 * 60 * 60 * 24),
-        );
+        const daysAgo = Math.floor((now.getTime() - fc.date.getTime()) / (1000 * 60 * 60 * 24));
         comparisons.push({
           predicted: Number(fc.predictedRevenue),
           actual,
@@ -105,7 +103,6 @@ async function evaluateForecastAccuracy(businessId: number) {
 
     // Store accuracy metrics
     try {
-      // @ts-ignore forecastAccuracy may not exist in current schema
       await prisma.forecastAccuracy.upsert({
         where: { businessId },
         update: {
@@ -171,10 +168,7 @@ async function generateForecastForBusiness(businessId: number) {
 
   let lookbackDays = 30; // Default fallback
   if (earliestSale) {
-    const daysSinceFirst = Math.floor(
-      (now.getTime() - earliestSale.createdAt.getTime()) /
-        (1000 * 60 * 60 * 24),
-    );
+    const daysSinceFirst = Math.floor((now.getTime() - earliestSale.createdAt.getTime()) / (1000 * 60 * 60 * 24));
     lookbackDays = calculateAdaptiveLookback(daysSinceFirst);
   }
 
@@ -184,9 +178,7 @@ async function generateForecastForBusiness(businessId: number) {
 
   const allDates = generateLookbackDates(lookbackDays, now);
 
-  console.log(
-    `[FORECAST] Business ${businessId}: Using ${lookbackDays}-day adaptive lookback`,
-  );
+  console.log(`[FORECAST] Business ${businessId}: Using ${lookbackDays}-day adaptive lookback`);
 
   // ─── Step 2: Fetch Product Sales Data with Prices ──────────────────────
   type DailyQtyRow = {
@@ -211,26 +203,19 @@ async function generateForecastForBusiness(businessId: number) {
   `;
 
   // Group by product
-  const byProduct = new Map<
-    number,
-    { entries: DailySalesEntry[]; historicalPrices: number[] }
-  >();
+  const byProduct = new Map<number, { entries: DailySalesEntry[]; historicalPrices: number[] }>();
   for (const row of rawRows) {
     const pid = Number(row.productId);
     if (!byProduct.has(pid)) {
       byProduct.set(pid, { entries: [], historicalPrices: [] });
     }
     const dateStr =
-      typeof row.date === "string"
-        ? row.date.split("T")[0]
-        : new Date(row.date).toISOString().split("T")[0];
+      typeof row.date === "string" ? row.date.split("T")[0] : new Date(row.date).toISOString().split("T")[0];
     byProduct.get(pid)!.entries.push({ date: dateStr, qty: Number(row.qty) });
     byProduct.get(pid)!.historicalPrices.push(Number(row.avgPrice));
   }
 
-  console.log(
-    `[FORECAST] Business ${businessId}: ${byProduct.size} products with sales data`,
-  );
+  console.log(`[FORECAST] Business ${businessId}: ${byProduct.size} products with sales data`);
 
   // ─── Step 3: Get Current Product Prices ────────────────────────────────
   const products = await prisma.product.findMany({
@@ -238,10 +223,7 @@ async function generateForecastForBusiness(businessId: number) {
     select: { id: true, sellingPrice: true, recipeCost: true },
   });
 
-  const productPriceMap = new Map<
-    number,
-    { sellingPrice: number; recipeCost: number }
-  >();
+  const productPriceMap = new Map<number, { sellingPrice: number; recipeCost: number }>();
   for (const p of products) {
     productPriceMap.set(p.id, {
       sellingPrice: Number(p.sellingPrice),
@@ -367,10 +349,7 @@ async function generateForecastForBusiness(businessId: number) {
         const qty = Math.max(0, Math.round(val));
         const lower = Math.max(0, Math.round(val - 1.96 * se));
         const rawUpper = Math.round(val + 1.96 * se);
-        const upper = Math.max(
-          qty,
-          Math.min(rawUpper, Math.round(qty + qtyCap)),
-        );
+        const upper = Math.max(qty, Math.min(rawUpper, Math.round(qty + qtyCap)));
 
         // Non-linear confidence decay
         const confidence = calculateNonLinearConfidence(i);
@@ -470,25 +449,16 @@ async function generateForecastForBusiness(businessId: number) {
   }
 
   // ─── Fallback: Use Historical Average if No Product Forecasts ──────────
-  if (
-    dailyAggregates.length === 0 ||
-    dailyAggregates.every((d) => d.predictedRevenue === 0)
-  ) {
-    console.log(
-      `[FORECAST] Business ${businessId}: Using historical average fallback`,
-    );
+  if (dailyAggregates.length === 0 || dailyAggregates.every((d) => d.predictedRevenue === 0)) {
+    console.log(`[FORECAST] Business ${businessId}: Using historical average fallback`);
     const bizMetrics = await prisma.businessMetrics.findMany({
       where: { businessId, date: { gte: since } },
       orderBy: { date: "asc" },
     });
 
     if (bizMetrics.length >= 7) {
-      const avgRevenue =
-        bizMetrics.reduce((s, m) => s + Number(m.totalRevenue), 0) /
-        bizMetrics.length;
-      const avgProfit =
-        bizMetrics.reduce((s, m) => s + Number(m.totalProfit), 0) /
-        bizMetrics.length;
+      const avgRevenue = bizMetrics.reduce((s, m) => s + Number(m.totalRevenue), 0) / bizMetrics.length;
+      const avgProfit = bizMetrics.reduce((s, m) => s + Number(m.totalProfit), 0) / bizMetrics.length;
 
       for (let i = 0; i < forecastDates.length; i++) {
         dailyAggregates[i] = {
@@ -570,16 +540,9 @@ async function generateHealthScoreForBusiness(businessId: number) {
     orderBy: { date: "asc" },
   });
 
-  const totalRevenue30d = metrics.reduce(
-    (sum, m) => sum + Number(m.totalRevenue),
-    0,
-  );
-  const totalProfit30d = metrics.reduce(
-    (sum, m) => sum + Number(m.totalProfit),
-    0,
-  );
-  const avgMargin =
-    totalRevenue30d > 0 ? (totalProfit30d / totalRevenue30d) * 100 : 0;
+  const totalRevenue30d = metrics.reduce((sum, m) => sum + Number(m.totalRevenue), 0);
+  const totalProfit30d = metrics.reduce((sum, m) => sum + Number(m.totalProfit), 0);
+  const avgMargin = totalRevenue30d > 0 ? (totalProfit30d / totalRevenue30d) * 100 : 0;
 
   // ─── 2. Get Waste Data for last 30 days ───
   const wasteMovements = await prisma.$queryRaw<{ totalWasteCost: number }[]>`
@@ -591,14 +554,12 @@ async function generateHealthScoreForBusiness(businessId: number) {
       AND im."createdAt" >= ${since30d}
   `;
   const totalWasteCost = Number(wasteMovements[0]?.totalWasteCost ?? 0);
-  const wastePercentage =
-    totalRevenue30d > 0 ? (totalWasteCost / totalRevenue30d) * 100 : 0;
+  const wastePercentage = totalRevenue30d > 0 ? (totalWasteCost / totalRevenue30d) * 100 : 0;
 
   // ─── 3. Calculate Revenue Score (0-25) ───
   // Dynamic target: 120% of business's own average monthly revenue
   // This auto-adapts to each business's scale
-  const avgDailyRevenue =
-    metrics.length > 0 ? totalRevenue30d / metrics.length : 0;
+  const avgDailyRevenue = metrics.length > 0 ? totalRevenue30d / metrics.length : 0;
   const REVENUE_TARGET = Math.max(avgDailyRevenue * 30 * 1.2, 100000); // Min 100k to avoid division issues
   const revenueScore = Math.min(25, (totalRevenue30d / REVENUE_TARGET) * 25);
 
@@ -619,21 +580,16 @@ async function generateHealthScoreForBusiness(businessId: number) {
 
   if (metrics.length >= 7) {
     const dailyRevenues = metrics.map((m) => Number(m.totalRevenue));
-    const mean =
-      dailyRevenues.reduce((a, b) => a + b, 0) / dailyRevenues.length;
+    const mean = dailyRevenues.reduce((a, b) => a + b, 0) / dailyRevenues.length;
 
     if (mean > 0) {
       const squaredDiffs = dailyRevenues.map((rev) => Math.pow(rev - mean, 2));
-      const variance =
-        squaredDiffs.reduce((a, b) => a + b, 0) / dailyRevenues.length;
+      const variance = squaredDiffs.reduce((a, b) => a + b, 0) / dailyRevenues.length;
       const stdDev = Math.sqrt(variance);
       const coefficientOfVariation = stdDev / mean;
 
       // Scale: CoV 0 = 25, CoV 1+ = 0
-      stabilityScore = Math.max(
-        0,
-        Math.min(25, 25 - coefficientOfVariation * 25),
-      );
+      stabilityScore = Math.max(0, Math.min(25, 25 - coefficientOfVariation * 25));
     }
   }
 
@@ -687,33 +643,13 @@ const INSIGHT_SECTIONS: {
   {
     key: "revenue",
     prompt:
-      "Berikan 1-2 kalimat ringkas tentang tren pendapatan harian bisnis ini. Sebutkan pola kunci.",
+      "Berikan 1-2 kalimat ringkas dan profesional tentang tren pendapatan harian bisnis ini. Soroti pola utama (naik, turun, atau stabil) serta implikasinya terhadap kinerja penjualan.",
     gather: async (bid) => {
       // Match EXACTLY what frontend /api/analytics/daily returns:
       // Use UTC boundaries to match database DATE type (stored as midnight UTC)
       const now = new Date();
-      const todayUTC = new Date(
-        Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate(),
-          23,
-          59,
-          59,
-          999,
-        ),
-      );
-      const fromUTC = new Date(
-        Date.UTC(
-          now.getUTCFullYear(),
-          now.getUTCMonth(),
-          now.getUTCDate() - 29,
-          0,
-          0,
-          0,
-          0,
-        ),
-      );
+      const todayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+      const fromUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29, 0, 0, 0, 0));
 
       const metrics = await prisma.businessMetrics.findMany({
         where: { businessId: bid, date: { gte: fromUTC, lte: todayUTC } },
@@ -729,9 +665,7 @@ const INSIGHT_SECTIONS: {
 
       while (cursor <= end) {
         const iso = cursor.toISOString().split("T")[0];
-        const found = metrics.find(
-          (m) => m.date.toISOString().split("T")[0] === iso,
-        );
+        const found = metrics.find((m) => m.date.toISOString().split("T")[0] === iso);
         total += Number(found?.totalRevenue ?? 0);
         dayCount++;
         cursor.setUTCDate(cursor.getUTCDate() + 1);
@@ -744,7 +678,7 @@ const INSIGHT_SECTIONS: {
   {
     key: "growth",
     prompt:
-      "Berikan 1-2 kalimat ringkas tentang pertumbuhan bisnis bulan ini vs bulan lalu.",
+      "Berikan 1-2 kalimat ringkas tentang pertumbuhan bisnis bulan ini dibandingkan bulan lalu, dengan menyoroti arah pertumbuhan (positif, stagnan, atau negatif) dan dampaknya ke keberlanjutan bisnis.",
     gather: async (bid) => {
       const now = new Date();
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -759,21 +693,18 @@ const INSIGHT_SECTIONS: {
       ]);
       const curRev = cur.reduce((s, x) => s + Number(x.totalRevenue), 0);
       const prevRev = prev.reduce((s, x) => s + Number(x.totalRevenue), 0);
-      const growth =
-        prevRev > 0 ? (((curRev - prevRev) / prevRev) * 100).toFixed(1) : "N/A";
+      const growth = prevRev > 0 ? (((curRev - prevRev) / prevRev) * 100).toFixed(1) : "N/A";
       return `Pendapatan bulan ini: Rp ${curRev.toLocaleString("id-ID")}, bulan lalu: Rp ${prevRev.toLocaleString("id-ID")}, pertumbuhan: ${growth}%.`;
     },
   },
   {
     key: "products",
     prompt:
-      "Berikan 1-2 kalimat ringkas tentang performa produk — mana yang paling laris dan paling menguntungkan.",
+      "Berikan 1-2 kalimat ringkas dan bernada bisnis tentang performa produk: produk mana yang paling berkontribusi ke omzet dan profit, serta pesan singkat yang dapat dibaca manajemen.",
     gather: async (bid) => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
-      const rows = await prisma.$queryRaw<
-        { name: string; qty: number; revenue: number }[]
-      >`
+      const rows = await prisma.$queryRaw<{ name: string; qty: number; revenue: number }[]>`
         SELECT p.name, SUM(si.quantity)::int AS qty, SUM(si.quantity * si."priceAtSale")::numeric AS revenue
         FROM "SaleItem" si
         JOIN "Sale" s ON s.id = si."saleId"
@@ -781,15 +712,14 @@ const INSIGHT_SECTIONS: {
         WHERE s."businessId" = ${bid} AND s."paymentStatus" = 'Paid' AND s."createdAt" >= ${since}
         GROUP BY p.name ORDER BY revenue DESC LIMIT 5
       `;
-      if (rows.length === 0)
-        return "Belum ada data penjualan produk 30 hari terakhir.";
+      if (rows.length === 0) return "Belum ada data penjualan produk 30 hari terakhir.";
       return `Top produk: ${rows.map((r) => `${r.name} (${r.qty} pcs, Rp ${Number(r.revenue).toLocaleString("id-ID")})`).join(", ")}.`;
     },
   },
   {
     key: "health",
     prompt:
-      "Berikan 1-2 kalimat ringkas tentang skor kesehatan bisnis dan klasifikasi saat ini.",
+      "Berikan 1-2 kalimat ringkas dan jelas tentang skor kesehatan bisnis dan klasifikasi saat ini, dengan menekankan apakah kondisi tergolong sehat, perlu perhatian, atau berisiko. Perlu diketahui semakin besar skor ,informasi ini bisa kamu gunakan dengan bijak.",
     gather: async (bid) => {
       const latest = await prisma.businessHealthScores.findFirst({
         where: { businessId: bid },
@@ -802,7 +732,7 @@ const INSIGHT_SECTIONS: {
   {
     key: "waste",
     prompt:
-      "Berikan 1-2 kalimat ringkas tentang tingkat limbah/waste bisnis ini terhadap pendapatan.",
+      "Berikan 1-2 kalimat ringkas dan profesional tentang tingkat limbah/waste bisnis ini terhadap pendapatan, serta apakah levelnya masih wajar atau sudah menggerus profit.",
     gather: async (bid) => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
@@ -826,21 +756,16 @@ const INSIGHT_SECTIONS: {
   {
     key: "kasbon",
     prompt:
-      "Berikan 1-2 kalimat ringkas tentang status kasbon/piutang bisnis ini.",
+      "Berikan 1-2 kalimat ringkas tentang status kasbon/piutang bisnis ini, dengan fokus pada besarnya piutang tertunggak dan implikasinya terhadap arus kas.",
     gather: async (bid) => {
       const debts = await prisma.debt.findMany({
         where: { businessId: bid },
         include: { payments: true },
       });
       const total = debts.reduce((s, d) => s + Number(d.totalAmount), 0);
-      const paid = debts.reduce(
-        (s, d) => s + d.payments.reduce((ps, p) => ps + Number(p.amount), 0),
-        0,
-      );
+      const paid = debts.reduce((s, d) => s + d.payments.reduce((ps, p) => ps + Number(p.amount), 0), 0);
       const outstanding = total - paid;
-      const overdue = debts.filter(
-        (d) => (d.status as string) === "overdue",
-      ).length;
+      const overdue = debts.filter((d) => (d.status as string) === "overdue").length;
       return `Total kasbon: Rp ${total.toLocaleString("id-ID")}, terbayar: Rp ${paid.toLocaleString("id-ID")}, sisa: Rp ${outstanding.toLocaleString("id-ID")}, jatuh tempo: ${overdue}.`;
     },
   },
@@ -866,37 +791,19 @@ const INSIGHT_SECTIONS: {
 
       const actualAvg =
         recentMetrics.length > 0
-          ? Math.round(
-              recentMetrics.reduce((s, m) => s + Number(m.totalRevenue), 0) /
-                recentMetrics.length,
-            )
+          ? Math.round(recentMetrics.reduce((s, m) => s + Number(m.totalRevenue), 0) / recentMetrics.length)
           : 0;
       const actualProfitAvg =
         recentMetrics.length > 0
-          ? Math.round(
-              recentMetrics.reduce((s, m) => s + Number(m.totalProfit), 0) /
-                recentMetrics.length,
-            )
+          ? Math.round(recentMetrics.reduce((s, m) => s + Number(m.totalProfit), 0) / recentMetrics.length)
           : 0;
 
-      const forecastAvg = Math.round(
-        fc.reduce((s, f) => s + Number(f.predictedRevenue), 0) / fc.length,
-      );
-      const forecastProfitAvg = Math.round(
-        fc.reduce((s, f) => s + Number(f.predictedProfit), 0) / fc.length,
-      );
+      const forecastAvg = Math.round(fc.reduce((s, f) => s + Number(f.predictedRevenue), 0) / fc.length);
+      const forecastProfitAvg = Math.round(fc.reduce((s, f) => s + Number(f.predictedProfit), 0) / fc.length);
 
-      const revenueChange =
-        actualAvg > 0
-          ? (((forecastAvg - actualAvg) / actualAvg) * 100).toFixed(1)
-          : "N/A";
+      const revenueChange = actualAvg > 0 ? (((forecastAvg - actualAvg) / actualAvg) * 100).toFixed(1) : "N/A";
       const profitChange =
-        actualProfitAvg > 0
-          ? (
-              ((forecastProfitAvg - actualProfitAvg) / actualProfitAvg) *
-              100
-            ).toFixed(1)
-          : "N/A";
+        actualProfitAvg > 0 ? (((forecastProfitAvg - actualProfitAvg) / actualProfitAvg) * 100).toFixed(1) : "N/A";
 
       // Calendar context - Indonesian holidays and weekends
       const dateStr = now.toLocaleDateString("id-ID", {
@@ -956,10 +863,10 @@ async function generateInsightsForBusiness(businessId: number) {
             role: "system",
             content:
               `Kamu adalah konsultan bisnis AI untuk UMKM Indonesia. Hari ini ${dateContext}. ` +
-              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia. ` +
+              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia dengan gaya profesional seperti catatan analis bisnis. ` +
               `PENTING: Gunakan ANGKA PERSIS yang diberikan dalam data, JANGAN menghitung ulang atau memperkirakan. ` +
-              `Perhatikan pola hari kerja vs weekend dan hari besar Indonesia jika relevan. ` +
-              `Jangan gunakan markdown. Langsung ke poin utama.`,
+              `Fokus pada pesan yang relevan untuk pemilik/manajer bisnis (misalnya tren utama, risiko, atau peluang). ` +
+              `Jangan gunakan markdown atau emotikon. Langsung sampaikan poin utama secara lugas.`,
           },
           {
             role: "user",
@@ -967,7 +874,7 @@ async function generateInsightsForBusiness(businessId: number) {
           },
         ],
         model: GROQ_MODELS.text.primary,
-        temperature: 0.1,
+        temperature: 0.3,
         max_tokens: 150,
       });
 
@@ -985,10 +892,7 @@ async function generateInsightsForBusiness(businessId: number) {
         },
       });
     } catch (err) {
-      console.error(
-        `[CRON] Insight generation failed for biz ${businessId}, section ${section.key}:`,
-        err,
-      );
+      console.error(`[CRON] Insight generation failed for biz ${businessId}, section ${section.key}:`, err);
     }
   }
 }
@@ -1046,9 +950,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[CRON] generate-analytics error:", error);
-    return NextResponse.json(
-      { error: "Failed to generate analytics", details: String(error) },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to generate analytics", details: String(error) }, { status: 500 });
   }
 }

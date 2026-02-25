@@ -135,7 +135,6 @@ export async function GET() {
     // ─── Forecast Accuracy Metrics ──────────────────────────────────────
     let accuracyData: Record<string, unknown> | null = null;
     try {
-      // @ts-ignore forecastAccuracy may not exist in current schema
       accuracyData = await prisma.forecastAccuracy.findUnique({
         where: { businessId },
       });
@@ -145,19 +144,13 @@ export async function GET() {
 
     const accuracy = accuracyData
       ? {
-          accuracy7d: accuracyData.accuracy7d
-            ? Number(accuracyData.accuracy7d)
-            : null,
-          accuracy30d: accuracyData.accuracy30d
-            ? Number(accuracyData.accuracy30d)
-            : null,
+          accuracy7d: accuracyData.accuracy7d ? Number(accuracyData.accuracy7d) : null,
+          accuracy30d: accuracyData.accuracy30d ? Number(accuracyData.accuracy30d) : null,
           mape7d: accuracyData.mape7d ? Number(accuracyData.mape7d) : null,
           mape30d: accuracyData.mape30d ? Number(accuracyData.mape30d) : null,
           sampleSize7d: accuracyData.sampleSize7d,
           sampleSize30d: accuracyData.sampleSize30d,
-          lastEvaluatedAt: accuracyData.lastEvaluatedAt
-            ? String(accuracyData.lastEvaluatedAt)
-            : null,
+          lastEvaluatedAt: accuracyData.lastEvaluatedAt ? String(accuracyData.lastEvaluatedAt) : null,
         }
       : null;
 
@@ -207,12 +200,8 @@ export async function GET() {
       productForecasts: hasSufficientData ? productForecasts : [],
     });
   } catch (error) {
-    if (isAuthError(error))
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (isAuthError(error)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     console.error("GET /api/analytics/forecast-cached error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch cached forecast" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to fetch cached forecast" }, { status: 500 });
   }
 }

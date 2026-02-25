@@ -119,24 +119,27 @@ ${productPrices.length > 0 ? productPrices.map((p) => `${p.name}: ${p.price}`).j
 🧂 TOTAL BAHAN BAKU: ${ingredients.length}
 `.trim();
 
-    const systemPrompt = `Kamu adalah konsultan bisnis AI untuk UMKM (Usaha Mikro Kecil Menengah) di Indonesia.
-Berikan analisis dalam Bahasa Indonesia yang singkat, padat, dan actionable.
+    const systemPrompt = `Kamu adalah konsultan bisnis AI untuk pemilik dan manajer UMKM (Usaha Mikro Kecil Menengah) di Indonesia.
+Tugasmu adalah menyusun ringkasan dan analisis bisnis yang profesional, berbasis data, dan berorientasi pada pengambilan keputusan.
+
+Gunakan Bahasa Indonesia yang formal dan jelas, seperti laporan manajemen atau presentasi ke pemilik usaha.
+Fokus pada dampak bisnis: pendapatan, profitabilitas, efisiensi operasional, risiko, dan peluang pertumbuhan.
 
 PENTING: Output harus berformat JSON VALID seperti ini:
 {
-  "summary": "Ringkasan eksekutif 2-3 kalimat tentang kondisi bisnis",
+  "summary": "Ringkasan eksekutif 2-3 kalimat tentang kondisi bisnis dan highlight utama berdasarkan data",
   "insights": [
     {
       "category": "revenue|profit|inventory|product|growth",
       "severity": "success|warning|danger|info",
-      "title": "Judul singkat (max 8 kata)",
-      "description": "Penjelasan detail dan saran actionable (1-2 kalimat)",
-      "metric": "Angka atau persentase kunci terkait"
+      "title": "Judul singkat dan profesional (maksimal 8 kata)",
+      "description": "Penjelasan ringkas (1-2 kalimat) yang menjelaskan kondisi, penyebab utama, dan saran tindakan bisnis yang konkret",
+      "metric": "Angka atau persentase kunci terkait (misalnya: revenue, margin, jumlah transaksi, unit terjual)"
     }
   ]
 }
 
-Berikan 5-7 insights yang beragam dan spesifik berdasarkan data. Jangan generic.`;
+Berikan 5-7 insights yang beragam, spesifik, dan langsung terkait dengan data (bukan saran yang terlalu umum). Hindari bahasa kasual atau emotikon.`;
 
     let aiInsights = null;
 
@@ -279,13 +282,13 @@ function formatShort(val: number) {
 
 // ─── POST: Per-chart AI explanation ──────────────────────────────────
 const SECTION_PROMPTS: Record<string, string> = {
-  revenue: `Analisis tren pendapatan harian UMKM ini. Jelaskan pola yang terlihat, hari-hari puncak penjualan, rata-rata harian, dan berikan saran bagaimana meningkatkan pendapatan.`,
-  growth: `Analisis pertumbuhan bisnis UMKM ini dari bulan ke bulan. Jelaskan apakah bisnis tumbuh, stagnasi, atau menurun. Bandingkan pendapatan dan laba antar periode. Berikan saran strategis.`,
-  products: `Analisis performa produk UMKM ini. Jelaskan produk mana yang paling laris, paling menguntungkan, dan mana yang perlu ditingkatkan. Berikan saran strategi produk.`,
-  health: `Analisis kesehatan keuangan UMKM ini. Periksa rasio margin, arus kas, dan indikator keuangan. Berikan saran bagaimana memperbaiki kesehatan keuangan bisnis.`,
-  waste: `Analisis data limbah/waste produk pada UMKM ini. Jelaskan produk mana yang paling banyak terbuang dan berikan rekomendasi pengelolaan stok yang lebih baik.`,
-  kasbon: `Analisis data kasbon (piutang) UMKM ini. Jelaskan status utang pelanggan dan berikan saran pengelolaan piutang yang lebih baik.`,
-  forecast: `Analisis data prediksi penjualan UMKM ini. Jelaskan tren yang diprediksi dan berikan saran strategi berdasarkan hasil prediksi.`,
+  revenue: `Analisis tren pendapatan harian UMKM ini secara profesional. Jelaskan pola utama (stabil, naik, turun), hari atau periode dengan penjualan tertinggi/terendah, rata-rata harian, serta faktor risiko atau peluang yang terlihat. Akhiri dengan rekomendasi konkret untuk mengoptimalkan pendapatan.`,
+  growth: `Analisis pertumbuhan bisnis UMKM ini dari bulan ke bulan dengan sudut pandang manajemen. Jelaskan apakah bisnis sedang tumbuh, stagnan, atau menurun, dengan membandingkan pendapatan dan laba antar periode. Soroti dampak ke arus kas dan keberlanjutan bisnis, lalu berikan 2-3 langkah strategis yang dapat diambil.`,
+  products: `Analisis performa produk UMKM ini seperti laporan produk ke manajemen. Jelaskan produk mana yang paling berkontribusi ke omzet dan profit, produk dengan margin rendah atau perputaran lambat, serta potensi cannibalization antar produk. Berikan rekomendasi strategi portofolio produk (promosi, bundling, penyesuaian harga, atau pengurangan varian).`,
+  health: `Analisis kesehatan keuangan UMKM ini secara menyeluruh. Hubungkan rasio margin, arus kas, dan indikator keuangan lain dengan kemampuan bisnis untuk bertahan dan bertumbuh. Jelaskan area yang sehat dan area yang berisiko (misalnya margin menipis, penjualan tidak stabil, atau biaya tinggi), lalu berikan prioritas tindakan perbaikan.`,
+  waste: `Analisis data limbah/waste produk pada UMKM ini dari perspektif efisiensi operasional dan profitabilitas. Jelaskan produk mana yang paling banyak terbuang, estimasi dampak finansialnya, serta pola yang muncul (misalnya overstock, salah perencanaan produksi, atau menu yang kurang laku). Berikan rekomendasi praktis untuk menurunkan waste tanpa mengganggu penjualan.`,
+  kasbon: `Analisis data kasbon (piutang) UMKM ini secara bisnis. Jelaskan posisi kasbon saat ini (total, yang sudah dibayar, dan yang tertunggak), risiko terhadap arus kas, serta perilaku pembayaran pelanggan (tepat waktu atau sering terlambat). Berikan rekomendasi kebijakan pengelolaan piutang yang lebih sehat (batas kasbon, tenor, penagihan).`,
+  forecast: `Analisis data prediksi penjualan UMKM ini sebagai bahan pertimbangan perencanaan bisnis. Jelaskan tren yang diprediksi (naik/turun/stabil), kategori atau produk yang menjadi pendorong utama, serta implikasinya terhadap stok, tenaga kerja, dan cash flow. Berikan saran strategi yang selaras dengan proyeksi tersebut.`,
 };
 
 export async function POST(req: Request) {
@@ -303,22 +306,22 @@ export async function POST(req: Request) {
 
     const prompt = `${sectionPrompt}
 
-Berikut data yang perlu dianalisis:
-${dataStr}
+  Berikut data yang perlu dianalisis (anggap sebagai bahan laporan singkat untuk pemilik/manajer bisnis):
+  ${dataStr}
 
-PENTING:
-- Jawab SELURUHNYA dalam Bahasa Indonesia
-- Gunakan format yang ringkas (maksimal 3-4 paragraf)
-- Sertakan angka-angka penting
-- Akhiri dengan 2-3 saran konkret
-- Gunakan format Rp untuk mata uang (contoh: Rp 500.000)`;
+  PENTING:
+  - Jawab SELURUHNYA dalam Bahasa Indonesia dengan gaya profesional (bukan bahasa kasual)
+  - Gunakan format yang ringkas (maksimal 3-4 paragraf) dan terstruktur (kondisi utama, analisis, lalu rekomendasi)
+  - Sertakan angka-angka penting (Rp, %, unit) yang mendukung analisis
+  - Akhiri dengan 2-3 saran tindakan yang konkret dan dapat langsung dipertimbangkan oleh pemilik bisnis
+  - Gunakan format Rp untuk mata uang (contoh: Rp 500.000)`;
 
     const completion = await groq.chat.completions.create({
       messages: [
         {
           role: "system",
           content:
-            "Kamu adalah konsultan bisnis AI khusus UMKM Indonesia. Berikan analisis singkat dan actionable dalam Bahasa Indonesia.",
+            "Kamu adalah konsultan bisnis AI khusus UMKM Indonesia. Berikan analisis singkat, profesional, dan berorientasi pada keputusan bisnis dalam Bahasa Indonesia.",
         },
         { role: "user", content: prompt },
       ],

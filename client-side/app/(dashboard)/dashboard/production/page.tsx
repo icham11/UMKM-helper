@@ -1,15 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import {
-  Factory,
-  Package,
-  Plus,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  RefreshCw,
-} from "lucide-react";
+import { Factory, Package, Plus, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface ReadyStockProduct {
   productId: number;
@@ -46,8 +38,7 @@ export default function ProductionPage() {
 
   // Produce modal state
   const [showModal, setShowModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] =
-    useState<ReadyStockProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ReadyStockProduct | null>(null);
   const [produceQty, setProduceQty] = useState(1);
 
   const fetchData = useCallback(async () => {
@@ -113,8 +104,7 @@ export default function ProductionPage() {
               Produksi
             </h1>
             <p className="text-indigo-200 mt-1 text-xs sm:text-sm">
-              Kelola produksi produk Ready Stock. Bahan baku dikurangi saat
-              diproduksi.
+              Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
             </p>
           </div>
           <button
@@ -150,19 +140,12 @@ export default function ProductionPage() {
         <>
           {/* Ready Stock Products Summary */}
           <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
-              Produk Ready Stock
-            </h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Produk Ready Stock</h2>
             {summary.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center text-gray-400 border border-indigo-100">
                 <Package className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                <p className="text-sm font-medium">
-                  Belum ada produk Ready Stock.
-                </p>
-                <p className="text-xs mt-1">
-                  Ubah tipe produk ke &quot;Ready Stock&quot; di halaman
-                  Products.
-                </p>
+                <p className="text-sm font-medium">Belum ada produk Ready Stock.</p>
+                <p className="text-xs mt-1">Ubah tipe produk ke &quot;Ready Stock&quot; di halaman Products.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -173,9 +156,7 @@ export default function ProductionPage() {
                   >
                     <div className="flex items-start justify-between mb-2 sm:mb-3 gap-2">
                       <div className="min-w-0">
-                        <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight">
-                          {p.productName}
-                        </h3>
+                        <h3 className="font-bold text-gray-900 text-sm sm:text-base leading-tight">{p.productName}</h3>
                         <p className="text-xs text-gray-500 mt-0.5">
                           Harga jual: {formatRupiah(Number(p.sellingPrice))}
                         </p>
@@ -217,9 +198,7 @@ export default function ProductionPage() {
 
           {/* Production History */}
           <div>
-            <h2 className="text-lg font-bold text-gray-800 mb-4">
-              Riwayat Produksi
-            </h2>
+            <h2 className="text-lg font-bold text-gray-800 mb-4">Riwayat Produksi</h2>
             {batches.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center text-gray-400 border border-indigo-100">
                 <p className="text-sm">Belum ada riwayat produksi.</p>
@@ -229,15 +208,10 @@ export default function ProductionPage() {
                 {/* ═══ MOBILE CARD VIEW ═══ */}
                 <div className="md:hidden space-y-3">
                   {batches.map((b) => (
-                    <div
-                      key={b.id}
-                      className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 space-y-2.5"
-                    >
+                    <div key={b.id} className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 space-y-2.5">
                       {/* Product name + date */}
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-bold text-gray-900 text-sm leading-tight">
-                          {b.product.name}
-                        </h3>
+                        <h3 className="font-bold text-gray-900 text-sm leading-tight">{b.product.name}</h3>
                         <span className="text-[11px] text-gray-400 whitespace-nowrap shrink-0">
                           {new Date(b.producedAt).toLocaleDateString("id-ID", {
                             day: "numeric",
@@ -251,26 +225,20 @@ export default function ProductionPage() {
                       <div className="flex items-center gap-3 text-xs">
                         <div className="flex-1">
                           <span className="text-gray-400 block">Qty</span>
-                          <span className="font-bold text-gray-700 text-sm">
-                            {b.quantity}
-                          </span>
+                          <span className="font-bold text-gray-700 text-sm">{b.quantity}</span>
                         </div>
                         <div className="flex-1">
                           <span className="text-gray-400 block">Sisa</span>
                           <span
                             className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                              b.remainingQty <= 0
-                                ? "bg-gray-100 text-gray-400"
-                                : "bg-indigo-100 text-indigo-700"
+                              b.remainingQty <= 0 ? "bg-gray-100 text-gray-400" : "bg-indigo-100 text-indigo-700"
                             }`}
                           >
                             {b.remainingQty}
                           </span>
                         </div>
                         <div className="flex-1">
-                          <span className="text-gray-400 block">
-                            Biaya/unit
-                          </span>
+                          <span className="text-gray-400 block">Biaya/unit</span>
                           <span className="font-bold text-indigo-700 text-sm">
                             {formatRupiah(Number(b.costPerUnit))}
                           </span>
@@ -294,41 +262,27 @@ export default function ProductionPage() {
                     </thead>
                     <tbody className="divide-y divide-indigo-50">
                       {batches.map((b) => (
-                        <tr
-                          key={b.id}
-                          className="hover:bg-indigo-50/30 transition"
-                        >
-                          <td className="px-5 py-3 font-medium text-gray-900">
-                            {b.product.name}
-                          </td>
-                          <td className="px-5 py-3 text-center">
-                            {b.quantity}
-                          </td>
+                        <tr key={b.id} className="hover:bg-indigo-50/30 transition">
+                          <td className="px-5 py-3 font-medium text-gray-900">{b.product.name}</td>
+                          <td className="px-5 py-3 text-center">{b.quantity}</td>
                           <td className="px-5 py-3 text-center">
                             <span
                               className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
-                                b.remainingQty <= 0
-                                  ? "bg-gray-100 text-gray-400"
-                                  : "bg-indigo-100 text-indigo-700"
+                                b.remainingQty <= 0 ? "bg-gray-100 text-gray-400" : "bg-indigo-100 text-indigo-700"
                               }`}
                             >
                               {b.remainingQty}
                             </span>
                           </td>
-                          <td className="px-5 py-3 text-right text-gray-600">
-                            {formatRupiah(Number(b.costPerUnit))}
-                          </td>
+                          <td className="px-5 py-3 text-right text-gray-600">{formatRupiah(Number(b.costPerUnit))}</td>
                           <td className="px-5 py-3 text-right text-gray-500">
-                            {new Date(b.producedAt).toLocaleDateString(
-                              "id-ID",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              },
-                            )}
+                            {new Date(b.producedAt).toLocaleDateString("id-ID", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
                           </td>
                         </tr>
                       ))}
@@ -348,26 +302,19 @@ export default function ProductionPage() {
             <h3 className="text-base sm:text-lg font-extrabold text-gray-900 mb-1">
               Produksi: {selectedProduct.productName}
             </h3>
-            <p className="text-xs text-gray-500 mb-5">
-              Bahan baku akan dikurangi otomatis sesuai resep produk.
-            </p>
+            <p className="text-xs text-gray-500 mb-5">Bahan baku akan dikurangi otomatis sesuai resep produk.</p>
 
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">
-              Jumlah Produksi
-            </label>
+            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Jumlah Produksi</label>
             <input
               type="number"
               min={1}
               max={999}
               value={produceQty}
-              onChange={(e) =>
-                setProduceQty(Math.max(1, Number(e.target.value)))
-              }
+              onChange={(e) => setProduceQty(Math.max(1, Number(e.target.value)))}
               className="w-full border border-indigo-200 rounded-xl px-4 py-3 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-indigo-400 outline-none mb-2"
             />
             <p className="text-xs text-gray-400 mb-5">
-              Estimasi biaya:{" "}
-              {formatRupiah(Number(selectedProduct.recipeCost) * produceQty)}
+              Estimasi biaya: {formatRupiah(Number(selectedProduct.recipeCost) * produceQty)}
             </p>
 
             {error && (
@@ -392,11 +339,7 @@ export default function ProductionPage() {
                 disabled={producing || produceQty <= 0}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
               >
-                {producing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Factory className="w-4 h-4" />
-                )}
+                {producing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Factory className="w-4 h-4" />}
                 Produksi {produceQty}x
               </button>
             </div>

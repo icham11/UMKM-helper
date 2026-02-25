@@ -66,31 +66,18 @@ function MarginBadge({ margin }: { margin: number }) {
       </span>
     );
   }
-  const color =
-    margin >= 50
-      ? "text-green-600"
-      : margin >= 20
-        ? "text-yellow-600"
-        : "text-red-600";
+  const color = margin >= 50 ? "text-green-600" : margin >= 20 ? "text-yellow-600" : "text-red-600";
   return <span className={`${color} font-semibold`}>{margin}%</span>;
 }
 
 // Recipe modal
 
-function RecipeModal({
-  product,
-  onClose,
-}: {
-  product: Product;
-  onClose: () => void;
-}) {
+function RecipeModal({ product, onClose }: { product: Product; onClose: () => void }) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const recipeCost = Number(product.recipeCost);
   const sellingPrice = Number(product.sellingPrice);
   const margin =
-    sellingPrice > 0 && recipeCost > 0
-      ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100)
-      : null;
+    sellingPrice > 0 && recipeCost > 0 ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100) : null;
 
   return (
     <div
@@ -104,9 +91,7 @@ function RecipeModal({
           <div>
             <div className="flex items-center gap-2">
               <ChefHat size={18} className="text-indigo-500" />
-              <h2 className="text-lg font-extrabold text-indigo-700">
-                {product.name}
-              </h2>
+              <h2 className="text-lg font-extrabold text-indigo-700">{product.name}</h2>
             </div>
             {product.category && (
               <span className="inline-flex items-center gap-1 mt-1 bg-violet-100 text-violet-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
@@ -115,10 +100,7 @@ function RecipeModal({
               </span>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
             <X size={18} />
           </button>
         </div>
@@ -126,37 +108,25 @@ function RecipeModal({
         {/* Pricing summary */}
         <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 text-center">
           <div className="px-4 py-3">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-              Selling Price
-            </p>
-            <p className="text-sm font-extrabold text-indigo-700 mt-0.5">
-              {formatCurrency(sellingPrice)}
-            </p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Selling Price</p>
+            <p className="text-sm font-extrabold text-indigo-700 mt-0.5">{formatCurrency(sellingPrice)}</p>
           </div>
           <div className="px-4 py-3">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-              Recipe Cost
-            </p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Recipe Cost</p>
             <p className="text-sm font-extrabold text-slate-700 mt-0.5">
               {recipeCost > 0 ? formatCurrency(recipeCost) : "—"}
             </p>
           </div>
           <div className="px-4 py-3">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">
-              Margin
-            </p>
-            <p className="text-sm font-extrabold mt-0.5">
-              {margin !== null ? <MarginBadge margin={margin} /> : "—"}
-            </p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Margin</p>
+            <p className="text-sm font-extrabold mt-0.5">{margin !== null ? <MarginBadge margin={margin} /> : "—"}</p>
           </div>
         </div>
 
         {/* Recipe list */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {product.recipes.length === 0 ? (
-            <p className="text-center text-gray-400 italic py-8">
-              Tidak ada bahan dalam resep ini.
-            </p>
+            <p className="text-center text-gray-400 italic py-8">Tidak ada bahan dalam resep ini.</p>
           ) : (
             <div className="space-y-2">
               {/* Column headers */}
@@ -174,15 +144,9 @@ function RecipeModal({
                     key={r.id}
                     className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-3 py-2.5 border border-gray-100"
                   >
-                    <div className="col-span-5 font-medium text-slate-700 text-sm truncate">
-                      {r.ingredient.name}
-                    </div>
-                    <div className="col-span-2 text-right text-sm text-gray-600">
-                      {Number(r.quantity)}
-                    </div>
-                    <div className="col-span-2 text-sm text-gray-500">
-                      {r.ingredient.unit}
-                    </div>
+                    <div className="col-span-5 font-medium text-slate-700 text-sm truncate">{r.ingredient.name}</div>
+                    <div className="col-span-2 text-right text-sm text-gray-600">{Number(r.quantity)}</div>
+                    <div className="col-span-2 text-sm text-gray-500">{r.ingredient.unit}</div>
                     <div className="col-span-3 text-right text-xs font-bold text-indigo-600">
                       {rowCost > 0 ? formatCurrency(rowCost) : "—"}
                     </div>
@@ -193,12 +157,8 @@ function RecipeModal({
               {/* Total */}
               {recipeCost > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t border-gray-100 px-3">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">
-                    Total Biaya Resep
-                  </span>
-                  <span className="text-sm font-extrabold text-indigo-700">
-                    {formatCurrency(recipeCost)}
-                  </span>
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Biaya Resep</span>
+                  <span className="text-sm font-extrabold text-indigo-700">{formatCurrency(recipeCost)}</span>
                 </div>
               )}
             </div>
@@ -226,10 +186,7 @@ function EditPriceModal({
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const recipeCost = Number(product.recipeCost);
-  const margin =
-    price > 0 && recipeCost > 0
-      ? Math.round(((price - recipeCost) / price) * 100)
-      : null;
+  const margin = price > 0 && recipeCost > 0 ? Math.round(((price - recipeCost) / price) * 100) : null;
 
   const handleSave = async () => {
     if (!price || price <= 0) {
@@ -258,17 +215,10 @@ function EditPriceModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
           <div>
-            <h2 className="text-base font-extrabold text-indigo-700">
-              Edit Harga Jual
-            </h2>
-            <p className="text-xs text-gray-500 mt-0.5 truncate max-w-55">
-              {product.name}
-            </p>
+            <h2 className="text-base font-extrabold text-indigo-700">Edit Harga Jual</h2>
+            <p className="text-xs text-gray-500 mt-0.5 truncate max-w-55">{product.name}</p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition"
-          >
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition">
             <X size={18} />
           </button>
         </div>
@@ -282,9 +232,7 @@ function EditPriceModal({
           )}
 
           <div>
-            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">
-              Harga Jual (Rp)
-            </label>
+            <label className="text-xs font-bold text-gray-600 uppercase tracking-wide">Harga Jual (Rp)</label>
             <input
               type="number"
               min={1}
@@ -322,11 +270,7 @@ function EditPriceModal({
               disabled={saving}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
             >
-              {saving ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <CheckCircle2 size={16} />
-              )}
+              {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
               Simpan
             </button>
           </div>
@@ -376,15 +320,10 @@ function DeleteConfirmModal({
               <Trash2 size={18} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-800">
-                Hapus Produk?
-              </h2>
+              <h2 className="text-base font-extrabold text-slate-800">Hapus Produk?</h2>
               <p className="text-sm text-gray-500 mt-1">
-                <span className="font-semibold text-slate-700">
-                  {product.name}
-                </span>{" "}
-                dan seluruh resepnya akan dihapus permanen. Tindakan ini tidak
-                dapat dibatalkan.
+                <span className="font-semibold text-slate-700">{product.name}</span> dan seluruh resepnya akan dihapus
+                permanen. Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
           </div>
@@ -408,11 +347,7 @@ function DeleteConfirmModal({
               disabled={deleting}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
             >
-              {deleting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Trash2 size={16} />
-              )}
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
               Hapus
             </button>
           </div>
@@ -451,12 +386,9 @@ function BulkDeleteConfirmModal({
               <Trash2 size={18} />
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-slate-800">
-                Hapus {count} Produk?
-              </h2>
+              <h2 className="text-base font-extrabold text-slate-800">Hapus {count} Produk?</h2>
               <p className="text-sm text-gray-500 mt-1">
-                Semua produk yang dipilih dan resepnya akan dihapus permanen.
-                Tindakan ini tidak dapat dibatalkan.
+                Semua produk yang dipilih dan resepnya akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
               </p>
             </div>
           </div>
@@ -480,11 +412,7 @@ function BulkDeleteConfirmModal({
               disabled={deleting}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
             >
-              {deleting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Trash2 size={16} />
-              )}
+              {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
               Hapus {count}
             </button>
           </div>
@@ -494,12 +422,7 @@ function BulkDeleteConfirmModal({
   );
 }
 
-type SortByField =
-  | "name"
-  | "sellingPrice"
-  | "createdAt"
-  | "recipeCost"
-  | "margin";
+type SortByField = "name" | "sellingPrice" | "createdAt" | "recipeCost" | "margin";
 type SortOrderType = "asc" | "desc";
 
 export default function ProductsPage() {
@@ -565,10 +488,7 @@ export default function ProductsPage() {
   }, [search, categoryFilter, sortBy, sortOrder]);
 
   const handleSortClick = (col: SortByField) => {
-    if (sortBy === col)
-      setSortOrder(
-        (o: SortOrderType): SortOrderType => (o === "asc" ? "desc" : "asc"),
-      );
+    if (sortBy === col) setSortOrder((o: SortOrderType): SortOrderType => (o === "asc" ? "desc" : "asc"));
     else {
       setSortBy(col);
       setSortOrder("asc");
@@ -592,8 +512,7 @@ export default function ProductsPage() {
       return next;
     });
 
-  const allSelected =
-    products.length > 0 && selectedIds.size === products.length;
+  const allSelected = products.length > 0 && selectedIds.size === products.length;
   const someSelected = selectedIds.size > 0 && !allSelected;
 
   const toggleSelectAll = () => {
@@ -613,12 +532,8 @@ export default function ProductsPage() {
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-4 sm:p-6 shadow-lg">
           <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">
-              Produk
-            </h1>
-            <p className="text-indigo-100 text-sm">
-              Kelola produk dan resep bisnis Anda.
-            </p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Produk</h1>
+            <p className="text-indigo-100 text-sm">Kelola produk dan resep bisnis Anda.</p>
           </div>
           <button
             onClick={() => router.push("/dashboard/products/create")}
@@ -647,9 +562,7 @@ export default function ProductsPage() {
                 className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
                 value={categoryFilter ?? ""}
                 onChange={(e) => {
-                  setCategoryFilter(
-                    e.target.value === "" ? null : Number(e.target.value),
-                  );
+                  setCategoryFilter(e.target.value === "" ? null : Number(e.target.value));
                   setPage(1);
                 }}
               >
@@ -676,12 +589,7 @@ export default function ProductsPage() {
             </select>
             <button
               className="px-2 py-2 rounded-xl border border-indigo-200 text-sm bg-white text-slate-700 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400"
-              onClick={() =>
-                setSortOrder(
-                  (d: SortOrderType): SortOrderType =>
-                    d === "asc" ? "desc" : "asc",
-                )
-              }
+              onClick={() => setSortOrder((d: SortOrderType): SortOrderType => (d === "asc" ? "desc" : "asc"))}
               title="Urutan"
             >
               {sortOrder === "asc" ? "⬆️" : "⬇️"}
@@ -692,9 +600,7 @@ export default function ProductsPage() {
         {/* BULK ACTION BAR */}
         {selectedIds.size > 0 && (
           <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-2xl px-5 py-3">
-            <span className="text-sm font-semibold text-indigo-700">
-              {selectedIds.size} produk terpilih
-            </span>
+            <span className="text-sm font-semibold text-indigo-700">{selectedIds.size} produk terpilih</span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setSelectedIds(new Set())}
@@ -719,12 +625,8 @@ export default function ProductsPage() {
         {/* STATS ROW */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-indigo-50">
-            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">
-              Total Produk
-            </p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-700 mt-1">
-              {totalCount}
-            </p>
+            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Produk</p>
+            <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-700 mt-1">{totalCount}</p>
           </div>
           <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-violet-50">
             <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">
@@ -740,11 +642,7 @@ export default function ProductsPage() {
             </p>
             <p
               className={`text-lg sm:text-xl md:text-2xl font-extrabold mt-1 ${
-                avgMargin < 0
-                  ? "text-red-600"
-                  : avgMargin < 20
-                    ? "text-yellow-600"
-                    : "text-green-700"
+                avgMargin < 0 ? "text-red-600" : avgMargin < 20 ? "text-yellow-600" : "text-green-700"
               }`}
             >
               {totalCount > 0 ? `${avgMargin}%` : "—"}
@@ -756,9 +654,7 @@ export default function ProductsPage() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl shadow">
             <Loader2 size={40} className="animate-spin text-indigo-400" />
-            <p className="mt-4 text-sm font-semibold text-gray-400">
-              Memuat produk...
-            </p>
+            <p className="mt-4 text-sm font-semibold text-gray-400">Memuat produk...</p>
           </div>
         ) : error ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-3xl shadow text-red-500">
@@ -795,16 +691,11 @@ export default function ProductsPage() {
                 const rc = Number(product.recipeCost);
                 const margin = sp > 0 ? Math.round(((sp - rc) / sp) * 100) : 0;
                 return (
-                  <div
-                    key={product.id}
-                    className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3"
-                  >
+                  <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3">
                     {/* Top row: name + category */}
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <h3 className="font-bold text-slate-800 text-sm leading-tight">
-                          {product.name}
-                        </h3>
+                        <h3 className="font-bold text-slate-800 text-sm leading-tight">{product.name}</h3>
                         {product.category && (
                           <span className="inline-flex items-center gap-1 mt-1 bg-indigo-100 text-indigo-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
                             <Tag size={10} />
@@ -842,9 +733,7 @@ export default function ProductsPage() {
                     <div className="flex items-center gap-3 text-xs">
                       <div className="flex-1">
                         <span className="text-gray-400 block">Harga Jual</span>
-                        <span className="font-bold text-indigo-700 text-sm">
-                          {formatCurrency(sp)}
-                        </span>
+                        <span className="font-bold text-indigo-700 text-sm">{formatCurrency(sp)}</span>
                       </div>
                       <div className="flex-1">
                         <span className="text-gray-400 block">Biaya</span>
@@ -949,16 +838,13 @@ export default function ProductsPage() {
                   {products.map((product) => {
                     const sp = Number(product.sellingPrice);
                     const rc = Number(product.recipeCost);
-                    const margin =
-                      sp > 0 ? Math.round(((sp - rc) / sp) * 100) : 0;
+                    const margin = sp > 0 ? Math.round(((sp - rc) / sp) * 100) : 0;
                     const isSelected = selectedIds.has(product.id);
                     return (
                       <tr
                         key={product.id}
                         className={`border-t transition-all ${
-                          isSelected
-                            ? "bg-indigo-50"
-                            : "bg-white hover:bg-indigo-50/40"
+                          isSelected ? "bg-indigo-50" : "bg-white hover:bg-indigo-50/40"
                         }`}
                       >
                         <td className="pl-5 pr-2 py-4">
@@ -970,9 +856,7 @@ export default function ProductsPage() {
                           />
                         </td>
                         <td className="px-4 py-4 text-center align-middle">
-                          <div className="font-bold text-slate-800 text-center">
-                            {product.name}
-                          </div>
+                          <div className="font-bold text-slate-800 text-center">{product.name}</div>
                         </td>
                         <td className="px-6 py-4">
                           {product.category ? (
@@ -1015,14 +899,12 @@ export default function ProductsPage() {
                         </td>
                         <td className="px-6 py-4 text-left text-xs text-gray-400 whitespace-nowrap">
                           {product.createdAt
-                            ? new Date(product.createdAt).toLocaleDateString(
-                                "id-ID",
-                                {
-                                  day: "2-digit",
-                                  month: "short",
-                                  year: "numeric",
-                                },
-                              )
+                            ? new Date(product.createdAt).toLocaleDateString("id-ID", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                                timeZone: "Asia/Jakarta",
+                              })
                             : "—"}
                         </td>
                         <td className="px-6 py-4 text-center">
@@ -1054,10 +936,7 @@ export default function ProductsPage() {
                               title="Edit produk"
                               className="p-2 rounded-full hover:bg-green-50 text-green-600 hover:text-green-900 transition"
                             >
-                              <Pencil
-                                size={16}
-                                className="text-green-600 hover:text-green-900"
-                              />
+                              <Pencil size={16} className="text-green-600 hover:text-green-900" />
                             </button>
                             <button
                               onClick={() => setDeleteModal(product)}
@@ -1102,12 +981,8 @@ export default function ProductsPage() {
       </div>
 
       {/* Modals */}
-      {recipeModal && (
-        <RecipeModal
-          product={recipeModal}
-          onClose={() => setRecipeModal(null)}
-        />
-      )}
+      {recipeModal && <RecipeModal product={recipeModal} onClose={() => setRecipeModal(null)} />}
+      {recipeModal && <RecipeModal product={recipeModal} onClose={() => setRecipeModal(null)} />}
 
       {/* Modal edit produk lengkap */}
       {editModal && (
@@ -1116,9 +991,7 @@ export default function ProductsPage() {
           categories={categories}
           onClose={() => setEditModal(null)}
           onSaved={(updated) => {
-            setProducts((prev) =>
-              prev.map((p) => (p.id === updated.id ? updated : p)),
-            );
+            setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
             setEditModal(null);
           }}
         />

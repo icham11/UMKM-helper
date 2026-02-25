@@ -152,9 +152,7 @@ export default function RAGStatusPanel() {
         <div className="p-6">
           <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
             <div className="bg-gray-50 rounded-xl p-3 sm:p-4 text-center">
-              <div
-                className={`text-2xl sm:text-3xl font-bold ${status?.indexed ? "text-green-600" : "text-red-500"}`}
-              >
+              <div className={`text-2xl sm:text-3xl font-bold ${status?.indexed ? "text-green-600" : "text-red-500"}`}>
                 {status?.indexed ? "✅" : "❌"}
               </div>
               <div className="text-[10px] sm:text-xs text-gray-500 mt-1 font-medium">
@@ -162,17 +160,14 @@ export default function RAGStatusPanel() {
               </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-3 sm:p-4 text-center">
-              <div className="text-2xl sm:text-3xl font-bold text-indigo-600">
-                {status?.documentCount || 0}
-              </div>
-              <div className="text-xs text-gray-500 mt-1 font-medium">
-                Dokumen Vektor
-              </div>
+              <div className="text-2xl sm:text-3xl font-bold text-indigo-600">{status?.documentCount || 0}</div>
+              <div className="text-xs text-gray-500 mt-1 font-medium">Dokumen Vektor</div>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 text-center">
               <div className="text-sm font-medium text-gray-700">
                 {status?.lastUpdated
                   ? new Date(status.lastUpdated).toLocaleString("id-ID", {
+                      timeZone: "Asia/Jakarta",
                       hour: "2-digit",
                       minute: "2-digit",
                       day: "numeric",
@@ -180,9 +175,7 @@ export default function RAGStatusPanel() {
                     })
                   : "—"}
               </div>
-              <div className="text-xs text-gray-500 mt-1 font-medium">
-                Terakhir Update
-              </div>
+              <div className="text-xs text-gray-500 mt-1 font-medium">Terakhir Update</div>
             </div>
           </div>
 
@@ -190,25 +183,11 @@ export default function RAGStatusPanel() {
           <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-sm text-indigo-800">
             <p className="font-semibold mb-2">🔬 Cara Kerja RAG:</p>
             <ol className="list-decimal list-inside space-y-1 text-xs">
-              <li>
-                Data bisnis (produk, bahan, penjualan, resep) dipecah menjadi
-                dokumen kecil
-              </li>
-              <li>
-                Tiap dokumen dikonversi menjadi vektor 768 dimensi oleh Gemini
-                AI
-              </li>
-              <li>
-                Saat user bertanya, pertanyaan juga dikonversi menjadi vektor
-              </li>
-              <li>
-                Sistem mencari dokumen terdekat (cosine similarity) — bukan
-                SEMUA data
-              </li>
-              <li>
-                Hanya dokumen yang relevan dikirim ke LLM → jawaban lebih akurat
-                & hemat token
-              </li>
+              <li>Data bisnis (produk, bahan, penjualan, resep) dipecah menjadi dokumen kecil</li>
+              <li>Tiap dokumen dikonversi menjadi vektor 768 dimensi oleh Gemini AI</li>
+              <li>Saat user bertanya, pertanyaan juga dikonversi menjadi vektor</li>
+              <li>Sistem mencari dokumen terdekat (cosine similarity) — bukan SEMUA data</li>
+              <li>Hanya dokumen yang relevan dikirim ke LLM → jawaban lebih akurat & hemat token</li>
             </ol>
           </div>
 
@@ -230,8 +209,7 @@ export default function RAGStatusPanel() {
           🔍 Test Pencarian Semantik
         </h3>
         <p className="text-xs text-gray-500 mb-3">
-          Coba ketik pertanyaan dan lihat dokumen mana yang dianggap paling
-          relevan oleh AI.
+          Coba ketik pertanyaan dan lihat dokumen mana yang dianggap paling relevan oleh AI.
         </p>
         <div className="flex gap-2 mb-3">
           <input
@@ -278,9 +256,7 @@ export default function RAGStatusPanel() {
         {/* Search Results */}
         {searchResults.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs text-gray-500 font-medium">
-              Ditemukan {searchResults.length} dokumen relevan:
-            </p>
+            <p className="text-xs text-gray-500 font-medium">Ditemukan {searchResults.length} dokumen relevan:</p>
             {searchResults.map((r, i) => (
               <motion.div
                 key={i}
@@ -304,14 +280,10 @@ export default function RAGStatusPanel() {
                         }}
                       />
                     </div>
-                    <span className="text-xs text-gray-500 font-mono">
-                      {(r.similarity * 100).toFixed(1)}%
-                    </span>
+                    <span className="text-xs text-gray-500 font-mono">{(r.similarity * 100).toFixed(1)}%</span>
                   </div>
                 </div>
-                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">
-                  {r.content}
-                </pre>
+                <pre className="text-xs text-gray-700 whitespace-pre-wrap font-sans leading-relaxed">{r.content}</pre>
               </motion.div>
             ))}
           </div>
