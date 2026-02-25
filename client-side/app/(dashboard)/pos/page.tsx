@@ -124,7 +124,11 @@ function getProductAvailability(
  * ReadyStock products: reserve by productId (from availableStock)
  * PreOrder products: reserve by ingredientId (from ingredient stock)
  */
-function buildReservedStock(cart: CartItem[], products: Product[], excludeProductId?: number): Map<number, number> {
+function buildReservedStock(
+  cart: CartItem[],
+  products: Product[],
+  excludeProductId?: number,
+): Map<number, number> {
   const reserved = new Map<number, number>();
   for (const cartItem of cart) {
     if (cartItem.productId === excludeProductId) continue;
@@ -140,7 +144,10 @@ function buildReservedStock(cart: CartItem[], products: Product[], excludeProduc
       if (!product.recipes) continue;
       for (const recipe of product.recipes) {
         const current = reserved.get(recipe.ingredient.id) ?? 0;
-        reserved.set(recipe.ingredient.id, current + Number(recipe.quantity) * cartItem.quantity);
+        reserved.set(
+          recipe.ingredient.id,
+          current + Number(recipe.quantity) * cartItem.quantity,
+        );
       }
     }
   }
@@ -153,12 +160,10 @@ function formatDate(date: Date): string {
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: "Asia/Jakarta",
   });
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Jakarta" });
   return date.toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
@@ -175,7 +180,9 @@ export default function POSPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"Cash" | "QRIS" | "Transfer" | "Digital" | "Kasbon">("Cash");
+  const [paymentMethod, setPaymentMethod] = useState<
+    "Cash" | "QRIS" | "Transfer" | "Digital" | "Kasbon"
+  >("Cash");
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
@@ -199,7 +206,10 @@ export default function POSPage() {
   const [actualCashInput, setActualCashInput] = useState("");
   const [closeNotes, setCloseNotes] = useState("");
   const [shiftActionLoading, setShiftActionLoading] = useState(false);
-  const [closeResult, setCloseResult] = useState<Record<string, unknown> | null>(null);
+  const [closeResult, setCloseResult] = useState<Record<
+    string,
+    unknown
+  > | null>(null);
 
   const handleOpenShift = async () => {
     const amount = Number(openingCashInput.replace(/\D/g, ""));
@@ -233,7 +243,9 @@ export default function POSPage() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       // Don't intercept when typing in input fields (except shortcuts)
-      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes((e.target as HTMLElement)?.tagName);
+      const isInput = ["INPUT", "TEXTAREA", "SELECT"].includes(
+        (e.target as HTMLElement)?.tagName,
+      );
 
       if (e.key === "F2") {
         e.preventDefault();
@@ -242,7 +254,12 @@ export default function POSPage() {
         }
       } else if (e.key === "F3") {
         e.preventDefault();
-        if (cart.length > 0 && paymentMethod !== "Cash" && paymentMethod !== "Kasbon" && !loading) {
+        if (
+          cart.length > 0 &&
+          paymentMethod !== "Cash" &&
+          paymentMethod !== "Kasbon" &&
+          !loading
+        ) {
           handleCheckout("online");
         }
       } else if (e.key === "F5") {
@@ -281,10 +298,14 @@ export default function POSPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paymentStatus = params.get("payment");
-    if (paymentStatus === "success") setPaymentNotice("✅ Pembayaran berhasil!");
-    else if (paymentStatus === "pending") setPaymentNotice("⏳ Menunggu pembayaran...");
-    else if (paymentStatus === "error") setPaymentNotice("❌ Pembayaran gagal.");
-    if (paymentStatus) window.history.replaceState({}, "", window.location.pathname);
+    if (paymentStatus === "success")
+      setPaymentNotice("✅ Pembayaran berhasil!");
+    else if (paymentStatus === "pending")
+      setPaymentNotice("⏳ Menunggu pembayaran...");
+    else if (paymentStatus === "error")
+      setPaymentNotice("❌ Pembayaran gagal.");
+    if (paymentStatus)
+      window.history.replaceState({}, "", window.location.pathname);
   }, []);
 
   const fetchProducts = async () => {
@@ -296,11 +317,19 @@ export default function POSPage() {
         const activeProducts = data.data.filter((p: Product) => p.isActive);
         // Debug: log recipe data to verify ingredients are loaded
         if (process.env.NODE_ENV === "development") {
-          const withRecipes = activeProducts.filter((p: Product) => p.recipes && p.recipes.length > 0);
-          console.log(`[POS] Loaded ${activeProducts.length} products, ${withRecipes.length} have recipes`);
+          const withRecipes = activeProducts.filter(
+            (p: Product) => p.recipes && p.recipes.length > 0,
+          );
+          console.log(
+            `[POS] Loaded ${activeProducts.length} products, ${withRecipes.length} have recipes`,
+          );
           if (withRecipes.length > 0) {
             const sample = withRecipes[0];
-            console.log(`[POS] Sample recipe data:`, sample.name, sample.recipes);
+            console.log(
+              `[POS] Sample recipe data:`,
+              sample.name,
+              sample.recipes,
+            );
           }
         }
         setProducts(activeProducts);
@@ -322,18 +351,27 @@ export default function POSPage() {
   }, [products]);
 
   // ── Precompute ingredient reservations by ALL cart items (for ingredient stock display) ──
-  const allReservedStock = useMemo(() => buildReservedStock(cart, products), [cart, products]);
+  const allReservedStock = useMemo(
+    () => buildReservedStock(cart, products),
+    [cart, products],
+  );
 
   // Filter products & sort: available first, then low stock, then unavailable
   const filteredProducts = useMemo(() => {
     const filtered = products.filter((p) => {
-      const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchCategory = selectedCategory === "all" || String(p.categoryId) === selectedCategory;
+      const matchSearch = p.name
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase());
+      const matchCategory =
+        selectedCategory === "all" || String(p.categoryId) === selectedCategory;
       return matchSearch && matchCategory;
     });
 
     // Precompute availability for each product (exclude own reservation)
-    const availMap = new Map<number, { available: boolean; remaining: number }>();
+    const availMap = new Map<
+      number,
+      { available: boolean; remaining: number }
+    >();
     for (const p of filtered) {
       const reservedByOthers = buildReservedStock(cart, products, p.id);
       const { available, maxQty } = getProductAvailability(p, reservedByOthers);
@@ -357,18 +395,25 @@ export default function POSPage() {
   const addToCart = (product: Product) => {
     // reservedByOthers excludes this product → maxQty = total capacity for this product
     const reservedByOthers = buildReservedStock(cart, products, product.id);
-    const { available, maxQty } = getProductAvailability(product, reservedByOthers);
+    const { available, maxQty } = getProductAvailability(
+      product,
+      reservedByOthers,
+    );
     if (!available) return;
 
-    const currentQty = cart.find((item) => item.productId === product.id)?.quantity || 0;
+    const currentQty =
+      cart.find((item) => item.productId === product.id)?.quantity || 0;
     if (currentQty >= maxQty) return; // already at max
 
     setCart((prev) => {
       const existing = prev.find((item) => item.productId === product.id);
 
       if (existing) {
-        return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
-        return prev.map((item) => (item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item));
+        return prev.map((item) =>
+          item.productId === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        );
       }
       return [
         ...prev,
@@ -388,10 +433,15 @@ export default function POSPage() {
         .map((item) => {
           if (item.productId !== productId) return item;
           const product = products.find((p) => p.id === productId);
-          if (!product) return { ...item, quantity: Math.max(0, item.quantity + delta) };
+          if (!product)
+            return { ...item, quantity: Math.max(0, item.quantity + delta) };
 
           // Reserved by OTHER products in cart (exclude this one)
-          const reservedByOthers = buildReservedStock(prev, products, productId);
+          const reservedByOthers = buildReservedStock(
+            prev,
+            products,
+            productId,
+          );
           const { maxQty } = getProductAvailability(product, reservedByOthers);
           const newQty = Math.max(0, Math.min(item.quantity + delta, maxQty));
           return { ...item, quantity: newQty };
@@ -416,8 +466,13 @@ export default function POSPage() {
       alert("Pilih metode pembayaran Cash terlebih dahulu!");
       return;
     }
-    if (mode === "online" && (paymentMethod === "Cash" || paymentMethod === "Kasbon")) {
-      alert("Pilih metode pembayaran online (QRIS/Transfer/Digital) terlebih dahulu!");
+    if (
+      mode === "online" &&
+      (paymentMethod === "Cash" || paymentMethod === "Kasbon")
+    ) {
+      alert(
+        "Pilih metode pembayaran online (QRIS/Transfer/Digital) terlebih dahulu!",
+      );
       return;
     }
 
@@ -460,7 +515,9 @@ export default function POSPage() {
           if (!snapObj || typeof snapObj.pay !== "function") {
             alert("Midtrans belum siap. Coba refresh halaman dan ulangi.");
             // Cancel the pending sale
-            await fetch(`/api/sales/${saleId}`, { method: "DELETE" }).catch(() => {});
+            await fetch(`/api/sales/${saleId}`, { method: "DELETE" }).catch(
+              () => {},
+            );
             setLoading(false);
             return;
           }
@@ -554,7 +611,7 @@ export default function POSPage() {
   };
 
   return (
-    <div className="h-[calc(100dvh-8rem)] md:h-[calc(100dvh-3.5rem)] flex flex-col overflow-hidden pb-16 md:pb-0">
+    <div className="h-[calc(100vh-80px)] flex flex-col overflow-hidden">
       {/* ═══ Top Bar ═══ */}
       <div className="bg-white border-b border-gray-200 px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -594,7 +651,8 @@ export default function POSPage() {
               </span>
               <span className="font-semibold">Shift Buka</span>
               <span className="text-xs text-emerald-500">
-                | Modal {formatRupiah(shift.openingCash)} | {shift.runningTotals.transactionCount} trx
+                | Modal {formatRupiah(shift.openingCash)} |{" "}
+                {shift.runningTotals.transactionCount} trx
               </span>
               <LogOut className="w-3.5 h-3.5 ml-1" />
             </button>
@@ -606,16 +664,19 @@ export default function POSPage() {
       {paymentNotice && (
         <div className="mx-3 sm:mx-6 mt-3 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm text-indigo-700 flex items-center gap-2 shrink-0">
           {paymentNotice}
-          <button onClick={() => setPaymentNotice(null)} className="ml-auto text-indigo-400 hover:text-indigo-600">
+          <button
+            onClick={() => setPaymentNotice(null)}
+            className="ml-auto text-indigo-400 hover:text-indigo-600"
+          >
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
       {/* ═══ Main Content ═══ */}
-      <div className="flex-1 flex flex-col md:flex-row gap-3 sm:gap-4 p-2 sm:p-4 overflow-auto md:overflow-hidden min-h-0">
+      <div className="flex-1 flex flex-col xl:flex-row gap-3 sm:gap-4 p-2 sm:p-4 overflow-auto xl:overflow-hidden min-h-0">
         {/* ─── LEFT: Products ─── */}
-        <div className="flex-1 flex flex-col min-w-0 min-h-[50vh] md:min-h-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-[52vh] xl:min-h-0">
           {/* Search + Categories */}
           <div className="flex gap-3 mb-3 shrink-0">
             <div className="relative flex-1">
@@ -652,7 +713,9 @@ export default function POSPage() {
               Semua ({products.length})
             </button>
             {categories.map((cat) => {
-              const count = products.filter((p) => String(p.categoryId) === cat.id).length;
+              const count = products.filter(
+                (p) => String(p.categoryId) === cat.id,
+              ).length;
               return (
                 <button
                   key={cat.id}
@@ -681,11 +744,16 @@ export default function POSPage() {
                 <p className="text-sm">Tidak ada produk ditemukan</p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2 sm:gap-3">
                 {filteredProducts.map((product) => {
                   // Reserved by OTHER cart items (exclude this product)
-                  const reservedByOthers = buildReservedStock(cart, products, product.id);
-                  const { available, maxQty, missingIngredients } = getProductAvailability(product, reservedByOthers);
+                  const reservedByOthers = buildReservedStock(
+                    cart,
+                    products,
+                    product.id,
+                  );
+                  const { available, maxQty, missingIngredients } =
+                    getProductAvailability(product, reservedByOthers);
                   const inCart = cart.find((c) => c.productId === product.id);
                   const cartQty = inCart?.quantity || 0;
                   // maxQty = total capacity for this product (given others' reservations)
@@ -696,7 +764,8 @@ export default function POSPage() {
                   // This shows the GLOBAL remaining for each ingredient across the whole cart
                   const ingredientStocks = (product.recipes || []).map((r) => {
                     const dbStock = Number(r.ingredient.currentStock) || 0;
-                    const totalReserved = allReservedStock.get(r.ingredient.id) ?? 0;
+                    const totalReserved =
+                      allReservedStock.get(r.ingredient.id) ?? 0;
                     const effectiveStock = Math.max(0, dbStock - totalReserved);
                     const needed = Number(r.quantity) || 0;
                     return {
@@ -712,9 +781,11 @@ export default function POSPage() {
                   return (
                     <button
                       key={product.id}
-                      onClick={() => available && !isMaxed && addToCart(product)}
+                      onClick={() =>
+                        available && !isMaxed && addToCart(product)
+                      }
                       disabled={!available || isMaxed}
-                      className={`relative text-left rounded-xl p-3 sm:p-4 transition-all duration-200 border min-h-35 sm:min-h-65 flex flex-col justify-start ${
+                      className={`relative text-left rounded-xl p-3 sm:p-4 transition-all duration-200 border min-h-[10.5rem] sm:min-h-[14rem] flex flex-col justify-start ${
                         !available
                           ? "bg-gray-50 border-gray-200 opacity-60 cursor-not-allowed"
                           : isMaxed
@@ -792,7 +863,9 @@ export default function POSPage() {
                             </span>
                           ))}
                           {ingredientStocks.length > 3 && (
-                            <span className="text-[9px] text-gray-400">+{ingredientStocks.length - 3}</span>
+                            <span className="text-[9px] text-gray-400">
+                              +{ingredientStocks.length - 3}
+                            </span>
                           )}
                         </div>
                       ) : (
@@ -809,13 +882,16 @@ export default function POSPage() {
                           <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                           <span className="text-[10px] text-red-500 font-medium">
                             Habis: {missingIngredients.slice(0, 2).join(", ")}
-                            {missingIngredients.length > 2 && ` +${missingIngredients.length - 2}`}
+                            {missingIngredients.length > 2 &&
+                              ` +${missingIngredients.length - 2}`}
                           </span>
                         </div>
                       ) : !available ? (
                         <div className="mt-1.5 flex items-center gap-1">
                           <AlertCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
-                          <span className="text-[10px] text-red-500 font-medium">Stok habis</span>
+                          <span className="text-[10px] text-red-500 font-medium">
+                            Stok habis
+                          </span>
                         </div>
                       ) : isMaxed ? (
                         <div className="mt-1.5 flex items-center gap-1">
@@ -828,7 +904,9 @@ export default function POSPage() {
                         <div className="mt-1.5 flex items-center gap-1">
                           <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
                           <span className="text-[10px] text-amber-600 font-medium">
-                            {cartQty > 0 ? `${cartQty} di cart · +${remaining} lagi` : `Bisa ${remaining} porsi`}
+                            {cartQty > 0
+                              ? `${cartQty} di cart · +${remaining} lagi`
+                              : `Bisa ${remaining} porsi`}
                           </span>
                         </div>
                       ) : (
@@ -848,12 +926,12 @@ export default function POSPage() {
         </div>
 
         {/* ─── RIGHT: Cart ─── */}
-        <div className="w-full md:w-80 lg:w-96 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden min-h-[40vh] md:min-h-0 md:max-h-none">
+        <div className="w-full xl:w-96 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col shrink-0 overflow-hidden max-h-[55vh] xl:max-h-none">
           {/* Cart header */}
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <ShoppingCart className="w-5 h-5 text-indigo-600" />
-              <h2 className="font-bold text-gray-900">Keranjang</h2>
+              <h2 className="font-bold text-gray-900 text-base md:text-lg">Keranjang</h2>
               {totalItems > 0 && (
                 <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {totalItems}
@@ -861,7 +939,10 @@ export default function POSPage() {
               )}
             </div>
             {cart.length > 0 && (
-              <button onClick={clearCart} className="text-xs text-red-500 hover:text-red-700 font-medium">
+              <button
+                onClick={clearCart}
+                className="text-xs text-red-500 hover:text-red-700 font-medium"
+              >
                 Hapus semua
               </button>
             )}
@@ -879,31 +960,50 @@ export default function POSPage() {
               <div className="space-y-3">
                 {cart.map((item) => {
                   const product = products.find((p) => p.id === item.productId);
-                  const reservedByOthers = product ? buildReservedStock(cart, products, item.productId) : new Map();
-                  const { maxQty } = product ? getProductAvailability(product, reservedByOthers) : { maxQty: 999 };
+                  const reservedByOthers = product
+                    ? buildReservedStock(cart, products, item.productId)
+                    : new Map();
+                  const { maxQty } = product
+                    ? getProductAvailability(product, reservedByOthers)
+                    : { maxQty: 999 };
                   const atMax = item.quantity >= maxQty;
 
                   return (
-                    <div key={item.productId} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                    <div
+                      key={item.productId}
+                      className="flex items-center gap-3 bg-gray-50 rounded-xl p-2 md:p-3"
+                    >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-                        <p className="text-xs text-gray-500">{formatRupiah(item.price)}</p>
-                        {atMax && product?.recipes && product.recipes.length > 0 && (
-                          <p className="text-[9px] text-orange-500 mt-0.5">⚠ Maks. bahan baku</p>
-                        )}
+                        <p className="text-xs md:text-sm font-semibold text-gray-900 truncate">
+                          {item.name}
+                        </p>
+                        <p className="text-[11px] md:text-xs text-gray-500">
+                          {formatRupiah(item.price)}
+                        </p>
+                        {atMax &&
+                          product?.recipes &&
+                          product.recipes.length > 0 && (
+                            <p className="text-[9px] text-orange-500 mt-0.5">
+                              ⚠ Maks. bahan baku
+                            </p>
+                          )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => updateQuantity(item.productId, -1)}
-                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
+                          className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-100"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="w-7 text-center text-sm font-bold text-gray-900">{item.quantity}</span>
+                        <span className="w-6 md:w-7 text-center text-xs md:text-sm font-bold text-gray-900">
+                          {item.quantity}
+                        </span>
                         <button
-                          onClick={() => !atMax && updateQuantity(item.productId, 1)}
+                          onClick={() =>
+                            !atMax && updateQuantity(item.productId, 1)
+                          }
                           disabled={atMax}
-                          className={`w-7 h-7 flex items-center justify-center rounded-lg ${
+                          className={`w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-lg ${
                             atMax
                               ? "bg-gray-200 text-gray-400 cursor-not-allowed"
                               : "bg-indigo-600 text-white hover:bg-indigo-700"
@@ -913,7 +1013,9 @@ export default function POSPage() {
                         </button>
                       </div>
                       <div className="text-right shrink-0">
-                        <p className="text-sm font-bold text-gray-900">{formatRupiah(item.price * item.quantity)}</p>
+                        <p className="text-xs md:text-sm font-bold text-gray-900">
+                          {formatRupiah(item.price * item.quantity)}
+                        </p>
                         <button
                           onClick={() => removeFromCart(item.productId)}
                           className="text-red-400 hover:text-red-600 mt-0.5"
@@ -931,9 +1033,11 @@ export default function POSPage() {
           {/* Cart footer */}
           <div className="border-t border-gray-100 shrink-0 bg-gray-50/50">
             {/* Payment method selector — always visible */}
-            <div className="px-5 pt-3 pb-2">
+            <div className="px-4 md:px-5 pt-2 md:pt-3 pb-2">
               <div className="flex gap-1.5 flex-wrap">
-                {(["Cash", "QRIS", "Transfer", "Digital", "Kasbon"] as const).map((method) => (
+                {(
+                  ["Cash", "QRIS", "Transfer", "Digital", "Kasbon"] as const
+                ).map((method) => (
                   <button
                     key={method}
                     onClick={() => {
@@ -943,11 +1047,15 @@ export default function POSPage() {
                         setKasbonDueDate("");
                       }
                       // Auto-expand customer form for online payments (Midtrans requires name+email)
-                      if (method === "QRIS" || method === "Transfer" || method === "Digital") {
+                      if (
+                        method === "QRIS" ||
+                        method === "Transfer" ||
+                        method === "Digital"
+                      ) {
                         setShowCustomerForm(true);
                       }
                     }}
-                    className={`flex-1 min-w-13.75 py-2 text-[11px] font-medium rounded-lg transition cursor-pointer ${
+                    className={`flex-1 min-w-[6.75rem] xl:min-w-0 py-1.5 md:py-2 text-[10px] md:text-[11px] font-medium rounded-lg transition cursor-pointer ${
                       paymentMethod === method
                         ? method === "Kasbon"
                           ? "bg-amber-600 text-white shadow-sm ring-2 ring-amber-300"
@@ -971,13 +1079,15 @@ export default function POSPage() {
             </div>
 
             {/* Conditional forms — scrollable if needed */}
-            <div className="px-5 pb-2 overflow-y-auto max-h-45">
+            <div className="px-4 md:px-5 pb-2 overflow-y-auto max-h-45">
               {/* KASBON MODE */}
               {paymentMethod === "Kasbon" && (
                 <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-3 space-y-2">
                   <div className="flex items-center gap-2 pb-1 border-b border-amber-200">
                     <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-                    <p className="text-[11px] text-amber-800 font-bold">Mode Kasbon — Piutang</p>
+                    <p className="text-[11px] text-amber-800 font-bold">
+                      Mode Kasbon — Piutang
+                    </p>
                   </div>
                   <div className="relative">
                     <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-amber-400" />
@@ -987,7 +1097,9 @@ export default function POSPage() {
                       onChange={(e) => setCustomerName(e.target.value)}
                       placeholder="Nama pelanggan (wajib) *"
                       className={`w-full pl-8 pr-3 py-1.5 text-xs rounded-lg bg-white focus:ring-2 focus:ring-amber-500 focus:outline-none text-black placeholder-gray-400 ${
-                        !customerName.trim() ? "border-2 border-red-300" : "border border-amber-200"
+                        !customerName.trim()
+                          ? "border-2 border-red-300"
+                          : "border border-amber-200"
                       }`}
                     />
                   </div>
@@ -1006,7 +1118,11 @@ export default function POSPage() {
                       type="date"
                       value={kasbonDueDate}
                       onChange={(e) => setKasbonDueDate(e.target.value)}
-                      min={currentTime ? currentTime.toISOString().split("T")[0] : undefined}
+                      min={
+                        currentTime
+                          ? currentTime.toISOString().split("T")[0]
+                          : undefined
+                      }
                       title="Jatuh tempo"
                       className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-amber-500 bg-white focus:outline-none text-black placeholder-gray-400"
                     />
@@ -1032,7 +1148,9 @@ export default function POSPage() {
                       <User className="w-3.5 h-3.5" />
                       {customerName || "Info Customer (opsional)"}
                     </span>
-                    <ChevronDown className={`w-3.5 h-3.5 transition ${showCustomerForm ? "rotate-180" : ""}`} />
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 transition ${showCustomerForm ? "rotate-180" : ""}`}
+                    />
                   </button>
                   {showCustomerForm && (
                     <div className="space-y-2 bg-white border border-gray-200 rounded-lg p-3 mt-2">
@@ -1076,32 +1194,42 @@ export default function POSPage() {
             <div className="px-5 pb-4 pt-2 space-y-2 border-t border-gray-100">
               <div
                 className={`border rounded-xl p-2.5 ${
-                  paymentMethod === "Kasbon" ? "bg-amber-50 border-amber-200" : "bg-white border-gray-200"
+                  paymentMethod === "Kasbon"
+                    ? "bg-amber-50 border-amber-200"
+                    : "bg-white border-gray-200"
                 }`}
               >
                 <div className="flex justify-between items-center text-xs text-gray-500 mb-0.5">
                   <span>{totalItems} item</span>
-                  <span>{paymentMethod === "Kasbon" ? "Total Kasbon" : "Subtotal"}</span>
+                  <span>
+                    {paymentMethod === "Kasbon" ? "Total Kasbon" : "Subtotal"}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-base font-extrabold text-gray-900">Total</span>
+                  <span className="text-base font-extrabold text-gray-900">
+                    Total
+                  </span>
                   <span
                     className={`text-base font-extrabold ${paymentMethod === "Kasbon" ? "text-amber-700" : "text-indigo-600"}`}
                   >
                     {formatRupiah(total)}
                   </span>
                 </div>
-                {paymentMethod === "Kasbon" && customerName.trim() && cart.length > 0 && (
-                  <p className="text-[10px] text-amber-700 font-medium mt-1 truncate">
-                    📒 {customerName.trim()} hutang {formatRupiah(total)}
-                  </p>
-                )}
+                {paymentMethod === "Kasbon" &&
+                  customerName.trim() &&
+                  cart.length > 0 && (
+                    <p className="text-[10px] text-amber-700 font-medium mt-1 truncate">
+                      📒 {customerName.trim()} hutang {formatRupiah(total)}
+                    </p>
+                  )}
               </div>
 
               {paymentMethod === "Kasbon" ? (
                 <button
                   onClick={() => handleCheckout("kasbon")}
-                  disabled={loading || cart.length === 0 || !customerName.trim()}
+                  disabled={
+                    loading || cart.length === 0 || !customerName.trim()
+                  }
                   className="w-full flex items-center justify-center gap-2 bg-amber-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition shadow-sm cursor-pointer"
                 >
                   {loading ? (
@@ -1120,7 +1248,9 @@ export default function POSPage() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleCheckout("cash")}
-                    disabled={loading || cart.length === 0 || paymentMethod !== "Cash"}
+                    disabled={
+                      loading || cart.length === 0 || paymentMethod !== "Cash"
+                    }
                     className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition cursor-pointer ${
                       paymentMethod === "Cash"
                         ? "bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -1132,7 +1262,9 @@ export default function POSPage() {
                   </button>
                   <button
                     onClick={() => handleCheckout("online")}
-                    disabled={loading || cart.length === 0 || paymentMethod === "Cash"}
+                    disabled={
+                      loading || cart.length === 0 || paymentMethod === "Cash"
+                    }
                     className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition cursor-pointer ${
                       paymentMethod !== "Cash"
                         ? "bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed"
@@ -1158,19 +1290,25 @@ export default function POSPage() {
               <DollarSign className="w-8 h-8 text-indigo-600" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Buka Shift Kasir</h2>
+              <h2 className="text-xl font-bold text-gray-900">
+                Buka Shift Kasir
+              </h2>
               <p className="text-sm text-gray-500 mt-1">
                 Masukkan jumlah uang cash di laci kasir sebelum mulai berjualan
               </p>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 block text-left mb-1">Modal Awal (Rp)</label>
+              <label className="text-sm font-medium text-gray-700 block text-left mb-1">
+                Modal Awal (Rp)
+              </label>
               <input
                 type="text"
                 value={openingCashInput}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "");
-                  setOpeningCashInput(raw ? Number(raw).toLocaleString("id-ID") : "");
+                  setOpeningCashInput(
+                    raw ? Number(raw).toLocaleString("id-ID") : "",
+                  );
                 }}
                 placeholder="0"
                 className="w-full px-4 py-3 text-2xl font-bold text-center border-2 border-indigo-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
@@ -1200,7 +1338,9 @@ export default function POSPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-gray-900">💰 Tutup Kasir</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                💰 Tutup Kasir
+              </h2>
               <button
                 onClick={() => setShowCloseShiftModal(false)}
                 className="text-gray-400 hover:text-gray-600 text-xl"
@@ -1218,16 +1358,22 @@ export default function POSPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Dibuka</span>
-                  <span className="font-medium">{new Date(shift.openedAt).toLocaleString("id-ID")}</span>
+                  <span className="font-medium">
+                    {new Date(shift.openedAt).toLocaleString("id-ID")}
+                  </span>
                 </div>
                 <hr />
                 <div className="flex justify-between">
                   <span>Modal Awal</span>
-                  <span className="font-semibold">{formatRupiah(shift.openingCash)}</span>
+                  <span className="font-semibold">
+                    {formatRupiah(shift.openingCash)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>💵 Cash Sales</span>
-                  <span className="font-semibold text-green-600">+{formatRupiah(shift.runningTotals.cashTotal)}</span>
+                  <span className="font-semibold text-green-600">
+                    +{formatRupiah(shift.runningTotals.cashTotal)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>📱 QRIS</span>
@@ -1248,28 +1394,38 @@ export default function POSPage() {
                 <hr />
                 <div className="flex justify-between font-bold text-base">
                   <span>Total Revenue</span>
-                  <span className="text-indigo-600">{formatRupiah(shift.runningTotals.totalRevenue)}</span>
+                  <span className="text-indigo-600">
+                    {formatRupiah(shift.runningTotals.totalRevenue)}
+                  </span>
                 </div>
                 <div className="flex justify-between font-bold">
                   <span>Cash Seharusnya</span>
-                  <span className="text-emerald-600">{formatRupiah(shift.runningTotals.expectedCash)}</span>
+                  <span className="text-emerald-600">
+                    {formatRupiah(shift.runningTotals.expectedCash)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Transaksi</span>
-                  <span className="font-bold">{shift.runningTotals.transactionCount}</span>
+                  <span className="font-bold">
+                    {shift.runningTotals.transactionCount}
+                  </span>
                 </div>
               </div>
             )}
 
             {/* Actual cash input */}
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Hitung Uang Cash di Laci (Rp)</label>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                Hitung Uang Cash di Laci (Rp)
+              </label>
               <input
                 type="text"
                 value={actualCashInput}
                 onChange={(e) => {
                   const raw = e.target.value.replace(/\D/g, "");
-                  setActualCashInput(raw ? Number(raw).toLocaleString("id-ID") : "");
+                  setActualCashInput(
+                    raw ? Number(raw).toLocaleString("id-ID") : "",
+                  );
                 }}
                 placeholder="Jumlah uang fisik"
                 className="w-full px-4 py-3 text-xl font-bold text-center border-2 border-gray-200 rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
@@ -1297,7 +1453,9 @@ export default function POSPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Catatan (opsional)</label>
+              <label className="text-sm font-medium text-gray-700 block mb-1">
+                Catatan (opsional)
+              </label>
               <textarea
                 value={closeNotes}
                 onChange={(e) => setCloseNotes(e.target.value)}
@@ -1311,7 +1469,9 @@ export default function POSPage() {
               disabled={shiftActionLoading || !actualCashInput}
               className="w-full py-3.5 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition"
             >
-              {shiftActionLoading ? "Menutup..." : "🔒 Tutup Shift & Settlement"}
+              {shiftActionLoading
+                ? "Menutup..."
+                : "🔒 Tutup Shift & Settlement"}
             </button>
           </div>
         </div>
@@ -1325,13 +1485,17 @@ export default function POSPage() {
               <div className="mx-auto w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-3">
                 <CheckCircle2 className="w-7 h-7 text-green-600" />
               </div>
-              <h2 className="text-lg font-bold text-gray-900">Shift Ditutup ✅</h2>
+              <h2 className="text-lg font-bold text-gray-900">
+                Shift Ditutup ✅
+              </h2>
             </div>
 
             <div className="bg-indigo-50 rounded-xl p-4 text-sm space-y-2">
               <div className="flex justify-between">
                 <span>Modal Awal</span>
-                <span className="font-semibold">{formatRupiah(Number(closeResult.openingCash) || 0)}</span>
+                <span className="font-semibold">
+                  {formatRupiah(Number(closeResult.openingCash) || 0)}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span>+ Cash Sales</span>
@@ -1342,7 +1506,9 @@ export default function POSPage() {
               <hr className="border-indigo-200" />
               <div className="flex justify-between font-bold">
                 <span>Seharusnya</span>
-                <span>{formatRupiah(Number(closeResult.expectedCash) || 0)}</span>
+                <span>
+                  {formatRupiah(Number(closeResult.expectedCash) || 0)}
+                </span>
               </div>
               <div className="flex justify-between font-bold">
                 <span>Aktual</span>
@@ -1363,11 +1529,14 @@ export default function POSPage() {
 
             <div className="bg-indigo-600 text-white rounded-xl p-4 flex justify-between items-center">
               <span className="font-semibold">Total Revenue</span>
-              <span className="text-xl font-bold">{formatRupiah(Number(closeResult.totalRevenue) || 0)}</span>
+              <span className="text-xl font-bold">
+                {formatRupiah(Number(closeResult.totalRevenue) || 0)}
+              </span>
             </div>
 
             <div className="text-xs text-gray-400 text-center">
-              {String(closeResult.transactionCount ?? 0)} transaksi · Ditutup oleh {String(closeResult.closedBy ?? "")}
+              {String(closeResult.transactionCount ?? 0)} transaksi · Ditutup
+              oleh {String(closeResult.closedBy ?? "")}
             </div>
 
             <button
