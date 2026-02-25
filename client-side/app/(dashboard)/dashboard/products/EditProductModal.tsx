@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { EditProductModalProps } from "@/types/product";
 import type { DraftRecipeRow } from "@/types/product";
 // _clientId is present in ProductDraft, but we use it in DraftRecipeRow for UI keys
@@ -116,12 +117,13 @@ export default function EditProductModal({ product, categories, onClose, onSaved
       },
     ]);
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
       style={{ zIndex: 200 }}
     >
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden mb-14 sm:mb-0">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-2xl max-h-[85dvh] flex flex-col overflow-hidden">
         {/* Drag handle (mobile only) */}
         <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
@@ -287,6 +289,7 @@ export default function EditProductModal({ product, categories, onClose, onSaved
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

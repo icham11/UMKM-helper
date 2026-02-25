@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Plus,
   PackageOpen,
   X,
-  History,
+  Boxes,
   RefreshCw,
   AlertTriangle,
   Trash2,
@@ -15,6 +16,10 @@ import {
   PackagePlus,
   ChevronUp,
   ChevronDown,
+  Package,
+  TrendingDown,
+  Coins,
+  Calendar,
 } from "lucide-react";
 import IngredientStatusBadge from "./components/IngredientStatusBadge";
 import { getIngredients, deleteIngredient, bulkDeleteIngredients, type Ingredient } from "@/lib/api/ingredients";
@@ -49,7 +54,6 @@ export default function IngredientsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [isWasteOpen, setIsWasteOpen] = useState(false);
   const [isInitialStockOpen, setIsInitialStockOpen] = useState(false);
 
   const { business, loading: businessLoading } = useBusiness();
@@ -349,15 +353,6 @@ export default function IngredientsPage() {
                 >
                   <RefreshCw size={13} /> Restock
                 </button>
-                <button
-                  onClick={() => {
-                    setSelectedIngredient(ingredient);
-                    setIsWasteOpen(true);
-                  }}
-                  className="flex items-center gap-1 text-orange-600 hover:bg-orange-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
-                >
-                  <Flame size={13} /> Waste
-                </button>
                 {ingredient.currentStock === -1 && (
                   <button
                     onClick={() => {
@@ -376,7 +371,7 @@ export default function IngredientsPage() {
                   }}
                   className="flex items-center gap-1 text-violet-600 hover:bg-violet-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
                 >
-                  <History size={13} /> Riwayat
+                  <Boxes size={13} /> Persediaan
                 </button>
                 <button
                   onClick={() => {
@@ -478,16 +473,6 @@ export default function IngredientsPage() {
                     >
                       <RefreshCw size={16} />
                     </button>
-                    <button
-                      onClick={() => {
-                        setSelectedIngredient(ingredient);
-                        setIsWasteOpen(true);
-                      }}
-                      className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 p-1.5 rounded-lg transition"
-                      title="Waste / Buang"
-                    >
-                      <Flame size={16} />
-                    </button>
                     {ingredient.currentStock === -1 && (
                       <button
                         onClick={() => {
@@ -506,9 +491,9 @@ export default function IngredientsPage() {
                         setIsHistoryOpen(true);
                       }}
                       className="text-violet-600 hover:text-violet-900 hover:bg-violet-50 p-1.5 rounded-lg transition"
-                      title="History"
+                      title="Persediaan"
                     >
-                      <History size={16} />
+                      <Boxes size={16} />
                     </button>
                     <button
                       onClick={() => {
@@ -592,16 +577,6 @@ export default function IngredientsPage() {
           }}
         />
       )}
-      {isWasteOpen && selectedIngredient && (
-        <WasteModal
-          ingredient={selectedIngredient}
-          onClose={() => setIsWasteOpen(false)}
-          onSuccess={() => {
-            setIsWasteOpen(false);
-            fetchData();
-          }}
-        />
-      )}
       {isInitialStockOpen && selectedIngredient && (
         <InitialStockModal
           ingredient={selectedIngredient}
@@ -613,7 +588,11 @@ export default function IngredientsPage() {
         />
       )}
       {isHistoryOpen && selectedIngredient && (
-        <BatchHistoryModal ingredient={selectedIngredient} onClose={() => setIsHistoryOpen(false)} />
+        <BatchHistoryModal
+          ingredient={selectedIngredient}
+          onClose={() => setIsHistoryOpen(false)}
+          onSuccess={() => fetchData()}
+        />
       )}
 
       {/* Single delete confirm */}
@@ -630,10 +609,10 @@ export default function IngredientsPage() {
                 <Trash2 size={18} />
               </div>
               <div>
-                <h2 className="text-base font-extrabold text-slate-800">Delete Ingredient?</h2>
+                <h2 className="text-base font-extrabold text-slate-800">Hapus Bahan Baku?</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  <span className="font-semibold text-slate-700">{deleteTarget.name}</span> and all its inventory
-                  batches will be permanently deleted.
+                  <span className="font-semibold text-slate-700">{deleteTarget.name}</span> dan semua batch persediaan
+                  akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
                 </p>
               </div>
             </div>
@@ -649,7 +628,7 @@ export default function IngredientsPage() {
                 disabled={deleting}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition disabled:opacity-50"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleDeleteConfirmed}
@@ -657,7 +636,7 @@ export default function IngredientsPage() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
               >
                 {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                Delete
+                Hapus
               </button>
             </div>
           </div>
@@ -678,12 +657,9 @@ export default function IngredientsPage() {
                 <Trash2 size={18} />
               </div>
               <div>
-                <h2 className="text-base font-extrabold text-slate-800">
-                  Delete {selectedIds.size} Ingredient
-                  {selectedIds.size !== 1 ? "s" : ""}?
-                </h2>
+                <h2 className="text-base font-extrabold text-slate-800">Hapus {selectedIds.size} Bahan Baku?</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  All selected ingredients and their batches will be permanently deleted.
+                  Semua bahan baku yang dipilih dan batch persediaannya akan dihapus permanen.
                 </p>
               </div>
             </div>
@@ -699,7 +675,7 @@ export default function IngredientsPage() {
                 disabled={bulkDeleting}
                 className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition disabled:opacity-50"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleBulkDelete}
@@ -707,7 +683,7 @@ export default function IngredientsPage() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-red-600 text-white font-bold text-sm rounded-xl hover:bg-red-700 transition disabled:opacity-50"
               >
                 {bulkDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-                Delete {selectedIds.size}
+                Hapus {selectedIds.size}
               </button>
             </div>
           </div>
@@ -792,130 +768,23 @@ function RestockModal({ ingredient, onClose, onSuccess }: RestockModalProps) {
             onChange={(e) => setDate(e.target.value)}
           />
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-linear-to-r from-indigo-500 to-violet-500 text-white py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
-        >
-          {loading ? "Processing..." : "Restock"}
-        </button>
-      </form>
-    </ModalWrapper>
-  );
-}
-
-/* =======================
-   WASTE MODAL
-======================= */
-
-interface WasteModalProps {
-  ingredient: Ingredient;
-  onClose: () => void;
-  onSuccess: () => void;
-}
-
-function WasteModal({ ingredient, onClose, onSuccess }: WasteModalProps) {
-  const [quantity, setQuantity] = useState(0);
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  const handleWaste = async () => {
-    if (quantity <= 0) {
-      setError("Jumlah harus lebih dari 0");
-      return;
-    }
-    setLoading(true);
-    setError("");
-
-    try {
-      const res = await fetch(`/api/ingredients/${ingredient.id}/consume`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quantity,
-          notes: notes || `Waste: ${ingredient.name}`,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Gagal mencatat waste");
-      }
-
-      onSuccess();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <ModalWrapper
-      onClose={onClose}
-      title={
-        <span className="text-orange-700 font-bold text-lg flex items-center gap-2">
-          <Flame size={20} /> Catat Waste
-        </span>
-      }
-    >
-      <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-3">
-        <p className="text-sm text-orange-700">
-          <span className="font-bold">{ingredient.name}</span> — Stok saat ini:{" "}
-          <span className="font-bold">
-            {ingredient.currentStock === -1 ? "Belum di-set" : `${ingredient.currentStock} ${ingredient.unit}`}
-          </span>
-        </p>
-        <p className="text-xs text-orange-500 mt-1">
-          Waste akan mengurangi stok dan tercatat sebagai pengeluaran bahan baku. Data ini digunakan untuk analisis
-          forecast dan RAG.
-        </p>
-      </div>
-
-      <form
-        className="space-y-4"
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleWaste();
-        }}
-      >
-        {error && (
-          <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-sm">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-orange-700">Jumlah yang dibuang ({ingredient.unit})</label>
-          <input
-            type="number"
-            min={0}
-            step="any"
-            className="w-full border border-orange-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-gray-400"
-            placeholder={`Jumlah (${ingredient.unit})`}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            required
-            autoFocus
-          />
+        <div className="flex gap-3 pt-1">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-60 shadow"
+          >
+            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loading ? "Memproses..." : "Restock"}
+          </button>
         </div>
-        <div className="space-y-2">
-          <label className="block text-sm font-semibold text-orange-700">Alasan / Catatan</label>
-          <textarea
-            className="w-full border border-orange-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-gray-400 resize-none"
-            rows={2}
-            placeholder="Misal: expired, tumpah, rusak, dll."
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-linear-to-r from-orange-500 to-red-500 text-white py-2.5 rounded-xl font-semibold shadow hover:from-orange-600 hover:to-red-600 transition disabled:opacity-60"
-        >
-          {loading ? "Memproses..." : "Catat Waste"}
-        </button>
       </form>
     </ModalWrapper>
   );
@@ -1049,87 +918,362 @@ function InitialStockModal({ ingredient, onClose, onSuccess }: InitialStockModal
 }
 
 /* =======================
+   HELPERS
+======================= */
+
+/** Formats a day-count into natural Indonesian relative time. */
+function formatDaysRelative(days: number): string {
+  const abs = Math.abs(days);
+  const suffix = days < 0 ? "lalu" : "lagi";
+  if (abs < 7) return `${abs} hari ${suffix}`;
+  if (abs < 30) return `${Math.round(abs / 7)} minggu ${suffix}`;
+  if (abs < 365) return `${Math.round(abs / 30)} bulan ${suffix}`;
+  return `${Math.round(abs / 365)} tahun ${suffix}`;
+}
+
+/* =======================
    BATCH HISTORY
 ======================= */
 
 interface Batch {
   expirationDate: string | number | Date;
-  id: string;
+  receivedAt: string | number | Date;
+  id: number;
   remainingQty: number;
   costPerUnit: number;
-  // Add other fields as needed
 }
 
 interface BatchHistoryModalProps {
   ingredient: Ingredient;
   onClose: () => void;
+  onSuccess: () => void;
 }
 
-function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
+function BatchHistoryModal({ ingredient, onClose, onSuccess }: BatchHistoryModalProps) {
   const [batches, setBatches] = useState<Batch[]>([]);
+  const [batchLoading, setBatchLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Per-batch buang state
+  const [buangBatchId, setBuangBatchId] = useState<number | null>(null);
+  const [buangQty, setBuangQty] = useState("");
+  const [buangNotes, setBuangNotes] = useState("");
+  const [buangLoading, setBuangLoading] = useState(false);
+  const [buangError, setBuangError] = useState<string | null>(null);
+
+  const openBuang = (batchId: number) => {
+    setBuangBatchId(batchId);
+    setBuangQty("");
+    setBuangNotes("");
+    setBuangError(null);
+  };
+
+  const handleBuang = async () => {
+    const qty = Number(buangQty);
+    if (!qty || qty <= 0) {
+      setBuangError("Jumlah harus lebih dari 0");
+      return;
+    }
+    setBuangLoading(true);
+    setBuangError(null);
+    try {
+      const res = await fetch(`/api/ingredients/${ingredient.id}/consume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity: qty,
+          batchId: buangBatchId,
+          notes: buangNotes || `Buang: ${ingredient.name}`,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal mencatat pembuangan");
+      setBuangBatchId(null);
+      onSuccess();
+      const res2 = await fetch(`/api/ingredients?withBatches=true`);
+      const d2 = await res2.json();
+      const item = d2.data.find((i: Ingredient) => i.id === ingredient.id);
+      setBatches(item?.inventoryBatches || []);
+    } catch (err) {
+      setBuangError(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } finally {
+      setBuangLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const currentStock = ingredient.currentStock ?? ingredient.stock ?? 0;
+  const stockStatus =
+    currentStock <= 0
+      ? { label: "Habis", color: "bg-red-100 text-red-700 border-red-200" }
+      : currentStock <= ingredient.minStock
+        ? { label: "Perlu Restock", color: "bg-orange-100 text-orange-700 border-orange-200" }
+        : { label: "Aman", color: "bg-emerald-100 text-emerald-700 border-emerald-200" };
 
   useEffect(() => {
     const fetchHistory = async () => {
-      const res = await fetch(`/api/ingredients?withBatches=true`);
-      const data = await res.json();
-      const item = data.data.find((i: Ingredient) => i.id === ingredient.id);
-      setBatches(item?.inventoryBatches || []);
+      setBatchLoading(true);
+      try {
+        const res = await fetch(`/api/ingredients?withBatches=true`);
+        const data = await res.json();
+        const item = data.data.find((i: Ingredient) => i.id === ingredient.id);
+        setBatches(item?.inventoryBatches || []);
+      } finally {
+        setBatchLoading(false);
+      }
     };
     fetchHistory();
   }, [ingredient.id]);
 
-  // Helper to determine batch status
   const getBatchStatus = (batch: Batch) => {
     const today = new Date();
     const expDate = new Date(batch.expirationDate);
-    if (expDate < today) return { label: "Expired", color: "bg-red-100 text-red-700" };
-    if (batch.remainingQty < 50) return { label: "Hampir Habis", color: "bg-orange-100 text-orange-700" };
-    return { label: "Aktif", color: "bg-green-100 text-green-700" };
+    if (expDate < today) return { label: "Expired", color: "bg-red-100 text-red-700 border-red-200" };
+    if (batch.remainingQty < 50)
+      return { label: "Hampir Habis", color: "bg-orange-100 text-orange-700 border-orange-200" };
+    return { label: "Aktif", color: "bg-emerald-100 text-emerald-700 border-emerald-200" };
   };
 
-  return (
-    <ModalWrapper onClose={onClose} title={<span className="text-indigo-700 font-bold text-lg">Batch History</span>}>
-      <div className="mb-4">
-        <span className="font-semibold text-indigo-700 text-base">Ingredient: {ingredient.name}</span>
-      </div>
-      <div className="space-y-4">
-        {batches.length === 0 ? (
-          <div className="text-center text-slate-400 py-6">Belum ada batch untuk bahan baku ini.</div>
-        ) : (
-          batches.map((batch, idx) => {
-            const status = getBatchStatus(batch);
-            return (
-              <div
-                key={batch.id}
-                className="rounded-xl border border-indigo-100 bg-linear-to-r from-indigo-50 to-violet-50 p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2 shadow-sm"
-              >
-                <div className="flex flex-col md:flex-row md:items-center gap-2">
-                  <span className="font-semibold text-indigo-800">Batch #{idx + 1}</span>
-                  <span className="text-xs text-slate-500">ID: {batch.id}</span>
+  return mounted
+    ? createPortal(
+        <div
+          ref={overlayRef}
+          className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+          style={{ zIndex: 200 }}
+          onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+        >
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[88dvh] flex flex-col overflow-hidden">
+            {/* Drag handle – mobile only */}
+            <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+              <div className="w-10 h-1 bg-gray-200 rounded-full" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-start justify-between px-5 pt-3 pb-4 border-b border-gray-100 bg-linear-to-r from-violet-50 to-indigo-50 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-violet-100 flex items-center justify-center shrink-0">
+                  <Boxes size={20} className="text-violet-600" />
                 </div>
-                <div className="flex flex-wrap gap-4 text-sm mt-2 md:mt-0">
-                  <span className="inline-block bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-semibold">
-                    Qty: {batch.remainingQty}
-                  </span>
-                  <span className="inline-block bg-violet-100 text-violet-700 px-3 py-1 rounded-full font-semibold">
-                    Cost: Rp {batch.costPerUnit?.toLocaleString("id-ID")}
-                  </span>
-                  {batch.expirationDate && (
-                    <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
-                      Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-800 leading-tight">{ingredient.name}</h2>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-slate-500 font-medium">Satuan: {ingredient.unit}</span>
+                    <span
+                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${stockStatus.color}`}
+                    >
+                      {stockStatus.label}
                     </span>
-                  )}
-                  <span className={`inline-block px-3 py-1 rounded-full font-semibold ${status.color}`}>
-                    Status: {status.label}
-                  </span>
+                  </div>
                 </div>
               </div>
-            );
-          })
-        )}
-      </div>
-    </ModalWrapper>
-  );
+              <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/70 text-gray-400 transition">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Stats strip */}
+            <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 bg-white shrink-0">
+              <div className="flex flex-col items-center py-3 px-2 gap-0.5">
+                <Package size={13} className="text-indigo-400 mb-0.5" />
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide text-center">Stok Saat Ini</p>
+                <p className="text-sm font-extrabold text-indigo-700">{currentStock}</p>
+                <p className="text-[9px] text-gray-400">{ingredient.unit}</p>
+              </div>
+              <div className="flex flex-col items-center py-3 px-2 gap-0.5">
+                <TrendingDown size={13} className="text-orange-400 mb-0.5" />
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide text-center">Min. Stok</p>
+                <p className="text-sm font-extrabold text-orange-600">
+                  {ingredient.minStock === -1 ? "Belum di-set" : ingredient.minStock}
+                </p>
+                {ingredient.minStock !== -1 && <p className="text-[9px] text-gray-400">{ingredient.unit}</p>}
+              </div>
+              <div className="flex flex-col items-center py-3 px-2 gap-0.5">
+                <Coins size={13} className="text-emerald-400 mb-0.5" />
+                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide text-center">Harga / Unit</p>
+                <p className="text-sm font-extrabold text-emerald-700 truncate max-w-full px-1">
+                  {ingredient.costPerUnit > 0 ? `Rp ${ingredient.costPerUnit.toLocaleString("id-ID")}` : "—"}
+                </p>
+              </div>
+            </div>
+
+            {/* Batch list */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                Daftar Batch Persediaan
+              </p>
+
+              {batchLoading ? (
+                <div className="flex justify-center py-10">
+                  <Loader2 size={24} className="text-violet-400 animate-spin" />
+                </div>
+              ) : batches.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                  <div className="w-14 h-14 rounded-3xl bg-gray-100 flex items-center justify-center">
+                    <Boxes size={28} className="text-gray-300" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-500">Belum ada batch</p>
+                    <p className="text-xs text-gray-400 mt-0.5">Tambah stok untuk membuat batch pertama</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {batches.map((batch, idx) => {
+                    const status = getBatchStatus(batch);
+                    const daysLeft = batch.expirationDate
+                      ? Math.ceil((new Date(batch.expirationDate).getTime() - Date.now()) / 86_400_000)
+                      : null;
+                    return (
+                      <div key={batch.id} className="rounded-2xl border border-gray-100 bg-gray-50 p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-7 h-7 rounded-xl bg-violet-100 flex items-center justify-center text-violet-700 text-xs font-extrabold shrink-0">
+                              {idx + 1}
+                            </span>
+                            <span className="text-xs font-bold text-slate-700">
+                              Batch{" "}
+                              {batch.receivedAt
+                                ? new Date(batch.receivedAt).toLocaleDateString("id-ID", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                    timeZone: "Asia/Jakarta",
+                                  })
+                                : `#${idx + 1}`}
+                            </span>
+                          </div>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${status.color}`}
+                          >
+                            {status.label}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-white rounded-xl px-3 py-2 border border-gray-100">
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Sisa Qty</p>
+                            <p className="text-sm font-extrabold text-indigo-700 mt-0.5">
+                              {batch.remainingQty}{" "}
+                              <span className="text-xs font-medium text-gray-400">{ingredient.unit}</span>
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-xl px-3 py-2 border border-gray-100">
+                            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Harga / Unit</p>
+                            <p className="text-sm font-extrabold text-emerald-700 mt-0.5">
+                              Rp {batch.costPerUnit?.toLocaleString("id-ID") ?? "—"}
+                            </p>
+                          </div>
+                          {batch.expirationDate && (
+                            <div className="col-span-2 bg-white rounded-xl px-3 py-2 border border-gray-100">
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <Calendar size={10} className="text-gray-400" />
+                                <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Kadaluarsa</p>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-extrabold text-slate-700">
+                                  {new Date(batch.expirationDate).toLocaleDateString("id-ID", {
+                                    day: "numeric",
+                                    month: "long",
+                                    year: "numeric",
+                                    timeZone: "Asia/Jakarta",
+                                  })}
+                                </p>
+                                {daysLeft !== null && (
+                                  <span
+                                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                      daysLeft < 0
+                                        ? "bg-red-100 text-red-600"
+                                        : daysLeft <= 7
+                                          ? "bg-orange-100 text-orange-600"
+                                          : "bg-slate-100 text-slate-500"
+                                    }`}
+                                  >
+                                    {formatDaysRelative(daysLeft)}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Buang inline form */}
+                        {buangBatchId === batch.id ? (
+                          <div className="mt-3 rounded-xl bg-orange-50 border border-orange-200 p-3 space-y-2">
+                            <p className="text-[10px] font-bold text-orange-700 uppercase tracking-wide flex items-center gap-1">
+                              <Flame size={11} /> Buang dari batch ini
+                            </p>
+                            {buangError && (
+                              <p className="text-xs text-red-600 flex items-center gap-1">
+                                <AlertTriangle size={11} /> {buangError}
+                              </p>
+                            )}
+                            <input
+                              type="number"
+                              min={0.001}
+                              step="any"
+                              autoFocus
+                              placeholder={`Jumlah (${ingredient.unit})`}
+                              value={buangQty}
+                              onChange={(e) => {
+                                setBuangQty(e.target.value);
+                                setBuangError(null);
+                              }}
+                              className="w-full border border-orange-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            />
+                            <input
+                              type="text"
+                              placeholder="Alasan (opsional)"
+                              value={buangNotes}
+                              onChange={(e) => setBuangNotes(e.target.value)}
+                              className="w-full border border-orange-200 rounded-lg px-3 py-1.5 text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                            />
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setBuangBatchId(null)}
+                                className="flex-1 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-50 transition"
+                              >
+                                Batal
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleBuang}
+                                disabled={buangLoading}
+                                className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-orange-500 text-white text-xs font-bold rounded-lg hover:bg-orange-600 transition disabled:opacity-50"
+                              >
+                                {buangLoading ? <Loader2 size={12} className="animate-spin" /> : <Flame size={12} />}
+                                Konfirmasi Buang
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          batch.remainingQty > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => openBuang(batch.id)}
+                              className="mt-3 w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-orange-200 text-orange-600 text-xs font-semibold hover:bg-orange-50 transition"
+                            >
+                              <Flame size={12} /> Buang
+                            </button>
+                          )
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {/* bottom safe-area spacer on mobile */}
+              <div className="h-4 sm:h-0" />
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )
+    : null;
 }
 
 /* =======================
@@ -1275,20 +1419,21 @@ function AddIngredientModal({ onClose, onSuccess }: AddIngredientModalProps) {
           />
         </div>
 
-        <div className="flex justify-end gap-4 pt-4">
+        <div className="flex gap-3 pt-2">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-indigo-600 rounded-lg transition"
+            className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
           >
-            Cancel
+            Batal
           </button>
           <button
             type="submit"
             disabled={loading}
-            className="bg-linear-to-r from-indigo-500 to-violet-500 text-white px-7 py-2 rounded-lg font-semibold shadow hover:from-indigo-600 hover:to-violet-600 transition disabled:opacity-60"
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-60 shadow"
           >
-            {loading ? "Saving..." : "Save"}
+            {loading ? <Loader2 size={16} className="animate-spin" /> : null}
+            {loading ? "Menyimpan..." : "Simpan"}
           </button>
         </div>
       </form>
@@ -1418,7 +1563,7 @@ function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientM
             onClick={onClose}
             className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-base hover:bg-gray-50 transition disabled:opacity-50"
           >
-            Cancel
+            Batal
           </button>
           <button
             type="submit"
@@ -1426,7 +1571,7 @@ function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientM
             className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-base rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 shadow"
           >
             {loading ? <Loader2 size={18} className="animate-spin" /> : <Pencil size={18} />}
-            {loading ? "Saving..." : "Save Changes"}
+            {loading ? "Menyimpan..." : "Simpan Perubahan"}
           </button>
         </div>
       </form>
@@ -1445,17 +1590,39 @@ interface ModalWrapperProps {
 }
 
 function ModalWrapper({ children, onClose, title }: ModalWrapperProps) {
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between mb-4">
-          <h2 className="font-bold text-lg">{title}</h2>
-          <button onClick={onClose}>
-            <X size={18} />
-          </button>
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 9999 }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-md max-h-[88dvh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Drag handle – mobile only */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
-        {children}
+        {/* Header (only shown when title is provided) */}
+        {title && (
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50 shrink-0">
+            <div className="font-bold text-base text-indigo-700">{title}</div>
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 transition shrink-0"
+            >
+              <X size={18} />
+            </button>
+          </div>
+        )}
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-5 py-5">{children}</div>
+        {/* Bottom safe-area spacer on mobile */}
+        <div className="h-4 sm:h-0 shrink-0" />
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
