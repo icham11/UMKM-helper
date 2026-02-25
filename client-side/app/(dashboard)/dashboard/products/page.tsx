@@ -17,6 +17,9 @@ import {
   ChevronUp,
   ChevronDown,
   Filter,
+  TrendingUp,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import {
   getProducts,
@@ -51,7 +54,7 @@ function MarginBadge({ margin }: { margin: number }) {
       <span className="text-red-700 font-semibold">
         {margin}%{" "}
         <span className="inline-flex items-center gap-0.5 bg-red-100 text-red-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-          ⚠ Cek Data
+          <AlertTriangle size={9} /> Cek Data
         </span>
       </span>
     );
@@ -82,12 +85,17 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 200 }}
       onMouseDown={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[85dvh] flex flex-col overflow-hidden">
+        {/* Drag handle (mobile only) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
+        <div className="flex items-start justify-between px-6 py-4 sm:py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
           <div>
             <div className="flex items-center gap-2">
               <ChefHat size={18} className="text-indigo-500" />
@@ -106,25 +114,27 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
         </div>
 
         {/* Pricing summary */}
-        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 text-center">
-          <div className="px-4 py-3">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Selling Price</p>
-            <p className="text-sm font-extrabold text-indigo-700 mt-0.5">{formatCurrency(sellingPrice)}</p>
+        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 text-center shrink-0">
+          <div className="px-2 py-2.5 sm:px-4 sm:py-3">
+            <p className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wide">Harga Jual</p>
+            <p className="text-xs sm:text-sm font-extrabold text-indigo-700 mt-0.5">{formatCurrency(sellingPrice)}</p>
           </div>
-          <div className="px-4 py-3">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Recipe Cost</p>
-            <p className="text-sm font-extrabold text-slate-700 mt-0.5">
+          <div className="px-2 py-2.5 sm:px-4 sm:py-3">
+            <p className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wide">Biaya Resep</p>
+            <p className="text-xs sm:text-sm font-extrabold text-slate-700 mt-0.5">
               {recipeCost > 0 ? formatCurrency(recipeCost) : "—"}
             </p>
           </div>
-          <div className="px-4 py-3">
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wide">Margin</p>
-            <p className="text-sm font-extrabold mt-0.5">{margin !== null ? <MarginBadge margin={margin} /> : "—"}</p>
+          <div className="px-2 py-2.5 sm:px-4 sm:py-3">
+            <p className="text-[9px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-wide">Margin</p>
+            <p className="text-xs sm:text-sm font-extrabold mt-0.5">
+              {margin !== null ? <MarginBadge margin={margin} /> : "—"}
+            </p>
           </div>
         </div>
 
         {/* Recipe list */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 pb-safe">
           {product.recipes.length === 0 ? (
             <p className="text-center text-gray-400 italic py-8">Tidak ada bahan dalam resep ini.</p>
           ) : (
@@ -156,7 +166,7 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
 
               {/* Total */}
               {recipeCost > 0 && (
-                <div className="flex justify-between items-center pt-2 border-t border-gray-100 px-3">
+                <div className="flex justify-between items-center pt-2 pb-4 sm:pb-2 border-t border-gray-100 px-3">
                   <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total Biaya Resep</span>
                   <span className="text-sm font-extrabold text-indigo-700">{formatCurrency(recipeCost)}</span>
                 </div>
@@ -208,12 +218,17 @@ function EditPriceModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 200 }}
       onMouseDown={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden">
+        {/* Drag handle (mobile only) */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
+        <div className="flex items-center justify-between px-6 py-4 sm:py-5 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50">
           <div>
             <h2 className="text-base font-extrabold text-indigo-700">Edit Harga Jual</h2>
             <p className="text-xs text-gray-500 mt-0.5 truncate max-w-55">{product.name}</p>
@@ -258,7 +273,7 @@ function EditPriceModal({
             )}
           </div>
 
-          <div className="flex gap-3 pt-1">
+          <div className="flex gap-3 pt-1 pb-8 sm:pb-0">
             <button
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
@@ -310,11 +325,15 @@ function DeleteConfirmModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 200 }}
       onMouseDown={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="px-6 py-6 space-y-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden mb-14 sm:mb-0">
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <div className="px-6 py-5 sm:py-6 space-y-4">
           <div className="flex items-start gap-3">
             <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
               <Trash2 size={18} />
@@ -376,11 +395,15 @@ function BulkDeleteConfirmModal({
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 200 }}
       onMouseDown={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="px-6 py-6 space-y-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden mb-14 sm:mb-0">
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+        <div className="px-6 py-5 sm:py-6 space-y-4">
           <div className="flex items-start gap-3">
             <div className="shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-red-100 text-red-600">
               <Trash2 size={18} />
@@ -592,7 +615,7 @@ export default function ProductsPage() {
               onClick={() => setSortOrder((d: SortOrderType): SortOrderType => (d === "asc" ? "desc" : "asc"))}
               title="Urutan"
             >
-              {sortOrder === "asc" ? "⬆️" : "⬇️"}
+              {sortOrder === "asc" ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
             </button>
           </div>
         </div>
@@ -624,29 +647,37 @@ export default function ProductsPage() {
 
         {/* STATS ROW */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-indigo-50">
-            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">Total Produk</p>
-            <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-700 mt-1">{totalCount}</p>
-          </div>
-          <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-violet-50">
-            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">
-              Rata-rata Harga Jual
-            </p>
-            <p className="text-lg sm:text-xl md:text-2xl font-extrabold text-violet-700 mt-1 wrap-break-word">
+          {/* Rata-rata Harga — top row on mobile (full width), middle on desktop */}
+          <div className="col-span-2 sm:col-span-1 sm:order-2 bg-white/80 backdrop-blur border border-violet-100 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-violet-200 transition">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Tag size={14} className="text-violet-400 shrink-0" />
+              <p className="text-xs sm:text-sm text-gray-500">Rata-rata Harga</p>
+            </div>
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2 truncate">
               {totalCount > 0 ? formatCurrency(avgSellingPrice) : "—"}
-            </p>
+            </h2>
           </div>
-          <div className="bg-white rounded-2xl p-3 sm:p-4 shadow border border-green-50">
-            <p className="text-[10px] sm:text-xs text-gray-500 font-semibold uppercase tracking-wide">
-              Rata-rata Margin
-            </p>
-            <p
-              className={`text-lg sm:text-xl md:text-2xl font-extrabold mt-1 ${
+          {/* Total Produk — bottom-left on mobile, first on desktop */}
+          <div className="sm:order-1 bg-white/80 backdrop-blur border border-indigo-100 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition">
+            <div className="flex items-center gap-1.5 mb-1">
+              <ShoppingBag size={14} className="text-indigo-400 shrink-0" />
+              <p className="text-xs sm:text-sm text-gray-500">Total Produk</p>
+            </div>
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2 truncate">{totalCount}</h2>
+          </div>
+          {/* Rata-rata Margin — bottom-right on mobile, last on desktop */}
+          <div className="sm:order-3 bg-white/80 backdrop-blur border border-indigo-100 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition">
+            <div className="flex items-center gap-1.5 mb-1">
+              <TrendingUp size={14} className="text-green-400 shrink-0" />
+              <p className="text-xs sm:text-sm text-gray-500">Rata-rata Margin</p>
+            </div>
+            <h2
+              className={`text-lg sm:text-2xl font-bold mt-1 sm:mt-2 truncate ${
                 avgMargin < 0 ? "text-red-600" : avgMargin < 20 ? "text-yellow-600" : "text-green-700"
               }`}
             >
               {totalCount > 0 ? `${avgMargin}%` : "—"}
-            </p>
+            </h2>
           </div>
         </div>
 

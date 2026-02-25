@@ -98,99 +98,111 @@ export default function PhotoUploadModal({ onClose, onSuccess }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
-        {/* Close */}
-        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition">
-          <X size={20} className="text-gray-500" />
-        </button>
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center pb-16 sm:p-4">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden">
+        {/* Drag handle — mobile only */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
 
-        <h2 className="text-2xl font-extrabold text-indigo-700 mb-1">Generate Products from Photo</h2>
-        <p className="text-sm text-gray-500 mb-6">
-          Upload a menu, price list, or product display image and let AI extract your products.
-        </p>
-
-        {/* Drop zone */}
-        {!preview ? (
-          <div
-            onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
-            onClick={() => inputRef.current?.click()}
-            className="border-2 border-dashed border-indigo-300 rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-indigo-50 transition"
-          >
-            <ImageIcon size={48} className="text-indigo-300" />
-            <p className="text-indigo-500 font-semibold">Drag & drop or click to upload</p>
-            <p className="text-xs text-gray-400">JPEG, PNG, WebP — max 10 MB</p>
-            <input
-              ref={inputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFileSelect(f);
-              }}
-            />
+        {/* Header */}
+        <div className="flex items-start justify-between px-6 py-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50 shrink-0">
+          <div>
+            <h2 className="text-lg font-extrabold text-indigo-700">Generate Produk dari Foto</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Upload gambar menu atau daftar harga — AI akan mengekstrak produk secara otomatis.
+            </p>
           </div>
-        ) : (
-          <div className="relative rounded-2xl overflow-hidden border border-indigo-200">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={preview} alt="preview" className="w-full max-h-64 object-contain bg-gray-50" />
-            <button
-              onClick={() => {
-                setFile(null);
-                setPreview(null);
-              }}
-              className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 shadow hover:bg-red-50 transition"
+          <button onClick={onClose} className="ml-4 p-2 rounded-full hover:bg-gray-100 transition shrink-0">
+            <X size={18} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+          {/* Drop zone */}
+          {!preview ? (
+            <div
+              onDrop={handleDrop}
+              onDragOver={(e) => e.preventDefault()}
+              onClick={() => inputRef.current?.click()}
+              className="border-2 border-dashed border-indigo-300 rounded-2xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-indigo-50 transition"
             >
-              <X size={16} className="text-red-500" />
-            </button>
-          </div>
-        )}
+              <ImageIcon size={40} className="text-indigo-300" />
+              <p className="text-indigo-500 font-semibold text-sm">Ketuk atau seret foto ke sini</p>
+              <p className="text-xs text-gray-400">JPEG, PNG, WebP — maks 10 MB</p>
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleFileSelect(f);
+                }}
+              />
+            </div>
+          ) : (
+            <div className="relative rounded-2xl overflow-hidden border border-indigo-200">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={preview} alt="preview" className="w-full max-h-56 object-contain bg-gray-50" />
+              <button
+                onClick={() => {
+                  setFile(null);
+                  setPreview(null);
+                }}
+                className="absolute top-2 right-2 bg-white/90 rounded-full p-1.5 shadow hover:bg-red-50 transition"
+              >
+                <X size={16} className="text-red-500" />
+              </button>
+            </div>
+          )}
 
-        {error && (
-          <div className="mt-4 flex items-start gap-2 text-red-600 bg-red-50 rounded-xl p-3 text-sm">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
+          {error && (
+            <div className="flex items-start gap-2 text-red-600 bg-red-50 rounded-xl p-3 text-sm">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {warning && (
-          <div className="mt-4 flex items-start gap-2 text-amber-700 bg-amber-50 rounded-xl p-3 text-sm">
-            <Info size={16} className="mt-0.5 shrink-0" />
-            <span>{warning}</span>
-          </div>
-        )}
+          {warning && (
+            <div className="flex items-start gap-2 text-amber-700 bg-amber-50 rounded-xl p-3 text-sm">
+              <Info size={16} className="mt-0.5 shrink-0" />
+              <span>{warning}</span>
+            </div>
+          )}
+        </div>
 
-        <div className="flex gap-3 mt-6">
+        {/* Footer actions */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 shrink-0">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition"
+            className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold hover:bg-gray-50 transition text-sm"
           >
-            Cancel
+            Batal
           </button>
           {pendingDrafts ? (
             <button
               onClick={() => onSuccess(pendingDrafts)}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2 text-sm"
             >
-              <Upload size={18} />
-              Continue with {pendingDrafts.length} product{pendingDrafts.length !== 1 ? "s" : ""}
+              <Upload size={16} />
+              Lanjutkan ({pendingDrafts.length} produk)
             </button>
           ) : (
             <button
               onClick={handleConfirm}
               disabled={!file || loading}
-              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
             >
               {loading ? (
                 <>
-                  <Loader2 size={18} className="animate-spin" />
-                  Analysing...
+                  <Loader2 size={16} className="animate-spin" />
+                  Menganalisis...
                 </>
               ) : (
                 <>
-                  <Upload size={18} />
+                  <Upload size={16} />
                   Generate
                 </>
               )}

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Camera, Plus, Loader2, ChevronDown, CheckCircle2, AlertTriangle, DollarSign } from "lucide-react";
+import { Sparkles, Camera, Plus, Loader2, ChevronDown, CheckCircle2, AlertTriangle } from "lucide-react";
 import {
   generateProductByName,
   recommendPrice,
@@ -301,7 +301,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
             className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             {aiNameLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-            Isi Otomatis
+            <span className="hidden sm:inline">Isi Otomatis</span>
           </button>
         </div>
         <p className="text-xs text-gray-400">
@@ -324,7 +324,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
               onFocus={() => setCategoryOpen(true)}
               onBlur={() => setTimeout(() => setCategoryOpen(false), 150)}
               placeholder="cth. Minuman"
-              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 focus:ring-2 focus:ring-indigo-400 outline-none"
+              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-gray-900 font-medium focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             <button
               type="button"
@@ -332,7 +332,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                 e.preventDefault();
                 setCategoryOpen((v) => !v);
               }}
-              className="px-3 text-gray-400 hover:text-indigo-500"
+              className="px-3 text-gray-500 hover:text-indigo-600"
             >
               <ChevronDown size={16} />
             </button>
@@ -348,7 +348,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                       setCategoryName(c.name);
                       setCategoryOpen(false);
                     }}
-                    className="px-4 py-2 hover:bg-indigo-50 cursor-pointer"
+                    className="px-4 py-2 text-gray-800 font-medium hover:bg-indigo-50 cursor-pointer"
                   >
                     {c.name}
                   </li>
@@ -360,7 +360,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
         {/* Selling price */}
         <div className="bg-white rounded-2xl shadow border border-gray-100 p-5 space-y-2">
           <label className="text-sm font-bold text-gray-700">Harga Jual (Rp)</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               type="number"
               min={0}
@@ -370,7 +370,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                 setPriceHint(null);
               }}
               placeholder="0"
-              className="flex-1 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+              className="flex-1 min-w-0 border border-indigo-200 rounded-xl px-4 py-2.5 text-sm text-slate-700 bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
             />
             <button
               type="button"
@@ -381,9 +381,9 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
                   ? "Tambahkan bahan ke resep terlebih dahulu"
                   : "Sarankan harga jual berdasarkan total biaya resep"
               }
-              className="flex items-center gap-1.5 px-3 py-2 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-1.5 w-full sm:w-auto px-4 py-2.5 bg-violet-600 text-white text-xs font-semibold rounded-xl hover:bg-violet-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {aiPriceLoading ? <Loader2 size={14} className="animate-spin" /> : <DollarSign size={14} />}
+              {aiPriceLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
               Sarankan Harga
             </button>
           </div>
@@ -438,9 +438,7 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
             >
               <div className="text-lg mb-1">🍳</div>
               <div>Made to Order</div>
-              <div className="text-[10px] font-normal mt-1 text-gray-400">
-                Bahan dikurangi saat dijual
-              </div>
+              <div className="text-[10px] font-normal mt-1 text-gray-400">Bahan dikurangi saat dijual</div>
             </button>
             <button
               type="button"
@@ -453,14 +451,13 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
             >
               <div className="text-lg mb-1">📦</div>
               <div>Ready Stock</div>
-              <div className="text-[10px] font-normal mt-1 text-gray-400">
-                Bahan dikurangi saat produksi
-              </div>
+              <div className="text-[10px] font-normal mt-1 text-gray-400">Bahan dikurangi saat produksi</div>
             </button>
           </div>
           {productType === "ReadyStock" && (
             <p className="text-xs text-emerald-600 bg-emerald-50 rounded-lg px-3 py-2">
-              💡 Produk Ready Stock membutuhkan proses produksi terlebih dahulu di menu <strong>Produksi</strong> sebelum bisa dijual di POS.
+              💡 Produk Ready Stock membutuhkan proses produksi terlebih dahulu di menu <strong>Produksi</strong>{" "}
+              sebelum bisa dijual di POS.
             </p>
           )}
         </div>
@@ -484,6 +481,11 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
             Dari Foto
           </button>
         </div>
+
+        {/* Hint */}
+        <p className="px-4 py-2.5 bg-indigo-50/60 border-b border-indigo-100/60 text-xs text-indigo-600">
+          Pilih dari daftar atau ketik nama baru untuk membuat bahan sekaligus.
+        </p>
 
         {/* Column headers */}
         <div className="hidden sm:grid grid-cols-12 gap-2 px-3 py-2 text-xs font-bold text-gray-400 uppercase tracking-wide bg-gray-50/60 border-b border-gray-100">
@@ -524,11 +526,11 @@ export default function ProductForm({ initialDraft, onSuccess }: Props) {
       </div>
 
       {/* ── Submit ─ */}
-      <div className="flex justify-end">
+      <div className="flex justify-stretch sm:justify-end">
         <button
           type="submit"
           disabled={submitting}
-          className="flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white font-bold text-base rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+          className="flex items-center justify-center gap-2 w-full sm:w-auto px-8 py-3 bg-indigo-600 text-white font-bold text-base rounded-xl hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
           {submitting ? (
             <>
