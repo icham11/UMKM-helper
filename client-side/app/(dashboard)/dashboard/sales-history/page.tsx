@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import {
   Search,
   Filter,
   Calendar,
+  Package,
   TrendingUp,
   Clock,
   ShoppingCart,
@@ -25,8 +26,7 @@ function fmtCurrency(val: number): string {
     return `Rp ${(val / 1_000_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} M`;
   if (Math.abs(val) >= 1_000_000)
     return `Rp ${(val / 1_000_000).toLocaleString("id-ID", { maximumFractionDigits: 1 })} jt`;
-  if (Math.abs(val) >= 1_000)
-    return `Rp ${(val / 1_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} rb`;
+  if (Math.abs(val) >= 1_000) return `Rp ${(val / 1_000).toLocaleString("id-ID", { maximumFractionDigits: 0 })} rb`;
   return `Rp ${val.toLocaleString("id-ID")}`;
 }
 function fmtFull(val: number): string {
@@ -65,6 +65,14 @@ export default function SalesHistoryPage() {
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("All");
   const [paymentStatusFilter, setPaymentStatusFilter] = useState<string>("All");
   const [dateFilter, setDateFilter] = useState<string>("All");
+  const [productFilter, setProductFilter] = useState<string>("All");
+
+  // Derived: unique product names from all loaded sales
+  const allProductNames = useMemo(() => {
+    const names = new Set<string>();
+    sales.forEach((sale) => sale.saleItems.forEach((item) => names.add(item.product.name)));
+    return Array.from(names).sort();
+  }, [sales]);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -124,28 +132,25 @@ export default function SalesHistoryPage() {
     if (searchQuery) {
       filtered = filtered.filter(
         (sale) =>
-          sale.transactionNumber
-            .toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
-          sale.customerName
-            ?.toLowerCase()
-            .includes(searchQuery.toLowerCase()) ||
+          sale.transactionNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          sale.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           sale.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase()),
       );
     }
 
     // Payment method filter
     if (paymentMethodFilter !== "All") {
-      filtered = filtered.filter(
-        (sale) => sale.paymentMethod === paymentMethodFilter,
-      );
+      filtered = filtered.filter((sale) => sale.paymentMethod === paymentMethodFilter);
     }
 
     // Payment status filter
     if (paymentStatusFilter !== "All") {
-      filtered = filtered.filter(
-        (sale) => sale.paymentStatus === paymentStatusFilter,
-      );
+      filtered = filtered.filter((sale) => sale.paymentStatus === paymentStatusFilter);
+    }
+
+    // Product filter
+    if (productFilter !== "All") {
+      filtered = filtered.filter((sale) => sale.saleItems.some((item) => item.product.name === productFilter));
     }
 
     // Date filter
@@ -170,13 +175,7 @@ export default function SalesHistoryPage() {
     }
 
     setFilteredSales(filtered);
-  }, [
-    sales,
-    searchQuery,
-    paymentMethodFilter,
-    paymentStatusFilter,
-    dateFilter,
-  ]);
+  }, [sales, searchQuery, paymentMethodFilter, paymentStatusFilter, dateFilter, productFilter]);
 
   useEffect(() => {
     applyFilters();
@@ -184,27 +183,17 @@ export default function SalesHistoryPage() {
   }, [applyFilters]);
 
   // Calculate statistics
-  const totalRevenue = filteredSales.reduce(
-    (sum, sale) => sum + Number(sale.totalRevenue),
-    0,
-  );
+  const totalRevenue = filteredSales.reduce((sum, sale) => sum + Number(sale.totalRevenue), 0);
   const totalProfit = filteredSales.reduce(
     (sum, sale) => sum + (Number(sale.totalRevenue) - Number(sale.totalCost)),
     0,
   );
-  const paidSales = filteredSales.filter(
-    (sale) => sale.paymentStatus === "Paid",
-  ).length;
+  const paidSales = filteredSales.filter((sale) => sale.paymentStatus === "Paid").length;
 
   // Pending breakdown
-  const pendingSales = filteredSales.filter(
-    (sale) => sale.paymentStatus === "Pending",
-  );
+  const pendingSales = filteredSales.filter((sale) => sale.paymentStatus === "Pending");
   const pendingCount = pendingSales.length;
-  const pendingRevenue = pendingSales.reduce(
-    (sum, sale) => sum + Number(sale.totalRevenue),
-    0,
-  );
+  const pendingRevenue = pendingSales.reduce((sum, sale) => sum + Number(sale.totalRevenue), 0);
   const pendingProfit = pendingSales.reduce(
     (sum, sale) => sum + (Number(sale.totalRevenue) - Number(sale.totalCost)),
     0,
@@ -212,9 +201,7 @@ export default function SalesHistoryPage() {
   const paidProfit = totalProfit - pendingProfit;
 
   // Pending grouped by payment method
-  const pendingByMethod = pendingSales.reduce<
-    Record<string, { count: number; amount: number }>
-  >((acc, sale) => {
+  const pendingByMethod = pendingSales.reduce<Record<string, { count: number; amount: number }>>((acc, sale) => {
     const method = sale.paymentMethod || "Unknown";
     if (!acc[method]) acc[method] = { count: 0, amount: 0 };
     acc[method].count += 1;
@@ -250,12 +237,8 @@ export default function SalesHistoryPage() {
       <div className="bg-linear-to-br from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl p-4 sm:p-6 shadow-lg shadow-indigo-200/30">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-white">
-              Riwayat Penjualan
-            </h1>
-            <p className="text-indigo-200 text-xs sm:text-sm mt-0.5">
-              Semua transaksi bisnis Anda
-            </p>
+            <h1 className="text-lg sm:text-2xl font-bold text-white">Riwayat Penjualan</h1>
+            <p className="text-indigo-200 text-xs sm:text-sm mt-0.5">Semua transaksi bisnis Anda</p>
           </div>
           <button
             onClick={fetchSales}
@@ -290,19 +273,12 @@ export default function SalesHistoryPage() {
               icon: CheckCircle2,
             },
           ].map((s) => (
-            <div
-              key={s.label}
-              className="bg-white/10 backdrop-blur-sm border border-white/15 p-2.5 sm:p-3 rounded-xl"
-            >
+            <div key={s.label} className="bg-white/10 backdrop-blur-sm border border-white/15 p-2.5 sm:p-3 rounded-xl">
               <div className="flex items-center gap-1.5 mb-1">
                 <s.icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-indigo-200" />
-                <span className="text-indigo-200 text-[10px] sm:text-xs">
-                  {s.label}
-                </span>
+                <span className="text-indigo-200 text-[10px] sm:text-xs">{s.label}</span>
               </div>
-              <p className="text-sm sm:text-lg font-bold text-white truncate">
-                {s.value}
-              </p>
+              <p className="text-sm sm:text-lg font-bold text-white truncate">{s.value}</p>
             </div>
           ))}
         </div>
@@ -317,9 +293,7 @@ export default function SalesHistoryPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] text-gray-500">Profit Lunas</p>
-              <p className="text-sm sm:text-base font-bold text-gray-900 truncate">
-                {fmtCurrency(paidProfit)}
-              </p>
+              <p className="text-sm sm:text-base font-bold text-gray-900 truncate">{fmtCurrency(paidProfit)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 sm:p-4 bg-amber-50 border border-amber-100 rounded-xl">
@@ -327,12 +301,8 @@ export default function SalesHistoryPage() {
               <Clock className="w-4 h-4 text-amber-600" />
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] text-gray-500">
-                Profit Pending ({pendingCount})
-              </p>
-              <p className="text-sm sm:text-base font-bold text-gray-900 truncate">
-                {fmtCurrency(pendingProfit)}
-              </p>
+              <p className="text-[11px] text-gray-500">Profit Pending ({pendingCount})</p>
+              <p className="text-sm sm:text-base font-bold text-gray-900 truncate">{fmtCurrency(pendingProfit)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3 p-3 sm:p-4 bg-purple-50 border border-purple-100 rounded-xl">
@@ -341,9 +311,7 @@ export default function SalesHistoryPage() {
             </div>
             <div className="min-w-0">
               <p className="text-[11px] text-gray-500">Pending Revenue</p>
-              <p className="text-sm sm:text-base font-bold text-gray-900 truncate">
-                {fmtCurrency(pendingRevenue)}
-              </p>
+              <p className="text-sm sm:text-base font-bold text-gray-900 truncate">{fmtCurrency(pendingRevenue)}</p>
             </div>
           </div>
           {Object.keys(pendingByMethod).length > 0 && (
@@ -364,7 +332,7 @@ export default function SalesHistoryPage() {
 
       {/* ═══ Filters ═══ */}
       <div className="bg-white p-3 sm:p-4 rounded-xl border border-gray-100">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           <div className="relative col-span-2 sm:col-span-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -415,6 +383,21 @@ export default function SalesHistoryPage() {
               <option value="Month">Bulan Ini</option>
             </select>
           </div>
+          <div className="relative">
+            <Package className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <select
+              value={productFilter}
+              onChange={(e) => setProductFilter(e.target.value)}
+              className="w-full pl-8 pr-2 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent appearance-none text-xs sm:text-sm text-black"
+            >
+              <option value="All">Semua Produk</option>
+              {allProductNames.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -427,80 +410,66 @@ export default function SalesHistoryPage() {
             <p className="text-xs">Coba ubah filter</p>
           </div>
         ) : (
-          filteredSales
-            .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-            .map((sale) => (
-              <div
-                key={sale.id}
-                className="bg-white border border-gray-100 rounded-xl p-3.5 hover:shadow-sm transition"
-              >
-                {/* Top row: TXN number + status badge */}
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-mono font-medium text-gray-700 truncate max-w-[55%]">
-                    {sale.transactionNumber}
+          filteredSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((sale) => (
+            <div key={sale.id} className="bg-white border border-gray-100 rounded-xl p-3.5 hover:shadow-sm transition">
+              {/* Top row: TXN number + status badge */}
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-mono font-medium text-gray-700 truncate max-w-[55%]">
+                  {sale.transactionNumber}
+                </p>
+                {sale.paymentStatus === "Paid" ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700">
+                    <CheckCircle2 className="w-3 h-3" /> Lunas
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700">
+                    <AlertCircle className="w-3 h-3" /> Pending
+                  </span>
+                )}
+              </div>
+
+              {/* Customer + date */}
+              <div className="flex items-center justify-between text-[11px] text-gray-500 mb-2.5">
+                <span>{sale.customerName || "Guest"}</span>
+                <span>
+                  {new Date(sale.createdAt).toLocaleDateString("id-ID", {
+                    timeZone: "Asia/Jakarta",
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+
+              {/* Items summary */}
+              <p className="text-[11px] text-gray-400 mb-2 truncate">
+                {sale.saleItems
+                  .slice(0, 3)
+                  .map((item) => `${item.product.name} x${item.quantity}`)
+                  .join(", ")}
+                {sale.saleItems.length > 3 && ` +${sale.saleItems.length - 3} lainnya`}
+              </p>
+
+              {/* Bottom row: amount + payment method + invoice */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{fmtFull(Number(sale.totalRevenue))}</p>
+                  <p className="text-[10px] text-gray-400">
+                    Profit: {fmtCurrency(Number(sale.totalRevenue) - Number(sale.totalCost))}
                   </p>
-                  {sale.paymentStatus === "Paid" ? (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-green-100 text-green-700">
-                      <CheckCircle2 className="w-3 h-3" /> Lunas
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full bg-amber-100 text-amber-700">
-                      <AlertCircle className="w-3 h-3" /> Pending
-                    </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                    {sale.paymentMethod}
+                  </span>
+                  {sale.paymentStatus === "Paid" && (
+                    <InvoiceViewer saleId={sale.id} transactionNumber={sale.transactionNumber} />
                   )}
                 </div>
-
-                {/* Customer + date */}
-                <div className="flex items-center justify-between text-[11px] text-gray-500 mb-2.5">
-                  <span>{sale.customerName || "Guest"}</span>
-                  <span>
-                    {new Date(sale.createdAt).toLocaleDateString("id-ID", {
-                      timeZone: "Asia/Jakarta",
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                </div>
-
-                {/* Items summary */}
-                <p className="text-[11px] text-gray-400 mb-2 truncate">
-                  {sale.saleItems
-                    .slice(0, 3)
-                    .map((item) => `${item.product.name} x${item.quantity}`)
-                    .join(", ")}
-                  {sale.saleItems.length > 3 &&
-                    ` +${sale.saleItems.length - 3} lainnya`}
-                </p>
-
-                {/* Bottom row: amount + payment method + invoice */}
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      {fmtFull(Number(sale.totalRevenue))}
-                    </p>
-                    <p className="text-[10px] text-gray-400">
-                      Profit:{" "}
-                      {fmtCurrency(
-                        Number(sale.totalRevenue) - Number(sale.totalCost),
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                      {sale.paymentMethod}
-                    </span>
-                    {sale.paymentStatus === "Paid" && (
-                      <InvoiceViewer
-                        saleId={sale.id}
-                        transactionNumber={sale.transactionNumber}
-                      />
-                    )}
-                  </div>
-                </div>
               </div>
-            ))
+            </div>
+          ))
         )}
       </div>
 
@@ -539,102 +508,78 @@ export default function SalesHistoryPage() {
             <tbody className="divide-y divide-gray-100">
               {filteredSales.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan={8}
-                    className="px-6 py-12 text-center text-gray-400"
-                  >
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-400">
                     <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <p className="text-sm font-medium">Tidak ada transaksi</p>
                     <p className="text-xs mt-1">Coba ubah filter Anda</p>
                   </td>
                 </tr>
               ) : (
-                filteredSales
-                  .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-                  .map((sale, idx) => (
-                    <tr
-                      key={sale.id}
-                      className="hover:bg-indigo-50/50 transition"
-                      style={{
-                        opacity: 0,
-                        animation: `fadeInUp 0.3s ease ${idx * 0.03}s forwards`,
-                      }}
-                    >
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-mono font-medium text-gray-800">
-                          {sale.transactionNumber}
+                filteredSales.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((sale, idx) => (
+                  <tr
+                    key={sale.id}
+                    className="hover:bg-indigo-50/50 transition"
+                    style={{
+                      opacity: 0,
+                      animation: `fadeInUp 0.3s ease ${idx * 0.03}s forwards`,
+                    }}
+                  >
+                    <td className="px-4 py-3">
+                      <span className="text-sm font-mono font-medium text-gray-800">{sale.transactionNumber}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-medium text-gray-800">{sale.customerName || "Guest"}</p>
+                      {sale.customerEmail && <p className="text-xs text-gray-400">{sale.customerEmail}</p>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-gray-700">{sale.saleItems.reduce((s, i) => s + i.quantity, 0)} item</p>
+                      <p className="text-xs text-gray-400 truncate max-w-37.5">
+                        {sale.saleItems
+                          .slice(0, 2)
+                          .map((i) => i.product.name)
+                          .join(", ")}
+                        {sale.saleItems.length > 2 && "..."}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-semibold text-gray-900">{fmtFull(Number(sale.totalRevenue))}</p>
+                      <p className="text-xs text-gray-400">
+                        Profit: {fmtCurrency(Number(sale.totalRevenue) - Number(sale.totalCost))}
+                      </p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
+                        {sale.paymentMethod}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {sale.paymentStatus === "Paid" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-100">
+                          <CheckCircle2 className="w-3 h-3" /> Lunas
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-medium text-gray-800">
-                          {sale.customerName || "Guest"}
-                        </p>
-                        {sale.customerEmail && (
-                          <p className="text-xs text-gray-400">
-                            {sale.customerEmail}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm text-gray-700">
-                          {sale.saleItems.reduce((s, i) => s + i.quantity, 0)}{" "}
-                          item
-                        </p>
-                        <p className="text-xs text-gray-400 truncate max-w-37.5">
-                          {sale.saleItems
-                            .slice(0, 2)
-                            .map((i) => i.product.name)
-                            .join(", ")}
-                          {sale.saleItems.length > 2 && "..."}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-semibold text-gray-900">
-                          {fmtFull(Number(sale.totalRevenue))}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          Profit:{" "}
-                          {fmtCurrency(
-                            Number(sale.totalRevenue) - Number(sale.totalCost),
-                          )}
-                        </p>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100">
-                          {sale.paymentMethod}
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                          <AlertCircle className="w-3 h-3" /> Pending
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {sale.paymentStatus === "Paid" ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-700 border border-green-100">
-                            <CheckCircle2 className="w-3 h-3" /> Lunas
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-100">
-                            <AlertCircle className="w-3 h-3" /> Pending
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">
-                        {new Date(sale.createdAt).toLocaleDateString("id-ID", {
-                          timeZone: "Asia/Jakarta",
-                          day: "2-digit",
-                          month: "short",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="px-4 py-3">
-                        {sale.paymentStatus === "Paid" && (
-                          <InvoiceViewer
-                            saleId={sale.id}
-                            transactionNumber={sale.transactionNumber}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(sale.createdAt).toLocaleDateString("id-ID", {
+                        timeZone: "Asia/Jakarta",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td className="px-4 py-3">
+                      {sale.paymentStatus === "Paid" && (
+                        <InvoiceViewer saleId={sale.id} transactionNumber={sale.transactionNumber} />
+                      )}
+                    </td>
+                  </tr>
+                ))
               )}
             </tbody>
           </table>

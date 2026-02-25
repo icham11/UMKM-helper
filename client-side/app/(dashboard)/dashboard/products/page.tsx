@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -82,7 +83,8 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
   const margin =
     sellingPrice > 0 && recipeCost > 0 ? Math.round(((sellingPrice - recipeCost) / sellingPrice) * 100) : null;
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
@@ -175,7 +177,8 @@ function RecipeModal({ product, onClose }: { product: Product; onClose: () => vo
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -215,7 +218,8 @@ function EditPriceModal({
     }
   };
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
@@ -291,7 +295,8 @@ function EditPriceModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -322,14 +327,15 @@ function DeleteConfirmModal({
     }
   };
 
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
       style={{ zIndex: 200 }}
       onMouseDown={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden mb-14 sm:mb-0">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden">
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
@@ -372,7 +378,8 @@ function DeleteConfirmModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -392,14 +399,15 @@ function BulkDeleteConfirmModal({
   onConfirm: () => void;
 }) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div
       ref={overlayRef}
       className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
       style={{ zIndex: 200 }}
       onMouseDown={(e) => e.target === overlayRef.current && onClose()}
     >
-      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden mb-14 sm:mb-0">
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-sm overflow-hidden">
         <div className="flex justify-center pt-3 pb-1 sm:hidden">
           <div className="w-10 h-1 bg-gray-200 rounded-full" />
         </div>
@@ -441,7 +449,8 @@ function BulkDeleteConfirmModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
