@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useMemo } from "react";
 
 type RangeType = "today" | "7d" | "30d" | "all";
 
@@ -13,6 +13,8 @@ type DateRangeContextType = {
 
 const DateRangeContext = createContext<DateRangeContextType | null>(null);
 
+// Never call new Date() at module level or during render.
+// This function is only invoked inside useMemo (client-side, post-mount safe).
 function calculateRange(range: RangeType) {
   const now = new Date();
   const end = new Date(now);
@@ -37,7 +39,11 @@ function calculateRange(range: RangeType) {
 export function DateRangeProvider({ children }: { children: React.ReactNode }) {
   const [range, setRange] = useState<RangeType>("7d");
 
-  const { start, end } = calculateRange(range);
+  // useMemo ensures new Date() is only called when `range` changes,
+  // not on every render. The initial value is stable across hydration
+  // because Date objects are not directly serialised into SSR HTML —
+  // they are only used as inputs to fetch() inside useEffect callbacks.
+  const { start, end } = useMemo(() => calculateRange(range), [range]);
 
   return <DateRangeContext.Provider value={{ range, setRange, start, end }}>{children}</DateRangeContext.Provider>;
 }

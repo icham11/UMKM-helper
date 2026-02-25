@@ -30,7 +30,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Cuanify — Bikin Bisnis Makin Cuan",
-  description: "Platform cerdas untuk UMKM Indonesia — POS kasir, inventori FIFO, kasbon, AI assistant, dan analytics real-time. Gratis selamanya.",
+  description:
+    "Platform cerdas untuk UMKM Indonesia — POS kasir, inventori FIFO, kasbon, AI assistant, dan analytics real-time. Gratis selamanya.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -38,16 +39,22 @@ export const metadata: Metadata = {
     title: "Cuanify",
   },
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-152x152.png",
+    icon: "/cuanify-icon.svg",
+    apple: "/cuanify-icon.svg",
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
       <head />
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
         <AppProviders>{children}</AppProviders>
 
         {/* PWA: Service Worker + Offline Detection + Install Prompt */}

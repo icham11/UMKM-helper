@@ -135,11 +135,12 @@ export async function GET() {
     // ─── Forecast Accuracy Metrics ──────────────────────────────────────
     let accuracyData: Record<string, unknown> | null = null;
     try {
-      // @ts-expect-error forecastAccuracy may not exist in current schema
       accuracyData = await prisma.forecastAccuracy.findUnique({
         where: { businessId },
       });
-    } catch { /* model may not exist */ }
+    } catch {
+      /* model may not exist */
+    }
 
     const accuracy = accuracyData
       ? {

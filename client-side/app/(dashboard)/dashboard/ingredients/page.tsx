@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, PackageOpen, X, History, RefreshCw, AlertTriangle, Trash2, Loader2, Pencil } from "lucide-react";
+import {
+  Plus,
+  PackageOpen,
+  X,
+  History,
+  RefreshCw,
+  AlertTriangle,
+  Trash2,
+  Loader2,
+  Pencil,
+  Flame,
+  PackagePlus,
+} from "lucide-react";
 import IngredientStatusBadge from "./components/IngredientStatusBadge";
 import { getIngredients, deleteIngredient, bulkDeleteIngredients, type Ingredient } from "@/lib/api/ingredients";
 import { INGREDIENT_UNITS } from "@/lib/validations/product";
@@ -35,6 +47,8 @@ export default function IngredientsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isWasteOpen, setIsWasteOpen] = useState(false);
+  const [isInitialStockOpen, setIsInitialStockOpen] = useState(false);
 
   const { business, loading: businessLoading } = useBusiness();
 
@@ -186,15 +200,15 @@ export default function IngredientsPage() {
   return (
     <div className="space-y-10">
       {/* HEADER */}
-      <div className="flex justify-between items-center bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-6 shadow-lg">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-linear-to-r from-indigo-500 via-violet-500 to-indigo-400 rounded-2xl p-4 sm:p-6 shadow-lg">
         <div>
-          <h1 className="text-3xl font-bold text-white">Bahan Baku</h1>
-          <p className="text-indigo-100">Kelola stok bahan baku dengan visual & batch tracking.</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Bahan Baku</h1>
+          <p className="text-indigo-100 text-sm">Kelola stok bahan baku dengan visual & batch tracking.</p>
         </div>
 
         <button
           onClick={() => setIsAddOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 font-semibold rounded-xl shadow"
+          className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-white text-indigo-700 font-semibold rounded-xl shadow text-sm sm:text-base"
         >
           <Plus size={20} />
           Tambah
@@ -280,8 +294,111 @@ export default function IngredientsPage() {
         </div>
       )}
 
-      {/* TABLE */}
-      <div className="bg-white rounded-3xl shadow-xl overflow-x-auto custom-scroll">
+      {/* ═══ MOBILE CARD VIEW ═══ */}
+      <div className="md:hidden space-y-3">
+        {paged.map((ingredient) => {
+          return (
+            <div key={ingredient.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-2.5">
+              {/* Top row: name + status */}
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-bold text-slate-800 text-sm leading-tight min-w-0">{ingredient.name}</h3>
+                <div className="shrink-0">
+                  <IngredientStatusBadge stock={ingredient.currentStock} minStock={ingredient.minStock} />
+                </div>
+              </div>
+
+              {/* Stats row */}
+              <div className="flex items-center gap-3 text-xs">
+                <div className="flex-1">
+                  <span className="text-gray-400 block">Stok</span>
+                  {ingredient.currentStock === -1 ? (
+                    <span className="text-gray-400 italic text-sm">Belum di-set</span>
+                  ) : (
+                    <span className="font-bold text-slate-700 text-sm">
+                      {ingredient.currentStock} <span className="text-gray-400 font-normal">{ingredient.unit}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <span className="text-gray-400 block">Min</span>
+                  {ingredient.minStock === -1 ? (
+                    <span className="text-gray-400 italic text-sm">Belum di-set</span>
+                  ) : (
+                    <span className="font-semibold text-slate-600 text-sm">{ingredient.minStock}</span>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <span className="text-gray-400 block">Harga/Unit</span>
+                  <span className="font-bold text-indigo-700 text-sm">{formatCurrency(ingredient.costPerUnit)}</span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-1 pt-1 border-t border-gray-50">
+                <button
+                  onClick={() => {
+                    setSelectedIngredient(ingredient);
+                    setIsRestockOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-indigo-600 hover:bg-indigo-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
+                >
+                  <RefreshCw size={13} /> Restock
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedIngredient(ingredient);
+                    setIsWasteOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-orange-600 hover:bg-orange-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
+                >
+                  <Flame size={13} /> Waste
+                </button>
+                {ingredient.currentStock === -1 && (
+                  <button
+                    onClick={() => {
+                      setSelectedIngredient(ingredient);
+                      setIsInitialStockOpen(true);
+                    }}
+                    className="flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
+                  >
+                    <PackagePlus size={13} /> Stok Awal
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setSelectedIngredient(ingredient);
+                    setIsHistoryOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-violet-600 hover:bg-violet-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
+                >
+                  <History size={13} /> Riwayat
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedIngredient(ingredient);
+                    setIsEditOpen(true);
+                  }}
+                  className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition"
+                >
+                  <Pencil size={13} /> Edit
+                </button>
+                <button
+                  onClick={() => {
+                    setDeleteError(null);
+                    setDeleteTarget(ingredient);
+                  }}
+                  className="flex items-center gap-1 text-red-400 hover:bg-red-50 px-2 py-1.5 rounded-lg text-xs font-semibold transition ml-auto"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ═══ DESKTOP TABLE ═══ */}
+      <div className="hidden md:block bg-white rounded-3xl shadow-xl overflow-x-auto custom-scroll">
         <table className="w-full min-w-150 text-base">
           <thead className="bg-linear-to-r from-indigo-50 to-violet-50 text-indigo-800 text-xs uppercase tracking-wider">
             <tr>
@@ -345,46 +462,68 @@ export default function IngredientsPage() {
                   <td className="px-4 py-3">
                     <IngredientStatusBadge stock={ingredient.currentStock} minStock={ingredient.minStock} />
                   </td>
-                  <td className="px-4 py-3 flex gap-2">
+                  <td className="px-4 py-3 flex gap-1.5 flex-wrap">
                     <button
                       onClick={() => {
                         setSelectedIngredient(ingredient);
                         setIsRestockOpen(true);
                       }}
-                      className="text-indigo-600 hover:text-indigo-800 p-1 rounded-full transition"
+                      className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 p-1.5 rounded-lg transition"
                       title="Restock"
                     >
-                      <RefreshCw size={18} />
+                      <RefreshCw size={16} />
                     </button>
+                    <button
+                      onClick={() => {
+                        setSelectedIngredient(ingredient);
+                        setIsWasteOpen(true);
+                      }}
+                      className="text-orange-600 hover:text-orange-800 hover:bg-orange-50 p-1.5 rounded-lg transition"
+                      title="Waste / Buang"
+                    >
+                      <Flame size={16} />
+                    </button>
+                    {ingredient.currentStock === -1 && (
+                      <button
+                        onClick={() => {
+                          setSelectedIngredient(ingredient);
+                          setIsInitialStockOpen(true);
+                        }}
+                        className="text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 p-1.5 rounded-lg transition"
+                        title="Set Stok Awal"
+                      >
+                        <PackagePlus size={16} />
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setSelectedIngredient(ingredient);
                         setIsHistoryOpen(true);
                       }}
-                      className="text-violet-600 hover:text-violet-900 p-1 rounded-full transition"
+                      className="text-violet-600 hover:text-violet-900 hover:bg-violet-50 p-1.5 rounded-lg transition"
                       title="History"
                     >
-                      <History size={18} />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setDeleteError(null);
-                        setDeleteTarget(ingredient);
-                      }}
-                      className="text-red-400 hover:text-red-600 p-1 rounded-full transition"
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
+                      <History size={16} />
                     </button>
                     <button
                       onClick={() => {
                         setSelectedIngredient(ingredient);
                         setIsEditOpen(true);
                       }}
-                      className="text-blue-600 hover:text-blue-800 p-1 rounded-full transition"
+                      className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1.5 rounded-lg transition"
                       title="Edit"
                     >
-                      <Pencil size={18} />
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDeleteError(null);
+                        setDeleteTarget(ingredient);
+                      }}
+                      className="text-red-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"
+                      title="Delete"
+                    >
+                      <Trash2 size={16} />
                     </button>
                   </td>
                 </tr>
@@ -392,39 +531,40 @@ export default function IngredientsPage() {
             })}
           </tbody>
         </table>
-        {isEditOpen && selectedIngredient && (
-          <EditIngredientModal
-            ingredient={selectedIngredient}
-            onClose={() => setIsEditOpen(false)}
-            onSuccess={() => {
-              setIsEditOpen(false);
-              fetchData();
-            }}
-          />
-        )}
       </div>
+
+      {/* Edit modal (must be outside hidden wrapper) */}
+      {isEditOpen && selectedIngredient && (
+        <EditIngredientModal
+          ingredient={selectedIngredient}
+          onClose={() => setIsEditOpen(false)}
+          onSuccess={() => {
+            setIsEditOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+
       {/* PAGINATION BAR */}
       {totalPages > 1 && (
-        <div className="flex flex-col items-center justify-center gap-2 px-2 py-6 border-t  rounded-b-3xl">
-          <div className="flex items-center gap-6">
-            <button
-              className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-            >
-              ‹ Previous
-            </button>
-            <span className="text-base font-semibold text-indigo-700 bg-indigo-50 px-4 py-2 rounded-full shadow-sm">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              className="px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 hover:text-indigo-700 disabled:opacity-40 text-base"
-              disabled={page === totalPages}
-              onClick={() => setPage(page + 1)}
-            >
-              Next ›
-            </button>
-          </div>
+        <div className="flex items-center justify-center gap-3 sm:gap-6 px-2 py-4 sm:py-6">
+          <button
+            className="px-3 sm:px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 disabled:opacity-40 text-xs sm:text-base"
+            disabled={page === 1}
+            onClick={() => setPage(page - 1)}
+          >
+            ‹ Prev
+          </button>
+          <span className="text-xs sm:text-base font-semibold text-indigo-700 bg-indigo-50 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full shadow-sm whitespace-nowrap">
+            {page} / {totalPages}
+          </span>
+          <button
+            className="px-3 sm:px-6 py-2 rounded-full border border-indigo-200 bg-white text-indigo-600 font-bold shadow transition hover:bg-indigo-50 disabled:opacity-40 text-xs sm:text-base"
+            disabled={page === totalPages}
+            onClick={() => setPage(page + 1)}
+          >
+            Next ›
+          </button>
         </div>
       )}
 
@@ -443,6 +583,26 @@ export default function IngredientsPage() {
           onClose={() => setIsRestockOpen(false)}
           onSuccess={() => {
             setIsRestockOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+      {isWasteOpen && selectedIngredient && (
+        <WasteModal
+          ingredient={selectedIngredient}
+          onClose={() => setIsWasteOpen(false)}
+          onSuccess={() => {
+            setIsWasteOpen(false);
+            fetchData();
+          }}
+        />
+      )}
+      {isInitialStockOpen && selectedIngredient && (
+        <InitialStockModal
+          ingredient={selectedIngredient}
+          onClose={() => setIsInitialStockOpen(false)}
+          onSuccess={() => {
+            setIsInitialStockOpen(false);
             fetchData();
           }}
         />
@@ -514,7 +674,8 @@ export default function IngredientsPage() {
               </div>
               <div>
                 <h2 className="text-base font-extrabold text-slate-800">
-                  Delete {selectedIds.size} Ingredient{selectedIds.size !== 1 ? "s" : ""}?
+                  Delete {selectedIds.size} Ingredient
+                  {selectedIds.size !== 1 ? "s" : ""}?
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
                   All selected ingredients and their batches will be permanently deleted.
@@ -639,6 +800,250 @@ function RestockModal({ ingredient, onClose, onSuccess }: RestockModalProps) {
 }
 
 /* =======================
+   WASTE MODAL
+======================= */
+
+interface WasteModalProps {
+  ingredient: Ingredient;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function WasteModal({ ingredient, onClose, onSuccess }: WasteModalProps) {
+  const [quantity, setQuantity] = useState(0);
+  const [notes, setNotes] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleWaste = async () => {
+    if (quantity <= 0) {
+      setError("Jumlah harus lebih dari 0");
+      return;
+    }
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/ingredients/${ingredient.id}/consume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity,
+          notes: notes || `Waste: ${ingredient.name}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal mencatat waste");
+      }
+
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalWrapper
+      onClose={onClose}
+      title={
+        <span className="text-orange-700 font-bold text-lg flex items-center gap-2">
+          <Flame size={20} /> Catat Waste
+        </span>
+      }
+    >
+      <div className="mb-4 bg-orange-50 border border-orange-200 rounded-xl p-3">
+        <p className="text-sm text-orange-700">
+          <span className="font-bold">{ingredient.name}</span> — Stok saat ini:{" "}
+          <span className="font-bold">
+            {ingredient.currentStock === -1 ? "Belum di-set" : `${ingredient.currentStock} ${ingredient.unit}`}
+          </span>
+        </p>
+        <p className="text-xs text-orange-500 mt-1">
+          Waste akan mengurangi stok dan tercatat sebagai pengeluaran bahan baku. Data ini digunakan untuk analisis
+          forecast dan RAG.
+        </p>
+      </div>
+
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleWaste();
+        }}
+      >
+        {error && (
+          <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-sm">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-orange-700">Jumlah yang dibuang ({ingredient.unit})</label>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            className="w-full border border-orange-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-gray-400"
+            placeholder={`Jumlah (${ingredient.unit})`}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+            required
+            autoFocus
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-orange-700">Alasan / Catatan</label>
+          <textarea
+            className="w-full border border-orange-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-gray-400 resize-none"
+            rows={2}
+            placeholder="Misal: expired, tumpah, rusak, dll."
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-linear-to-r from-orange-500 to-red-500 text-white py-2.5 rounded-xl font-semibold shadow hover:from-orange-600 hover:to-red-600 transition disabled:opacity-60"
+        >
+          {loading ? "Memproses..." : "Catat Waste"}
+        </button>
+      </form>
+    </ModalWrapper>
+  );
+}
+
+/* =======================
+   INITIAL STOCK MODAL
+======================= */
+
+interface InitialStockModalProps {
+  ingredient: Ingredient;
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function InitialStockModal({ ingredient, onClose, onSuccess }: InitialStockModalProps) {
+  const [quantity, setQuantity] = useState(0);
+  const [cost, setCost] = useState(0);
+  const [date, setDate] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSetInitialStock = async () => {
+    if (quantity <= 0) {
+      setError("Jumlah harus lebih dari 0");
+      return;
+    }
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch(`/api/ingredients/${ingredient.id}/restock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quantity,
+          costPerUnit: cost || 0,
+          expirationDate: date ? new Date(date).toISOString() : undefined,
+          notes: `Stok Awal: ${ingredient.name}`,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Gagal set stok awal");
+      }
+
+      onSuccess();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ModalWrapper
+      onClose={onClose}
+      title={
+        <span className="text-emerald-700 font-bold text-lg flex items-center gap-2">
+          <PackagePlus size={20} /> Set Stok Awal
+        </span>
+      }
+    >
+      <div className="mb-4 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+        <p className="text-sm text-emerald-700">
+          <span className="font-bold">{ingredient.name}</span> — Belum memiliki stok. Set stok awal untuk mulai
+          tracking.
+        </p>
+        <p className="text-xs text-emerald-500 mt-1">
+          Stok awal akan tercatat sebagai pembelian pertama dan masuk ke data forecast serta RAG.
+        </p>
+      </div>
+
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSetInitialStock();
+        }}
+      >
+        {error && (
+          <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-sm">
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-emerald-700">Jumlah Stok Awal ({ingredient.unit})</label>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            className="w-full border border-emerald-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-gray-400"
+            placeholder={`Jumlah (${ingredient.unit})`}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+            required
+            autoFocus
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-emerald-700">Harga per {ingredient.unit}</label>
+          <input
+            type="number"
+            min={0}
+            step="any"
+            className="w-full border border-emerald-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-gray-400"
+            placeholder="Harga per satuan"
+            onChange={(e) => setCost(Number(e.target.value))}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className="block text-sm font-semibold text-emerald-700">Tanggal Expired (opsional)</label>
+          <input
+            type="date"
+            className="w-full border border-emerald-200 rounded-xl px-4 py-2 text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 placeholder:text-gray-400"
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-linear-to-r from-emerald-500 to-teal-500 text-white py-2.5 rounded-xl font-semibold shadow hover:from-emerald-600 hover:to-teal-600 transition disabled:opacity-60"
+        >
+          {loading ? "Memproses..." : "Set Stok Awal"}
+        </button>
+      </form>
+    </ModalWrapper>
+  );
+}
+
+/* =======================
    BATCH HISTORY
 ======================= */
 
@@ -706,7 +1111,7 @@ function BatchHistoryModal({ ingredient, onClose }: BatchHistoryModalProps) {
                   </span>
                   {batch.expirationDate && (
                     <span className="inline-block bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full font-semibold">
-                      Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID")}
+                      Exp: {new Date(batch.expirationDate).toLocaleDateString("id-ID", { timeZone: "Asia/Jakarta" })}
                     </span>
                   )}
                   <span className={`inline-block px-3 py-1 rounded-full font-semibold ${status.color}`}>
@@ -940,12 +1345,15 @@ function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientM
   };
 
   return (
-    <ModalWrapper onClose={onClose} title={
-      <span className="flex items-center gap-2 text-indigo-700">
-        <Pencil size={20} />
-        <span className="font-bold">Edit Bahan Baku</span>
-      </span>
-    }>
+    <ModalWrapper
+      onClose={onClose}
+      title={
+        <span className="flex items-center gap-2 text-indigo-700">
+          <Pencil size={20} />
+          <span className="font-bold">Edit Bahan Baku</span>
+        </span>
+      }
+    >
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -953,7 +1361,11 @@ function EditIngredientModal({ ingredient, onClose, onSuccess }: EditIngredientM
         }}
         className="space-y-6"
       >
-        {error && <div className="text-red-600 text-sm font-semibold px-2 py-1 bg-red-50 rounded-lg border border-red-200">{error}</div>}
+        {error && (
+          <div className="text-red-600 text-sm font-semibold px-2 py-1 bg-red-50 rounded-lg border border-red-200">
+            {error}
+          </div>
+        )}
 
         <div className="space-y-1">
           <label className="block text-sm font-semibold text-indigo-700 mb-0.5">Nama</label>

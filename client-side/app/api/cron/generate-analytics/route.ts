@@ -74,7 +74,11 @@ async function evaluateForecastAccuracy(businessId: number) {
     }
 
     // Match forecasts with actuals
-    const comparisons: { predicted: number; actual: number; daysAgo: number }[] = [];
+    const comparisons: {
+      predicted: number;
+      actual: number;
+      daysAgo: number;
+    }[] = [];
     for (const fc of pastForecasts) {
       const dateStr = toDateString(fc.date);
       const actual = actualByDate.get(dateStr);
@@ -99,7 +103,6 @@ async function evaluateForecastAccuracy(businessId: number) {
 
     // Store accuracy metrics
     try {
-      // @ts-expect-error forecastAccuracy may not exist in current schema
       await prisma.forecastAccuracy.upsert({
         where: { businessId },
         update: {
@@ -122,7 +125,9 @@ async function evaluateForecastAccuracy(businessId: number) {
           lastEvaluatedAt: now,
         },
       });
-    } catch { /* model may not exist yet */ }
+    } catch {
+      /* model may not exist yet */
+    }
 
     console.log(
       `[ACCURACY] Business ${businessId}: 7d accuracy=${accuracy7d?.toFixed(1) ?? "N/A"}% (n=${last7d.length}), ` +
@@ -176,7 +181,12 @@ async function generateForecastForBusiness(businessId: number) {
   console.log(`[FORECAST] Business ${businessId}: Using ${lookbackDays}-day adaptive lookback`);
 
   // ─── Step 2: Fetch Product Sales Data with Prices ──────────────────────
-  type DailyQtyRow = { productId: number; date: string; qty: number; avgPrice: number };
+  type DailyQtyRow = {
+    productId: number;
+    date: string;
+    qty: number;
+    avgPrice: number;
+  };
   const rawRows = await prisma.$queryRaw<DailyQtyRow[]>`
     SELECT
       si."productId"::int AS "productId",
@@ -224,7 +234,13 @@ async function generateForecastForBusiness(businessId: number) {
   // ─── Step 4: Generate Product-Level Forecasts ──────────────────────────
   const productForecastMap = new Map<
     number,
-    { date: string; qty: number; lower: number; upper: number; metadata: object }[]
+    {
+      date: string;
+      qty: number;
+      lower: number;
+      upper: number;
+      metadata: object;
+    }[]
   >();
   let skippedProducts = 0;
   const priceChangeNotes: string[] = [];
@@ -254,7 +270,12 @@ async function generateForecastForBusiness(businessId: number) {
     const currentPrice = productPriceMap.get(productId)?.sellingPrice ?? 0;
     const priceChangeInfo = detectPriceChange(historicalPrices, currentPrice);
     if (priceChangeInfo.detected) {
-      const productName = (await prisma.product.findUnique({ where: { id: productId }, select: { name: true } }))?.name;
+      const productName = (
+        await prisma.product.findUnique({
+          where: { id: productId },
+          select: { name: true },
+        })
+      )?.name;
       priceChangeNotes.push(`${productName}: ${priceChangeInfo.note}`);
     }
 
@@ -311,7 +332,13 @@ async function generateForecastForBusiness(businessId: number) {
     const qtyCap = Math.max(avgQty * 3, 1);
 
     // ─── 4g: Save Product Forecasts ──────────────────────────────────────
-    const forecastsForProduct: { date: string; qty: number; lower: number; upper: number; metadata: object }[] = [];
+    const forecastsForProduct: {
+      date: string;
+      qty: number;
+      lower: number;
+      upper: number;
+      metadata: object;
+    }[] = [];
 
     await Promise.all(
       preds.map((val, i) => {
@@ -339,7 +366,13 @@ async function generateForecastForBusiness(businessId: number) {
           priceChangeDetected: priceChangeInfo.detected,
         };
 
-        forecastsForProduct.push({ date: dateStr, qty, lower, upper, metadata });
+        forecastsForProduct.push({
+          date: dateStr,
+          qty,
+          lower,
+          upper,
+          metadata,
+        });
 
         return prisma.productForecast.upsert({
           where: { productId_date: { productId, date: new Date(dateStr) } },
@@ -602,10 +635,15 @@ async function generateHealthScoreForBusiness(businessId: number) {
 // AI INSIGHT GENERATION — brief chart labels per section
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => Promise<string> }[] = [
+const INSIGHT_SECTIONS: {
+  key: string;
+  prompt: string;
+  gather: (bid: number) => Promise<string>;
+}[] = [
   {
     key: "revenue",
-    prompt: "Berikan 1-2 kalimat ringkas tentang tren pendapatan harian bisnis ini. Sebutkan pola kunci.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan profesional tentang tren pendapatan harian bisnis ini. Soroti pola utama (naik, turun, atau stabil) serta implikasinya terhadap kinerja penjualan.",
     gather: async (bid) => {
       // Match EXACTLY what frontend /api/analytics/daily returns:
       // Use UTC boundaries to match database DATE type (stored as midnight UTC)
@@ -639,14 +677,19 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "growth",
-    prompt: "Berikan 1-2 kalimat ringkas tentang pertumbuhan bisnis bulan ini vs bulan lalu.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas tentang pertumbuhan bisnis bulan ini dibandingkan bulan lalu, dengan menyoroti arah pertumbuhan (positif, stagnan, atau negatif) dan dampaknya ke keberlanjutan bisnis.",
     gather: async (bid) => {
       const now = new Date();
       const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const [cur, prev] = await Promise.all([
-        prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: thisMonth } } }),
-        prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: lastMonth, lt: thisMonth } } }),
+        prisma.businessMetrics.findMany({
+          where: { businessId: bid, date: { gte: thisMonth } },
+        }),
+        prisma.businessMetrics.findMany({
+          where: { businessId: bid, date: { gte: lastMonth, lt: thisMonth } },
+        }),
       ]);
       const curRev = cur.reduce((s, x) => s + Number(x.totalRevenue), 0);
       const prevRev = prev.reduce((s, x) => s + Number(x.totalRevenue), 0);
@@ -656,7 +699,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "products",
-    prompt: "Berikan 1-2 kalimat ringkas tentang performa produk — mana yang paling laris dan paling menguntungkan.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan bernada bisnis tentang performa produk: produk mana yang paling berkontribusi ke omzet dan profit, serta pesan singkat yang dapat dibaca manajemen.",
     gather: async (bid) => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
@@ -674,7 +718,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "health",
-    prompt: "Berikan 1-2 kalimat ringkas tentang skor kesehatan bisnis dan klasifikasi saat ini.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan jelas tentang skor kesehatan bisnis dan klasifikasi saat ini, dengan menekankan apakah kondisi tergolong sehat, perlu perhatian, atau berisiko. Perlu diketahui semakin besar skor ,informasi ini bisa kamu gunakan dengan bijak.",
     gather: async (bid) => {
       const latest = await prisma.businessHealthScores.findFirst({
         where: { businessId: bid },
@@ -686,7 +731,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "waste",
-    prompt: "Berikan 1-2 kalimat ringkas tentang tingkat limbah/waste bisnis ini terhadap pendapatan.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas dan profesional tentang tingkat limbah/waste bisnis ini terhadap pendapatan, serta apakah levelnya masih wajar atau sudah menggerus profit.",
     gather: async (bid) => {
       const since = new Date();
       since.setDate(since.getDate() - 30);
@@ -699,7 +745,9 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
           AND im."createdAt" >= ${since}
       `;
       const waste = Number(wasteMoves[0]?.totalWaste ?? 0);
-      const metrics = await prisma.businessMetrics.findMany({ where: { businessId: bid, date: { gte: since } } });
+      const metrics = await prisma.businessMetrics.findMany({
+        where: { businessId: bid, date: { gte: since } },
+      });
       const rev = metrics.reduce((s, m) => s + Number(m.totalRevenue), 0);
       const pct = rev > 0 ? ((waste / rev) * 100).toFixed(1) : "0";
       return `Biaya limbah 30 hari: Rp ${waste.toLocaleString("id-ID")} (${pct}% dari pendapatan Rp ${rev.toLocaleString("id-ID")}).`;
@@ -707,7 +755,8 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
   },
   {
     key: "kasbon",
-    prompt: "Berikan 1-2 kalimat ringkas tentang status kasbon/piutang bisnis ini.",
+    prompt:
+      "Berikan 1-2 kalimat ringkas tentang status kasbon/piutang bisnis ini, dengan fokus pada besarnya piutang tertunggak dan implikasinya terhadap arus kas.",
     gather: async (bid) => {
       const debts = await prisma.debt.findMany({
         where: { businessId: bid },
@@ -716,7 +765,7 @@ const INSIGHT_SECTIONS: { key: string; prompt: string; gather: (bid: number) => 
       const total = debts.reduce((s, d) => s + Number(d.totalAmount), 0);
       const paid = debts.reduce((s, d) => s + d.payments.reduce((ps, p) => ps + Number(p.amount), 0), 0);
       const outstanding = total - paid;
-        const overdue = debts.filter((d) => (d.status as string) === "overdue").length;
+      const overdue = debts.filter((d) => (d.status as string) === "overdue").length;
       return `Total kasbon: Rp ${total.toLocaleString("id-ID")}, terbayar: Rp ${paid.toLocaleString("id-ID")}, sisa: Rp ${outstanding.toLocaleString("id-ID")}, jatuh tempo: ${overdue}.`;
     },
   },
@@ -814,10 +863,10 @@ async function generateInsightsForBusiness(businessId: number) {
             role: "system",
             content:
               `Kamu adalah konsultan bisnis AI untuk UMKM Indonesia. Hari ini ${dateContext}. ` +
-              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia. ` +
+              `Berikan ringkasan SANGAT singkat (1-2 kalimat) dalam Bahasa Indonesia dengan gaya profesional seperti catatan analis bisnis. ` +
               `PENTING: Gunakan ANGKA PERSIS yang diberikan dalam data, JANGAN menghitung ulang atau memperkirakan. ` +
-              `Perhatikan pola hari kerja vs weekend dan hari besar Indonesia jika relevan. ` +
-              `Jangan gunakan markdown. Langsung ke poin utama.`,
+              `Fokus pada pesan yang relevan untuk pemilik/manajer bisnis (misalnya tren utama, risiko, atau peluang). ` +
+              `Jangan gunakan markdown atau emotikon. Langsung sampaikan poin utama secara lugas.`,
           },
           {
             role: "user",
@@ -825,7 +874,7 @@ async function generateInsightsForBusiness(businessId: number) {
           },
         ],
         model: GROQ_MODELS.text.primary,
-        temperature: 0.1,
+        temperature: 0.3,
         max_tokens: 150,
       });
 
@@ -835,7 +884,12 @@ async function generateInsightsForBusiness(businessId: number) {
       await prisma.analyticsInsight.upsert({
         where: { businessId_section: { businessId, section: section.key } },
         update: { insight, generatedAt: new Date() },
-        create: { businessId, section: section.key, insight, generatedAt: new Date() },
+        create: {
+          businessId,
+          section: section.key,
+          insight,
+          generatedAt: new Date(),
+        },
       });
     } catch (err) {
       console.error(`[CRON] Insight generation failed for biz ${businessId}, section ${section.key}:`, err);
@@ -862,7 +916,10 @@ export async function POST(req: NextRequest) {
     // If called by an authenticated user, only generate for their business
     // If called by cron (CRON_SECRET), generate for all businesses
     const businesses = authedUser
-      ? await prisma.business.findMany({ where: { id: authedUser.businessId }, select: { id: true, name: true } })
+      ? await prisma.business.findMany({
+          where: { id: authedUser.businessId },
+          select: { id: true, name: true },
+        })
       : await prisma.business.findMany({ select: { id: true, name: true } });
     const results: { businessId: number; name: string; status: string }[] = [];
 
@@ -874,7 +931,11 @@ export async function POST(req: NextRequest) {
         results.push({ businessId: biz.id, name: biz.name, status: "success" });
       } catch (err) {
         console.error(`[CRON] Forecast failed for business ${biz.id}:`, err);
-        results.push({ businessId: biz.id, name: biz.name, status: `error: ${String(err).slice(0, 100)}` });
+        results.push({
+          businessId: biz.id,
+          name: biz.name,
+          status: `error: ${String(err).slice(0, 100)}`,
+        });
       }
     }
 

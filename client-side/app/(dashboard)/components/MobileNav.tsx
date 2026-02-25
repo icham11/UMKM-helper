@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
@@ -9,7 +10,6 @@ import {
   Package,
   Menu,
   X,
-  TrendingUp,
   History,
   Bot,
   Boxes,
@@ -29,17 +29,25 @@ interface MobileNavProps {
   jwtUserEmail?: string;
 }
 
-export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps) {
+export default function MobileNav({
+  jwtUserName,
+  jwtUserEmail,
+}: MobileNavProps) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const pathname = usePathname();
   const { isOwner, isCashier, userName } = useRole();
 
-  const isActive = (href: string) => pathname === href || pathname?.startsWith(href + "/");
+  const isActive = (href: string) => {
+    if (!pathname) return false;
+    // Exact match for top-level routes to avoid false positives
+    if (href === "/dashboard/business") return pathname === href;
+    return pathname === href || pathname.startsWith(href + "/");
+  };
 
   // Bottom nav items — max 5
   const bottomItems = isOwner
     ? [
-        { href: "/dashboard", icon: BarChart3, label: "Home" },
+        { href: "/dashboard/business", icon: Building2, label: "Home" },
         { href: "/pos", icon: ShoppingCart, label: "POS" },
         { href: "/dashboard/products", icon: Package, label: "Produk" },
         { href: "/dashboard/sales-history", icon: History, label: "Riwayat" },
@@ -67,8 +75,12 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
                     : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <item.icon className={`w-5 h-5 ${active ? "text-indigo-600" : ""}`} />
-                <span className="text-[10px] font-medium truncate">{item.label}</span>
+                <item.icon
+                  className={`w-5 h-5 ${active ? "text-indigo-600" : ""}`}
+                />
+                <span className="text-[10px] font-medium truncate">
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -95,13 +107,14 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
           <div className="relative ml-auto w-80 max-w-[85vw] h-full bg-white shadow-2xl overflow-y-auto flex flex-col animate-slide-in-right">
             {/* Drawer header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-linear-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-white" />
-                </div>
-                <span className="font-extrabold text-lg bg-linear-to-r from-indigo-700 to-purple-600 bg-clip-text text-transparent">
-                  Cuanify
-                </span>
+              <div className="flex items-center">
+                <Image
+                  src="/cuanify-logo.svg"
+                  alt="Cuanify"
+                  width={130}
+                  height={32}
+                  className="h-8 w-auto"
+                />
               </div>
               <button
                 onClick={() => setIsDrawerOpen(false)}
@@ -119,7 +132,9 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
                   </span>
-                  <span className="text-xs font-bold text-amber-800">MODE KASIR</span>
+                  <span className="text-xs font-bold text-amber-800">
+                    MODE KASIR
+                  </span>
                 </div>
                 {userName && (
                   <p className="text-[11px] text-amber-700 font-medium mt-1 pl-4">
@@ -137,7 +152,13 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
                   {/*  Dashboard*/}
                   {/*</p>*/}
                   {/*<NavLink href="/dashboard" icon={BarChart3} label="Overview" active={isActive("/dashboard") && pathname === "/dashboard"} onClick={() => setIsDrawerOpen(false)} />*/}
-                  <NavLink href="/analytics" icon={BarChart3} label="Analytics" active={isActive("/analytics")} onClick={() => setIsDrawerOpen(false)} />
+                  <NavLink
+                    href="/analytics"
+                    icon={BarChart3}
+                    label="Analytics"
+                    active={isActive("/analytics")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
                 </>
               )}
 
@@ -146,19 +167,56 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
                     AI Tools
                   </p>
-                  <NavLink href="/dashboard/ai-analysis" icon={Bot} label="AI Center" active={isActive("/dashboard/ai-analysis")} onClick={() => setIsDrawerOpen(false)} accent />
+                  <NavLink
+                    href="/dashboard/ai-analysis"
+                    icon={Bot}
+                    label="AI Center"
+                    active={isActive("/dashboard/ai-analysis")}
+                    onClick={() => setIsDrawerOpen(false)}
+                    accent
+                  />
                 </>
               )}
 
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
                 Sales
               </p>
-              <NavLink href="/pos" icon={ShoppingCart} label="POS" active={isActive("/pos")} onClick={() => setIsDrawerOpen(false)} />
-              <NavLink href="/dashboard/sales-history" icon={History} label="Sales History" active={isActive("/dashboard/sales-history")} onClick={() => setIsDrawerOpen(false)} />
-              <NavLink href="/dashboard/debts" icon={BookOpen} label="Kasbon" active={isActive("/dashboard/debts")} onClick={() => setIsDrawerOpen(false)} />
-              <NavLink href="/dashboard/shift-history" icon={Clock} label="Closing" active={isActive("/dashboard/shift-history")} onClick={() => setIsDrawerOpen(false)} />
+              <NavLink
+                href="/pos"
+                icon={ShoppingCart}
+                label="POS"
+                active={isActive("/pos")}
+                onClick={() => setIsDrawerOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/sales-history"
+                icon={History}
+                label="Sales History"
+                active={isActive("/dashboard/sales-history")}
+                onClick={() => setIsDrawerOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/debts"
+                icon={BookOpen}
+                label="Kasbon"
+                active={isActive("/dashboard/debts")}
+                onClick={() => setIsDrawerOpen(false)}
+              />
+              <NavLink
+                href="/dashboard/shift-history"
+                icon={Clock}
+                label="Closing"
+                active={isActive("/dashboard/shift-history")}
+                onClick={() => setIsDrawerOpen(false)}
+              />
               {isOwner && (
-                <NavLink href="/dashboard/export" icon={FileDown} label="Export Data" active={isActive("/dashboard/export")} onClick={() => setIsDrawerOpen(false)} />
+                <NavLink
+                  href="/dashboard/export"
+                  icon={FileDown}
+                  label="Export Data"
+                  active={isActive("/dashboard/export")}
+                  onClick={() => setIsDrawerOpen(false)}
+                />
               )}
 
               {isOwner && (
@@ -166,9 +224,27 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
                     Inventory
                   </p>
-                  <NavLink href="/dashboard/products" icon={Package} label="Products" active={isActive("/dashboard/products")} onClick={() => setIsDrawerOpen(false)} />
-                  <NavLink href="/dashboard/production" icon={Factory} label="Production" active={isActive("/dashboard/production")} onClick={() => setIsDrawerOpen(false)} />
-                  <NavLink href="/dashboard/ingredients" icon={Boxes} label="Ingredients" active={isActive("/dashboard/ingredients")} onClick={() => setIsDrawerOpen(false)} />
+                  <NavLink
+                    href="/dashboard/products"
+                    icon={Package}
+                    label="Products"
+                    active={isActive("/dashboard/products")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                  <NavLink
+                    href="/dashboard/production"
+                    icon={Factory}
+                    label="Production"
+                    active={isActive("/dashboard/production")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                  <NavLink
+                    href="/dashboard/ingredients"
+                    icon={Boxes}
+                    label="Ingredients"
+                    active={isActive("/dashboard/ingredients")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
                 </>
               )}
 
@@ -177,16 +253,37 @@ export default function MobileNav({ jwtUserName, jwtUserEmail }: MobileNavProps)
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-4 pb-1">
                     Settings
                   </p>
-                  <NavLink href="/dashboard/business" icon={Building2} label="Business" active={isActive("/dashboard/business")} onClick={() => setIsDrawerOpen(false)} />
-                  <NavLink href="/dashboard/profile" icon={User} label="Profile" active={isActive("/dashboard/profile")} onClick={() => setIsDrawerOpen(false)} />
-                  <NavLink href="/dashboard/staff" icon={Users} label="Staff" active={isActive("/dashboard/staff")} onClick={() => setIsDrawerOpen(false)} />
+                  <NavLink
+                    href="/dashboard/business"
+                    icon={Building2}
+                    label="Business"
+                    active={isActive("/dashboard/business")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                  <NavLink
+                    href="/dashboard/profile"
+                    icon={User}
+                    label="Profile"
+                    active={isActive("/dashboard/profile")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                  <NavLink
+                    href="/dashboard/staff"
+                    icon={Users}
+                    label="Staff"
+                    active={isActive("/dashboard/staff")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
                 </>
               )}
             </div>
 
             {/* User info at bottom */}
             <div className="border-t border-gray-100 px-4 py-4">
-              <SidebarUserInfo jwtUserName={jwtUserName} jwtUserEmail={jwtUserEmail} />
+              <SidebarUserInfo
+                jwtUserName={jwtUserName}
+                jwtUserEmail={jwtUserEmail}
+              />
             </div>
           </div>
         </div>
@@ -218,8 +315,8 @@ function NavLink({
         active
           ? "bg-indigo-50 text-indigo-700 font-semibold"
           : accent
-          ? "bg-linear-to-r from-purple-50 to-indigo-50 text-purple-700 border border-purple-200 hover:from-purple-100 hover:to-indigo-100"
-          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+            ? "bg-linear-to-r from-purple-50 to-indigo-50 text-purple-700 border border-purple-200 hover:from-purple-100 hover:to-indigo-100"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
       }`}
     >
       <Icon className="w-4.5 h-4.5 shrink-0" />
@@ -227,4 +324,3 @@ function NavLink({
     </Link>
   );
 }
-
