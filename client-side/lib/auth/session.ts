@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/lib/auth"
 import { cookies, headers } from "next/headers"
+import { getToken } from "next-auth/jwt"
 import { verifyToken } from "@/lib/auth/jwt"
 import prisma from "@/lib/prisma"
 import type { UserRole } from "@prisma/client"
@@ -22,40 +21,96 @@ export type AuthResult = {
   role: UserRole // "Owner" | "Cashier"
 }
 
-export async function requireAuth(): Promise<AuthResult> {
-  // 1️⃣ Try NextAuth session
-  const session = await getServerSession(authOptions)
-  let userId: number | undefined = session?.user?.id
+function normalizeNumericId(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) {
+      return parsed
+    }
+  }
+  return undefined
+}
 
-  const cookieStore = await cookies()
-
-  // 2️⃣ Try JWT from cookie
-  if (!userId) {
-    const token = cookieStore.get("token")?.value
-
-    if (token) {
-      const decoded = verifyToken(token)
-      if (decoded && typeof decoded === "object" && "userId" in decoded) {
-        const rawUserId = (decoded as { userId: string | number }).userId
-        userId = typeof rawUserId === "string" ? Number(rawUserId) : rawUserId
-      }
+async function resolveUserIdFromCustomJwt(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  headerList: Awaited<ReturnType<typeof headers>>,
+): Promise<number | undefined> {
+  // 1) Try JWT from app cookie (set by /api/auth/login and /api/auth/register)
+  const cookieToken = cookieStore.get("token")?.value
+  if (cookieToken) {
+    const decoded = verifyToken(cookieToken)
+    if (decoded && typeof decoded === "object" && "userId" in decoded) {
+      const parsed = normalizeNumericId((decoded as { userId: unknown }).userId)
+      if (parsed) return parsed
     }
   }
 
-  // 3️⃣ Try Bearer token from header (POSTMAN SUPPORT)
-  if (!userId) {
-    const headerList = await headers()
-    const authHeader = headerList.get("authorization")
-
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.replace("Bearer ", "")
-      const decoded = verifyToken(token)
-
-      if (decoded && typeof decoded === "object" && "userId" in decoded) {
-        const rawUserId = (decoded as { userId: string | number }).userId
-        userId = typeof rawUserId === "string" ? Number(rawUserId) : rawUserId
-      }
+  // 2) Try JWT from Bearer header (Postman/API use case)
+  const authHeader = headerList.get("authorization")
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearerToken = authHeader.replace("Bearer ", "")
+    const decoded = verifyToken(bearerToken)
+    if (decoded && typeof decoded === "object" && "userId" in decoded) {
+      const parsed = normalizeNumericId((decoded as { userId: unknown }).userId)
+      if (parsed) return parsed
     }
+  }
+
+  return undefined
+}
+
+async function resolveUserIdFromNextAuthJwt(
+  cookieStore: Awaited<ReturnType<typeof cookies>>,
+  headerList: Awaited<ReturnType<typeof headers>>,
+): Promise<number | undefined> {
+  // Build a lightweight req shape accepted by next-auth getToken()
+  const req = { headers: headerList, cookies: cookieStore } as {
+    headers: Headers
+    cookies: { getAll: () => { name: string; value: string }[] }
+  }
+
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+  })
+
+  if (!token) return undefined
+
+  // Prefer explicit numeric identifiers if present
+  const directId =
+    normalizeNumericId((token as Record<string, unknown>).id) ??
+    normalizeNumericId((token as Record<string, unknown>).userId) ??
+    normalizeNumericId(token.sub)
+
+  if (directId) {
+    return directId
+  }
+
+  // OAuth JWT usually has email + provider `sub`; map email to Prisma user
+  if (typeof token.email === "string" && token.email.trim() !== "") {
+    const dbUser = await prisma.user.findUnique({
+      where: { email: token.email },
+      select: { id: true },
+    })
+    return dbUser?.id
+  }
+
+  return undefined
+}
+
+export async function requireAuth(): Promise<AuthResult> {
+  const cookieStore = await cookies()
+  const headerList = await headers()
+
+  // 1) Try NextAuth JWT cookie/header first (Google OAuth flow)
+  let userId = await resolveUserIdFromNextAuthJwt(cookieStore, headerList)
+
+  // 2) Fallback to app JWT auth flow (email/password + API clients)
+  if (!userId) {
+    userId = await resolveUserIdFromCustomJwt(cookieStore, headerList)
   }
 
   if (!userId) {
