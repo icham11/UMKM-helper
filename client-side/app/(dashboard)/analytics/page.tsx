@@ -1154,18 +1154,28 @@ function ProductsSection() {
                 Rincian Detail
               </h2>
             </div>
-            <table className="w-full text-sm min-w-175">
+            <table className="w-full text-sm">
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-semibold">Produk</th>
-                  <th className="text-right px-6 py-3 font-semibold">Qty</th>
-                  <th className="text-right px-6 py-3 font-semibold">
+                  <th className="text-left px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Produk
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Qty
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                     Pendapatan
                   </th>
-                  <th className="text-right px-6 py-3 font-semibold">Biaya</th>
-                  <th className="text-right px-6 py-3 font-semibold">Laba</th>
-                  <th className="text-right px-6 py-3 font-semibold">Margin</th>
-                  <th className="text-right px-6 py-3 font-semibold">
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
+                    Biaya
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Laba
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Margin
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
                     Kontribusi
                   </th>
                 </tr>
@@ -1190,29 +1200,29 @@ function ProductsSection() {
                           key={p.productId}
                           className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-indigo-50"} hover:bg-indigo-100`}
                         >
-                          <td className="px-6 py-4 font-semibold text-indigo-700">
-                            <span className="inline-block bg-indigo-100 text-indigo-700 rounded-lg px-3 py-1 text-xs font-medium">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 font-semibold text-indigo-700">
+                            <span className="inline-block bg-indigo-100 text-indigo-700 rounded-lg px-2 py-0.5 text-xs font-medium truncate max-w-[120px] sm:max-w-none">
                               {p.productName}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-700">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-gray-700">
                             {p.quantitySold}
                           </td>
-                          <td className="px-6 py-4 text-right font-semibold text-gray-700">
-                            Rp {p.revenue.toLocaleString("id-ID")}
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-semibold text-gray-700 whitespace-nowrap">
+                            {fmtCompact(p.revenue)}
                           </td>
-                          <td className="px-6 py-4 text-right text-gray-700">
-                            Rp {p.cost.toLocaleString("id-ID")}
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-gray-700 whitespace-nowrap hidden sm:table-cell">
+                            {fmtCompact(p.cost)}
                           </td>
-                          <td className="px-6 py-4 text-right text-green-600 font-bold">
-                            Rp {p.profit.toLocaleString("id-ID")}
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-green-600 font-bold whitespace-nowrap">
+                            {fmtCompact(p.profit)}
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right">
                             <span className="bg-green-50 text-green-700 rounded px-2 py-0.5 text-xs font-semibold">
                               {p.profitMargin.toFixed(1)}%
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right hidden sm:table-cell">
                             <span className="bg-yellow-50 text-yellow-700 rounded px-2 py-0.5 text-xs font-semibold">
                               {contribution.toFixed(1)}%
                             </span>
@@ -1368,20 +1378,28 @@ function ProductsSection() {
                 Rincian Kategori
               </h2>
             </div>
-            <table className="w-full text-sm min-w-150">
+            <table className="w-full text-sm">
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-semibold">
+                  <th className="text-left px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                     Kategori
                   </th>
-                  <th className="text-right px-6 py-3 font-semibold">Qty</th>
-                  <th className="text-right px-6 py-3 font-semibold">
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Qty
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                     Pendapatan
                   </th>
-                  <th className="text-right px-6 py-3 font-semibold">Biaya</th>
-                  <th className="text-right px-6 py-3 font-semibold">Laba</th>
-                  <th className="text-right px-6 py-3 font-semibold">Margin</th>
-                  <th className="text-right px-6 py-3 font-semibold">
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
+                    Biaya
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Laba
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                    Margin
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
                     Kontribusi
                   </th>
                 </tr>
@@ -1399,37 +1417,37 @@ function ProductsSection() {
                       key={cat.categoryId ?? idx}
                       className={`border-b border-gray-100 ${idx % 2 === 0 ? "bg-white" : "bg-indigo-50"} hover:bg-indigo-100`}
                     >
-                      <td className="px-6 py-4 font-semibold">
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                         <span className="inline-flex items-center gap-2">
                           <span
-                            className="w-2.5 h-2.5 rounded-full"
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
                             style={{
                               backgroundColor: COLORS[idx % COLORS.length],
                             }}
                           />
-                          <span className="text-indigo-700">
+                          <span className="text-indigo-700 truncate max-w-[100px] sm:max-w-none">
                             {cat.categoryName}
                           </span>
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-700">
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-gray-700">
                         {cat.quantitySold}
                       </td>
-                      <td className="px-6 py-4 text-right font-semibold text-gray-700">
-                        Rp {cat.revenue.toLocaleString("id-ID")}
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        {fmtCompact(cat.revenue)}
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-700">
-                        Rp {cat.cost.toLocaleString("id-ID")}
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-gray-700 whitespace-nowrap hidden sm:table-cell">
+                        {fmtCompact(cat.cost)}
                       </td>
-                      <td className="px-6 py-4 text-right text-green-600 font-bold">
-                        Rp {cat.profit.toLocaleString("id-ID")}
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-green-600 font-bold whitespace-nowrap">
+                        {fmtCompact(cat.profit)}
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 text-right">
                         <span className="bg-green-50 text-green-700 rounded px-2 py-0.5 text-xs font-semibold">
                           {cat.margin.toFixed(1)}%
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-3 sm:px-5 py-2 sm:py-3 text-right hidden sm:table-cell">
                         <span className="bg-yellow-50 text-yellow-700 rounded px-2 py-0.5 text-xs font-semibold">
                           {cat.contribution.toFixed(1)}%
                         </span>
@@ -2227,15 +2245,13 @@ function GrowthSection() {
                         })}
                       </p>
                       <p className="text-sm font-bold text-violet-700 mt-1">
-                        Rp {f.predictedRevenue.toLocaleString("id-ID")}
+                        {fmtCompact(f.predictedRevenue)}
                       </p>
                       <p className="text-xs text-emerald-600 font-semibold">
-                        Laba: Rp{" "}
-                        {(f.predictedProfit ?? 0).toLocaleString("id-ID")}
+                        Laba: {fmtCompact(f.predictedProfit ?? 0)}
                       </p>
                       <p className="text-[10px] text-gray-400 mt-1 leading-tight">
-                        ↕ Rp {f.lowerBound.toLocaleString("id-ID")}–
-                        {f.upperBound.toLocaleString("id-ID")}
+                        ↕ {fmtCompact(f.lowerBound)}–{fmtCompact(f.upperBound)}
                       </p>
                       <ConfidenceBadge score={f.confidenceScore} />
                     </div>
@@ -2410,20 +2426,20 @@ function GrowthSection() {
                 <table className="w-full text-sm">
                   <thead className="bg-indigo-50 text-indigo-700">
                     <tr>
-                      <th className="text-left px-6 py-3 font-semibold">
+                      <th className="text-left px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                         Tanggal
                       </th>
-                      <th className="text-right px-6 py-3 font-semibold">
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                         Pendapatan
                       </th>
-                      <th className="text-right px-6 py-3 font-semibold">
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                         Laba
                       </th>
-                      <th className="text-right px-6 py-3 font-semibold">
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
                         Margin
                       </th>
-                      <th className="text-right px-6 py-3 font-semibold">
-                        vs Hari Sebelumnya
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
+                        vs Sebelumnya
                       </th>
                     </tr>
                   </thead>
@@ -2443,24 +2459,24 @@ function GrowthSection() {
                           key={d.date}
                           className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}`}
                         >
-                          <td className="px-6 py-3 font-medium text-gray-700">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 font-medium text-gray-700">
                             {d.label}
                           </td>
-                          <td className="px-6 py-3 text-right font-semibold text-indigo-700">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-semibold text-indigo-700 whitespace-nowrap">
                             {d.revenue > 0 ? (
-                              `Rp ${d.revenue.toLocaleString("id-ID")}`
+                              fmtCompact(d.revenue)
                             ) : (
                               <span className="text-gray-300">—</span>
                             )}
                           </td>
-                          <td className="px-6 py-3 text-right text-emerald-600 font-semibold">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-emerald-600 font-semibold whitespace-nowrap">
                             {d.profit > 0 ? (
-                              `Rp ${d.profit.toLocaleString("id-ID")}`
+                              fmtCompact(d.profit)
                             ) : (
                               <span className="text-gray-300">—</span>
                             )}
                           </td>
-                          <td className="px-6 py-3 text-right">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right hidden sm:table-cell">
                             {margin !== null ? (
                               <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold">
                                 {margin}%
@@ -2469,7 +2485,7 @@ function GrowthSection() {
                               <span className="text-gray-300 text-xs">—</span>
                             )}
                           </td>
-                          <td className="px-6 py-3 text-right">
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right hidden sm:table-cell">
                             {dod === null ? (
                               <span className="text-gray-300 text-xs">—</span>
                             ) : (
@@ -2564,76 +2580,82 @@ function GrowthSection() {
                   Ringkasan Bulanan
                 </h3>
               </div>
-              <table className="w-full text-sm">
-                <thead className="bg-indigo-50 text-indigo-700">
-                  <tr>
-                    <th className="text-left px-6 py-3 font-semibold">Bulan</th>
-                    <th className="text-right px-6 py-3 font-semibold">
-                      Pendapatan
-                    </th>
-                    <th className="text-right px-6 py-3 font-semibold">Laba</th>
-                    <th className="text-right px-6 py-3 font-semibold">
-                      Margin
-                    </th>
-                    <th className="text-right px-6 py-3 font-semibold">
-                      vs Sebelumnya
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {monthlyChartData.map((m, i) => {
-                    const prev = monthlyChartData[i - 1];
-                    const mom =
-                      prev && prev.revenue > 0
-                        ? ((m.revenue - prev.revenue) / prev.revenue) * 100
-                        : null;
-                    const margin =
-                      m.revenue > 0
-                        ? ((m.profit / m.revenue) * 100).toFixed(1)
-                        : null;
-                    return (
-                      <tr
-                        key={m.date}
-                        className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}`}
-                      >
-                        <td className="px-6 py-3 font-medium text-gray-700">
-                          {m.label}
-                        </td>
-                        <td className="px-6 py-3 text-right font-semibold text-indigo-700">
-                          {m.revenue > 0 ? (
-                            `Rp ${m.revenue.toLocaleString("id-ID")}`
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-3 text-right text-emerald-600 font-semibold">
-                          {m.profit > 0 ? (
-                            `Rp ${m.profit.toLocaleString("id-ID")}`
-                          ) : (
-                            <span className="text-gray-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          {margin !== null ? (
-                            <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold">
-                              {margin}%
-                            </span>
-                          ) : (
-                            <span className="text-gray-300 text-xs">—</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-3 text-right">
-                          {mom === null ? (
-                            <span className="text-gray-300 text-xs">—</span>
-                          ) : (
-                            <GrowthBadge value={mom} />
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-indigo-50 text-indigo-700">
+                    <tr>
+                      <th className="text-left px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                        Bulan
+                      </th>
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                        Pendapatan
+                      </th>
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
+                        Laba
+                      </th>
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
+                        Margin
+                      </th>
+                      <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
+                        vs Sebelumnya
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyChartData.map((m, i) => {
+                      const prev = monthlyChartData[i - 1];
+                      const mom =
+                        prev && prev.revenue > 0
+                          ? ((m.revenue - prev.revenue) / prev.revenue) * 100
+                          : null;
+                      const margin =
+                        m.revenue > 0
+                          ? ((m.profit / m.revenue) * 100).toFixed(1)
+                          : null;
+                      return (
+                        <tr
+                          key={m.date}
+                          className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}`}
+                        >
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 font-medium text-gray-700">
+                            {m.label}
+                          </td>
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-semibold text-indigo-700 whitespace-nowrap">
+                            {m.revenue > 0 ? (
+                              fmtCompact(m.revenue)
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right text-emerald-600 font-semibold whitespace-nowrap">
+                            {m.profit > 0 ? (
+                              fmtCompact(m.profit)
+                            ) : (
+                              <span className="text-gray-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right hidden sm:table-cell">
+                            {margin !== null ? (
+                              <span className="text-xs bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold">
+                                {margin}%
+                              </span>
+                            ) : (
+                              <span className="text-gray-300 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 sm:px-5 py-2 sm:py-3 text-right hidden sm:table-cell">
+                            {mom === null ? (
+                              <span className="text-gray-300 text-xs">—</span>
+                            ) : (
+                              <GrowthBadge value={mom} />
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -2947,13 +2969,27 @@ function HealthSection() {
             <table className="w-full text-sm">
               <thead className="bg-indigo-50 text-indigo-700">
                 <tr>
-                  <th className="text-left px-6 py-3">Tanggal</th>
-                  <th className="text-right px-6 py-3">Overall /100</th>
-                  <th className="text-right px-6 py-3">Pendapatan /25</th>
-                  <th className="text-right px-6 py-3">Margin /25</th>
-                  <th className="text-right px-6 py-3">Efisiensi /25</th>
-                  <th className="text-right px-6 py-3">Stabilitas /25</th>
-                  <th className="text-center px-6 py-3">Klasifikasi</th>
+                  <th className="text-left px-3 sm:px-5 py-2 sm:py-3">
+                    Tanggal
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3">
+                    Overall
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 hidden sm:table-cell">
+                    Pendapatan
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 hidden sm:table-cell">
+                    Margin
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 hidden sm:table-cell">
+                    Efisiensi
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 hidden sm:table-cell">
+                    Stabilitas
+                  </th>
+                  <th className="text-center px-3 sm:px-5 py-2 sm:py-3">
+                    Klasifikasi
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -2965,7 +3001,7 @@ function HealthSection() {
                       key={d.date}
                       className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-indigo-50/30"}`}
                     >
-                      <td className="px-6 py-2.5 font-medium text-gray-700">
+                      <td className="px-3 sm:px-5 py-2 font-medium text-gray-700 whitespace-nowrap">
                         {new Date(d.date).toLocaleDateString("id-ID", {
                           day: "numeric",
                           month: "short",
@@ -2973,22 +3009,22 @@ function HealthSection() {
                           timeZone: "Asia/Jakarta",
                         })}
                       </td>
-                      <td className="px-6 py-2.5 text-right font-bold text-indigo-700">
+                      <td className="px-3 sm:px-5 py-2 text-right font-bold text-indigo-700">
                         {d.overallScore.toFixed(1)}
                       </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
+                      <td className="px-3 sm:px-5 py-2 text-right text-gray-600 hidden sm:table-cell">
                         {d.revenueScore.toFixed(1)}
                       </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
+                      <td className="px-3 sm:px-5 py-2 text-right text-gray-600 hidden sm:table-cell">
                         {d.profitScore.toFixed(1)}
                       </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
+                      <td className="px-3 sm:px-5 py-2 text-right text-gray-600 hidden sm:table-cell">
                         {d.wasteScore.toFixed(1)}
                       </td>
-                      <td className="px-6 py-2.5 text-right text-gray-600">
+                      <td className="px-3 sm:px-5 py-2 text-right text-gray-600 hidden sm:table-cell">
                         {d.stabilityScore.toFixed(1)}
                       </td>
-                      <td className="px-6 py-2.5 text-center">
+                      <td className="px-3 sm:px-5 py-2 text-center">
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs font-semibold ${classColors(d.classification)}`}
                         >
@@ -3474,17 +3510,19 @@ function KasbonSection() {
             <table className="w-full text-sm">
               <thead className="bg-amber-50 text-amber-700">
                 <tr>
-                  <th className="text-left px-6 py-3 font-semibold">
+                  <th className="text-left px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                     Pelanggan
                   </th>
-                  <th className="text-left px-6 py-3 font-semibold">Telepon</th>
-                  <th className="text-right px-6 py-3 font-semibold">
+                  <th className="text-left px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
+                    Telepon
+                  </th>
+                  <th className="text-right px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                     Belum Lunas
                   </th>
-                  <th className="text-center px-6 py-3 font-semibold">
+                  <th className="text-center px-3 sm:px-5 py-2 sm:py-3 font-semibold hidden sm:table-cell">
                     Jatuh Tempo
                   </th>
-                  <th className="text-center px-6 py-3 font-semibold">
+                  <th className="text-center px-3 sm:px-5 py-2 sm:py-3 font-semibold">
                     Status
                   </th>
                 </tr>
@@ -3495,16 +3533,16 @@ function KasbonSection() {
                     key={i}
                     className={`border-b border-gray-50 ${i % 2 === 0 ? "bg-white" : "bg-amber-50/30"}`}
                   >
-                    <td className="px-6 py-3 font-semibold text-gray-800">
+                    <td className="px-3 sm:px-5 py-2 sm:py-3 font-semibold text-gray-800 truncate max-w-[120px] sm:max-w-none">
                       {d.customerName}
                     </td>
-                    <td className="px-6 py-3 text-gray-500">
+                    <td className="px-3 sm:px-5 py-2 sm:py-3 text-gray-500 hidden sm:table-cell">
                       {d.customerPhone ?? "—"}
                     </td>
-                    <td className="px-6 py-3 text-right font-bold text-amber-700">
-                      Rp {d.outstanding.toLocaleString("id-ID")}
+                    <td className="px-3 sm:px-5 py-2 sm:py-3 text-right font-bold text-amber-700 whitespace-nowrap">
+                      {fmtCompact(d.outstanding)}
                     </td>
-                    <td className="px-6 py-3 text-center text-gray-500">
+                    <td className="px-3 sm:px-5 py-2 sm:py-3 text-center text-gray-500 hidden sm:table-cell whitespace-nowrap">
                       {d.dueDate
                         ? new Date(d.dueDate).toLocaleDateString("id-ID", {
                             day: "numeric",
@@ -3514,10 +3552,12 @@ function KasbonSection() {
                           })
                         : "—"}
                     </td>
-                    <td className="px-6 py-3 text-center">
+                    <td className="px-3 sm:px-5 py-2 sm:py-3 text-center">
                       {d.isOverdue ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-xs font-semibold">
-                          <AlertTriangle className="w-3 h-3" /> Jatuh Tempo
+                          <AlertTriangle className="w-3 h-3" />{" "}
+                          <span className="hidden sm:inline">Jatuh Tempo</span>
+                          <span className="sm:hidden">Late</span>
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">
