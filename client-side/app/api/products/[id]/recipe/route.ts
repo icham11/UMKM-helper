@@ -23,7 +23,14 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       include: {
         recipes: {
           include: {
-            ingredient: true,
+            ingredient: {
+              include: {
+                inventoryBatches: {
+                  where: { remainingQty: { gt: 0 } },
+                  select: { remainingQty: true },
+                },
+              },
+            },
           },
         },
       },
@@ -33,7 +40,16 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true, data: product.recipes });
+    // Compute currentStock (sum of active batch remainingQty) as a virtual field
+    const data = product.recipes.map((r) => ({
+      ...r,
+      ingredient: {
+        ...r.ingredient,
+        currentStock: r.ingredient.inventoryBatches.reduce((sum, b) => sum + Number(b.remainingQty), 0),
+      },
+    }));
+
+    return NextResponse.json({ success: true, data });
   } catch (error) {
     if (isAuthError(error)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

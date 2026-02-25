@@ -233,7 +233,7 @@ export default function ProfilePage() {
             <div className="p-2 sm:p-2.5 bg-linear-to-br from-violet-500 to-fuchsia-500 rounded-xl text-white">
               <User className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
-            Profil Saya
+            Profile
           </h1>
           <p className="text-gray-500 mt-1 text-sm">Kelola informasi akun dan keamanan Anda</p>
         </div>

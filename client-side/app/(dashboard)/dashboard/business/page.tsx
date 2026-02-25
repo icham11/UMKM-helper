@@ -631,7 +631,7 @@ export default function BusinessPage() {
             <div className="p-2 sm:p-2.5 bg-linear-to-br from-indigo-500 to-purple-500 rounded-xl text-white">
               <Building2 className="w-5 h-5 sm:w-7 sm:h-7" />
             </div>
-            Bisnis Saya
+            Business
           </h1>
           <p className="text-gray-500 mt-1 text-sm">Kelola informasi dan performa bisnis Anda</p>
         </div>

@@ -566,7 +566,7 @@ export default function ProductsPage() {
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
               <ShoppingBag className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
-              Produk
+              Products
             </h1>
             <p className="text-indigo-100 text-sm mt-1">Kelola produk dan resep bisnis Anda.</p>
           </div>

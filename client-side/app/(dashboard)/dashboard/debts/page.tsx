@@ -294,7 +294,7 @@ export default function DebtsPage() {
           <div className="p-2 sm:p-2.5 bg-linear-to-br from-amber-500 to-orange-500 rounded-xl text-white">
             <BookOpen className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
-          Kasbon (Piutang)
+          Kasbon
         </h1>
         <p className="text-gray-500 mt-1 text-sm">Catat dan kelola piutang pelanggan. Bayar sebagian atau lunas.</p>
       </motion.div>

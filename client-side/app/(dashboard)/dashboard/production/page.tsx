@@ -1,7 +1,22 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Factory, Package, Plus, Loader2, AlertCircle, CheckCircle2, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
+import {
+  Factory,
+  Package,
+  Plus,
+  Minus,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  RefreshCw,
+  X,
+  ChefHat,
+  Boxes,
+  Coins,
+  AlertTriangle,
+} from "lucide-react";
 
 interface ReadyStockProduct {
   productId: number;
@@ -19,6 +34,17 @@ interface ProductionBatch {
   costPerUnit: string | number;
   producedAt: string;
   product: { id: number; name: string; sellingPrice: string | number };
+}
+
+interface RecipeItem {
+  id: number;
+  quantity: number | string;
+  ingredient: {
+    id: number;
+    name: string;
+    unit: string;
+    currentStock: number;
+  };
 }
 
 const formatRupiah = (val: number) =>
@@ -40,6 +66,8 @@ export default function ProductionPage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ReadyStockProduct | null>(null);
   const [produceQty, setProduceQty] = useState(1);
+  const [recipeItems, setRecipeItems] = useState<RecipeItem[]>([]);
+  const [recipeLoading, setRecipeLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -62,6 +90,19 @@ export default function ProductionPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (showModal && selectedProduct) {
+      setRecipeLoading(true);
+      fetch(`/api/products/${selectedProduct.productId}/recipe`, { credentials: "include" })
+        .then((r) => r.json())
+        .then((d) => setRecipeItems(d.data ?? []))
+        .catch(() => setRecipeItems([]))
+        .finally(() => setRecipeLoading(false));
+    } else {
+      setRecipeItems([]);
+    }
+  }, [showModal, selectedProduct]);
 
   const handleProduce = async () => {
     if (!selectedProduct || produceQty <= 0) return;
@@ -100,7 +141,7 @@ export default function ProductionPage() {
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
             <Factory className="w-5 h-5 sm:w-7 sm:h-7 shrink-0" />
-            Produksi
+            Production
           </h1>
           <p className="text-indigo-100 text-sm mt-1">
             Kelola produksi produk Ready Stock. Bahan baku dikurangi saat diproduksi.
@@ -295,55 +336,282 @@ export default function ProductionPage() {
 
       {/* Produce Modal */}
       {showModal && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-4 sm:p-6">
-            <h3 className="text-base sm:text-lg font-extrabold text-gray-900 mb-1">
-              Produksi: {selectedProduct.productName}
-            </h3>
-            <p className="text-xs text-gray-500 mb-5">Bahan baku akan dikurangi otomatis sesuai resep produk.</p>
+        <ProduceModal
+          product={selectedProduct}
+          qty={produceQty}
+          setQty={setProduceQty}
+          recipeItems={recipeItems}
+          recipeLoading={recipeLoading}
+          producing={producing}
+          error={error}
+          onClose={() => {
+            setShowModal(false);
+            setError(null);
+          }}
+          onProduce={handleProduce}
+        />
+      )}
+    </div>
+  );
+}
 
-            <label className="block text-xs font-bold text-gray-600 uppercase mb-2">Jumlah Produksi</label>
-            <input
-              type="number"
-              min={1}
-              max={999}
-              value={produceQty}
-              onChange={(e) => setProduceQty(Math.max(1, Number(e.target.value)))}
-              className="w-full border border-indigo-200 rounded-xl px-4 py-3 text-lg font-bold text-gray-800 focus:ring-2 focus:ring-indigo-400 outline-none mb-2"
-            />
-            <p className="text-xs text-gray-400 mb-5">
-              Estimasi biaya: {formatRupiah(Number(selectedProduct.recipeCost) * produceQty)}
-            </p>
+/* =======================
+   PRODUCE MODAL
+======================= */
 
-            {error && (
-              <div className="flex items-center gap-2 bg-red-50 text-red-600 rounded-lg p-3 mb-4 text-xs">
-                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                {error}
+interface ProduceModalProps {
+  product: ReadyStockProduct;
+  qty: number;
+  setQty: (v: number) => void;
+  recipeItems: RecipeItem[];
+  recipeLoading: boolean;
+  producing: boolean;
+  error: string | null;
+  onClose: () => void;
+  onProduce: () => void;
+}
+
+function ProduceModal({
+  product,
+  qty,
+  setQty,
+  recipeItems,
+  recipeLoading,
+  producing,
+  error,
+  onClose,
+  onProduce,
+}: ProduceModalProps) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  if (typeof document === "undefined") return null;
+
+  const stockBadge =
+    product.availableStock <= 0
+      ? "bg-red-100 text-red-700 border-red-200"
+      : product.availableStock <= 5
+        ? "bg-amber-100 text-amber-700 border-amber-200"
+        : "bg-indigo-100 text-indigo-700 border-indigo-200";
+
+  const stockLabel = product.availableStock <= 0 ? "Habis" : product.availableStock <= 5 ? "Stok Rendah" : "Tersedia";
+
+  const canProduce = recipeItems.every((r) => (r.ingredient.currentStock ?? 0) >= Number(r.quantity) * qty);
+
+  return createPortal(
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-0 sm:p-4"
+      style={{ zIndex: 9999 }}
+      onMouseDown={(e) => e.target === overlayRef.current && onClose()}
+    >
+      <div className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full sm:max-w-lg max-h-[92dvh] flex flex-col overflow-hidden">
+        {/* Drag handle – mobile only */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between px-5 pt-3 pb-4 border-b border-gray-100 bg-linear-to-r from-indigo-50 to-violet-50 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-100 flex items-center justify-center shrink-0">
+              <Factory size={20} className="text-indigo-600" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-base font-extrabold text-slate-800 leading-tight truncate">{product.productName}</h2>
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                <span className="text-xs text-slate-500 font-medium">
+                  Harga: {formatRupiah(Number(product.sellingPrice))}
+                </span>
+                <span
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${stockBadge}`}
+                >
+                  {stockLabel}
+                </span>
               </div>
-            )}
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-full hover:bg-white/70 text-gray-400 transition shrink-0">
+            <X size={18} />
+          </button>
+        </div>
 
-            <div className="flex gap-3">
+        {/* Stats strip */}
+        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100 bg-white shrink-0">
+          <div className="flex flex-col items-center py-3 px-2 gap-0.5">
+            <Package size={13} className="text-indigo-400 mb-0.5" />
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide text-center">Stok Tersedia</p>
+            <p className="text-sm font-extrabold text-indigo-700">{product.availableStock}</p>
+            <p className="text-[9px] text-gray-400">unit</p>
+          </div>
+          <div className="flex flex-col items-center py-3 px-2 gap-0.5">
+            <Coins size={13} className="text-emerald-400 mb-0.5" />
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide text-center">Biaya Resep</p>
+            <p className="text-sm font-extrabold text-emerald-700 truncate max-w-full px-1 text-center">
+              {formatRupiah(Number(product.recipeCost))}
+            </p>
+          </div>
+          <div className="flex flex-col items-center py-3 px-2 gap-0.5">
+            <Coins size={13} className="text-violet-400 mb-0.5" />
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide text-center">Est. Biaya</p>
+            <p className="text-sm font-extrabold text-violet-700 truncate max-w-full px-1 text-center">
+              {formatRupiah(Number(product.recipeCost) * qty)}
+            </p>
+          </div>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-4 space-y-5">
+          {/* Quantity control */}
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Jumlah Produksi</p>
+            <div className="flex items-center justify-between gap-3 bg-indigo-50 rounded-2xl p-3">
               <button
-                onClick={() => {
-                  setShowModal(false);
-                  setError(null);
-                }}
-                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+                type="button"
+                onClick={() => setQty(Math.max(1, qty - 1))}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition shadow-sm active:scale-95"
+                disabled={qty <= 1}
               >
-                Batal
+                <Minus size={16} />
               </button>
+              <div className="flex-1 text-center">
+                <input
+                  type="number"
+                  min={1}
+                  max={999}
+                  value={qty}
+                  onChange={(e) => setQty(Math.max(1, Math.min(999, Number(e.target.value) || 1)))}
+                  className="w-full text-center text-2xl font-extrabold text-indigo-700 bg-transparent border-none outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <p className="text-[10px] text-indigo-400 font-semibold -mt-1">unit produksi</p>
+              </div>
               <button
-                onClick={handleProduce}
-                disabled={producing || produceQty <= 0}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition disabled:opacity-50"
+                type="button"
+                onClick={() => setQty(Math.min(999, qty + 1))}
+                className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition shadow-sm active:scale-95"
+                disabled={qty >= 999}
               >
-                {producing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Factory className="w-4 h-4" />}
-                Produksi {produceQty}x
+                <Plus size={16} />
               </button>
             </div>
           </div>
+
+          {/* Recipe ingredients */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <ChefHat size={13} className="text-gray-400" />
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Bahan Baku Resep</p>
+            </div>
+
+            {recipeLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 size={22} className="text-indigo-400 animate-spin" />
+              </div>
+            ) : recipeItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center bg-gray-50 rounded-2xl">
+                <Boxes size={28} className="text-gray-300" />
+                <p className="text-sm font-semibold text-gray-400">Belum ada resep</p>
+                <p className="text-xs text-gray-400">Tambahkan resep di halaman Products</p>
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {recipeItems.map((item) => {
+                  const required = Number(item.quantity) * qty;
+                  const available = item.ingredient.currentStock ?? 0;
+                  const enough = available >= required;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`rounded-2xl border p-3.5 ${
+                        enough ? "bg-gray-50 border-gray-100" : "bg-red-50 border-red-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{item.ingredient.name}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            Dibutuhkan:{" "}
+                            <span className="font-bold text-indigo-600">
+                              {required} {item.ingredient.unit}
+                            </span>
+                            <span className="text-gray-400">
+                              {" "}
+                              ({Number(item.quantity)} {item.ingredient.unit}/unit)
+                            </span>
+                          </p>
+                        </div>
+                        {!enough && <AlertTriangle size={15} className="text-red-500 shrink-0 mt-0.5" />}
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 bg-white rounded-xl px-3 py-1.5 border border-gray-100">
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Stok Tersedia</p>
+                          <p
+                            className={`text-sm font-extrabold mt-0.5 ${enough ? "text-emerald-600" : "text-red-600"}`}
+                          >
+                            {available}{" "}
+                            <span className="text-xs font-medium text-gray-400">{item.ingredient.unit}</span>
+                          </p>
+                        </div>
+                        <div className="flex-1 bg-white rounded-xl px-3 py-1.5 border border-gray-100">
+                          <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wide">Sisa Setelah</p>
+                          <p
+                            className={`text-sm font-extrabold mt-0.5 ${
+                              available - required >= 0 ? "text-slate-700" : "text-red-600"
+                            }`}
+                          >
+                            {available - required}{" "}
+                            <span className="text-xs font-medium text-gray-400">{item.ingredient.unit}</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-xs border border-red-200">
+              <AlertCircle size={14} className="mt-0.5 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          {/* Ingredient shortage warning */}
+          {!recipeLoading && recipeItems.length > 0 && !canProduce && (
+            <div className="flex items-start gap-2 bg-amber-50 text-amber-700 rounded-xl p-3 text-xs border border-amber-200">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              Bahan baku tidak mencukupi untuk jumlah produksi ini. Kurangi jumlah atau lakukan restock terlebih dahulu.
+            </div>
+          )}
+
+          {/* Bottom safe area */}
+          <div className="h-2 sm:h-0" />
         </div>
-      )}
-    </div>
+
+        {/* Footer actions */}
+        <div className="px-4 sm:px-5 py-4 border-t border-gray-100 bg-white shrink-0 flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-3 rounded-2xl border border-gray-200 text-gray-600 font-semibold text-sm hover:bg-gray-50 transition"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={onProduce}
+            disabled={producing || qty <= 0}
+            className="flex-2 flex items-center justify-center gap-2 px-6 py-3 bg-linear-to-r from-indigo-600 to-violet-600 text-white font-bold text-sm rounded-2xl hover:from-indigo-700 hover:to-violet-700 transition disabled:opacity-50 shadow-md shadow-indigo-200 min-w-0"
+            style={{ flex: 2 }}
+          >
+            {producing ? <Loader2 size={16} className="animate-spin" /> : <Factory size={16} />}
+            Produksi {qty}x
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

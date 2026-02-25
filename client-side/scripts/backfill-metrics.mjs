@@ -26,7 +26,7 @@ const pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
 
-const LOOKBACK_DAYS = 60; // Go back further to be safe
+const LOOKBACK_DAYS = 95; // Go back further to be safe
 
 async function main() {
   console.log(`🔄 Backfilling BusinessMetrics — last ${LOOKBACK_DAYS} days of Paid sales...\n`);

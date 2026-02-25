@@ -316,7 +316,7 @@ export default function StaffPage() {
           <div className="p-2 sm:p-2.5 bg-linear-to-br from-indigo-500 to-purple-500 rounded-xl text-white">
             <Users className="w-5 h-5 sm:w-7 sm:h-7" />
           </div>
-          Kelola Staff
+          Staff
         </h1>
         <p className="text-gray-500 mt-1 text-sm">Daftarkan kasir, atur bisnis penempatan, dan kelola tim Anda.</p>
       </motion.div>

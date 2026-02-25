@@ -237,7 +237,7 @@ export default function SalesHistoryPage() {
       <div className="bg-linear-to-br from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl p-4 sm:p-6 shadow-lg shadow-indigo-200/30">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-lg sm:text-2xl font-bold text-white">Riwayat Penjualan</h1>
+            <h1 className="text-lg sm:text-2xl font-bold text-white">Sales History</h1>
             <p className="text-indigo-200 text-xs sm:text-sm mt-0.5">Semua transaksi bisnis Anda</p>
           </div>
           <button
