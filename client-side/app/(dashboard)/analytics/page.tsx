@@ -3149,37 +3149,39 @@ function WasteSection() {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {/* Quick range filters */}
-        {SPECIAL_FILTERS.map((sf) => (
-          <button
-            key={sf.key}
-            onClick={() => fetchSpecial(sf.key)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer ${
-              specialFilter === sf.key
-                ? "bg-red-500 text-white shadow"
-                : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"
-            }`}
-          >
-            {sf.label}
-          </button>
-        ))}
-        {/* Divider */}
-        <span className="w-px h-5 bg-gray-200" />
-        {/* Calendar month filters — oldest first (left) to newest (right) */}
-        {MONTHS.map((m, i) => (
-          <button
-            key={i}
-            onClick={() => fetchMonth(i)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer ${
-              specialFilter === null && selected === i
-                ? "bg-red-500 text-white shadow"
-                : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"
-            }`}
-          >
-            {m.label}
-          </button>
-        ))}
+      <div className="-mx-1 px-1 overflow-x-auto pb-2 scrollbar-none">
+        <div className="flex items-center gap-2 w-max">
+          {/* Quick range filters */}
+          {SPECIAL_FILTERS.map((sf) => (
+            <button
+              key={sf.key}
+              onClick={() => fetchSpecial(sf.key)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer whitespace-nowrap ${
+                specialFilter === sf.key
+                  ? "bg-red-500 text-white shadow"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"
+              }`}
+            >
+              {sf.label}
+            </button>
+          ))}
+          {/* Divider */}
+          <span className="w-px h-5 bg-gray-200 shrink-0" />
+          {/* Calendar month filters — oldest first (left) to newest (right) */}
+          {MONTHS.map((m, i) => (
+            <button
+              key={i}
+              onClick={() => fetchMonth(i)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition cursor-pointer whitespace-nowrap ${
+                specialFilter === null && selected === i
+                  ? "bg-red-500 text-white shadow"
+                  : "bg-white border border-gray-200 text-gray-600 hover:bg-red-50"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
@@ -3192,7 +3194,7 @@ function WasteSection() {
           ))}
         </div>
       ) : data ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           <StatTile
             icon={Trash2}
             label="Qty Limbah"
