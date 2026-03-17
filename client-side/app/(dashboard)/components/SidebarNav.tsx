@@ -106,6 +106,18 @@ export default function SidebarNav() {
         <div>
           <p className="text-[10px] font-bold text-indigo-400/70 uppercase tracking-wider px-3 mb-1.5">Inventory</p>
           <SidebarLink
+            href="/bakery/dashboard"
+            icon={Factory}
+            label="Bakery"
+            active={isActive("/bakery/dashboard")}
+          />
+          <SidebarLink
+            href="/bakery/bookings"
+            icon={BookOpen}
+            label="Orders"
+            active={isActive("/bakery/bookings")}
+          />
+          <SidebarLink
             href="/dashboard/products"
             icon={Package}
             label="Products"

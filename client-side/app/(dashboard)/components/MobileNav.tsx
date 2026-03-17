@@ -225,6 +225,20 @@ export default function MobileNav({
                     Inventory
                   </p>
                   <NavLink
+                    href="/bakery/dashboard"
+                    icon={Factory}
+                    label="Bakery"
+                    active={isActive("/bakery/dashboard")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                  <NavLink
+                    href="/bakery/bookings"
+                    icon={BookOpen}
+                    label="Orders"
+                    active={isActive("/bakery/bookings")}
+                    onClick={() => setIsDrawerOpen(false)}
+                  />
+                  <NavLink
                     href="/dashboard/products"
                     icon={Package}
                     label="Products"

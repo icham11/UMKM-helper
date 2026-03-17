@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  turbopack: {
+    root: process.cwd(),
+  },
+
   // Allow Google profile images + ImageKit
   images: {
     remotePatterns: [
